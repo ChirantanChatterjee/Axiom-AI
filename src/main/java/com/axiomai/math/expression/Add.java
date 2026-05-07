@@ -1,0 +1,15 @@
+package com.axiomai.math.expression;
+
+public class Add implements Expr {
+    public final Expr left, right;
+
+    public Add(Expr left, Expr right) {
+        this.left = left;
+        this.right = right;
+    }
+
+    @Override
+    public String toString() {
+        return "(" + left + " + " + right + ")";
+    }
+}
