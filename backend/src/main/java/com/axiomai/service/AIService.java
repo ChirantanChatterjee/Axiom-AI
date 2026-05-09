@@ -1,21 +1,32 @@
 package com.axiomai.service;
 
-import com.axiomai.math.solver.MathSolver;
+import com.axiomai.api.response.MathResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+@Service
 public class AIService {
 
-    public String process(String userInput) {
+    @Autowired
+    private SymPyService symPyService;
+
+    public MathResponse process(String userInput) {
 
         try {
 
-            return MathSolver.solve(userInput);
+            return symPyService.solve(userInput);
 
         } catch (Exception e) {
 
             e.printStackTrace();
 
-            return "Something went wrong while processing.";
-
+            return new MathResponse(
+                    "error",
+                    "Something went wrong while processing.",
+                    "",
+                    null,
+                    null
+            );
         }
     }
 }

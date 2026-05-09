@@ -3,7 +3,9 @@ package com.axiomai.api.response;
 import java.util.List;
 import java.util.Map;
 
-public class ChatResponse {
+public class MathResponse {
+
+    private String type;
 
     private String result;
 
@@ -11,29 +13,39 @@ public class ChatResponse {
 
     private List<String> steps;
 
-    private String type;
-
     // =========================================
     // ADD THIS
     // =========================================
 
     private Map<String, Object> graph;
 
-    public ChatResponse() {
+    public MathResponse() {
     }
 
-    public ChatResponse(
+    public MathResponse(
+            String type,
             String result,
             String latex,
             List<String> steps,
-            String type,
             Map<String, Object> graph
     ) {
+        this.type = type;
         this.result = result;
         this.latex = latex;
         this.steps = steps;
-        this.type = type;
         this.graph = graph;
+    }
+
+    // =========================================
+    // GETTERS / SETTERS
+    // =========================================
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 
     public String getResult() {
@@ -58,14 +70,6 @@ public class ChatResponse {
 
     public void setSteps(List<String> steps) {
         this.steps = steps;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
     }
 
     // =========================================

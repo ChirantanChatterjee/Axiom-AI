@@ -1,90 +1,285 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* =======================================================
+   BODY
+======================================================= */
+
 body {
 
-  font-family: Inter, sans-serif;
+  font-family:
+    Inter,
+    sans-serif;
 
   background:
     linear-gradient(
-      135deg,
-      #d8f3dc,
-      #ffe8d6,
-      #fefae0
+      115deg,
+      #f5ede8 0%,
+      #f8f2ee 35%,
+      #f7f1ec 65%,
+      #efe3da 100%
     );
 
   overflow: hidden;
+
+  color: #3b2a21;
+
+  position: relative;
 }
+
+body::before {
+
+  content: "";
+
+  position: fixed;
+
+  inset: 0;
+
+  background:
+
+    radial-gradient(
+      circle at 8% 18%,
+      rgba(214,101,70,0.18),
+      transparent 26%
+    ),
+
+    radial-gradient(
+      circle at 18% 85%,
+      rgba(201,88,56,0.22),
+      transparent 28%
+    ),
+
+    radial-gradient(
+      circle at 88% 12%,
+      rgba(255,255,255,0.85),
+      transparent 30%
+    ),
+
+    radial-gradient(
+      circle at 92% 82%,
+      rgba(210,120,80,0.12),
+      transparent 25%
+    );
+
+  pointer-events: none;
+
+  z-index: -1;
+}
+
+/* =======================================================
+   APP
+======================================================= */
 
 .app {
 
   display: flex;
-  height: 100vh;
+
   width: 100vw;
+  height: 100vh;
 }
 
-/* SIDEBAR */
+/* =======================================================
+   SIDEBAR
+======================================================= */
 
 .sidebar {
 
-  width: 280px;
+  width: 360px;
 
-  background:
-    rgba(255,255,255,0.35);
-
-  backdrop-filter: blur(18px);
-
-  border-right:
-    1px solid rgba(255,255,255,0.4);
-
-  padding: 40px 30px;
+  padding: 48px 34px;
 
   position: relative;
 
   overflow: hidden;
+
+  background:
+    linear-gradient(
+      180deg,
+      #dd6b49 0%,
+      #cb5637 45%,
+      #b4462d 100%
+    );
+
+  box-shadow:
+    10px 0 45px rgba(120,40,20,0.12);
 }
 
-.sidebar h1 {
+/* =======================================================
+   STARS
+======================================================= */
 
-  font-size: 36px;
+.sidebar::before {
 
-  color: #4f6f52;
-
-  margin-bottom: 14px;
-
-  font-weight: 800;
-}
-
-.sidebar p {
-
-  color: #6b705c;
-
-  line-height: 1.6;
-}
-
-.sidebar-glow {
+  content: "";
 
   position: absolute;
 
-  width: 250px;
-  height: 250px;
+  inset: 0;
 
-  background: #ffd6a5;
+  background-image:
+    radial-gradient(
+      rgba(255,255,255,0.85) 1px,
+      transparent 1px
+    );
+
+  background-size: 90px 90px;
+
+  opacity: 0.12;
+
+  pointer-events: none;
+}
+
+/* =======================================================
+   SIDEBAR CONTENT
+======================================================= */
+
+.sidebar-content {
+
+  position: relative;
+
+  z-index: 5;
+}
+
+/* =======================================================
+   SUN
+======================================================= */
+
+.sidebar-sun {
+
+  position: absolute;
+
+  width: 74px;
+  height: 74px;
 
   border-radius: 50%;
 
-  filter: blur(90px);
+  background:
+    #ffe1b7;
 
-  bottom: -80px;
-  left: -80px;
+  left: 140px;
+  bottom: 270px;
 
-  opacity: 0.5;
+  box-shadow:
+    0 0 45px rgba(255,220,170,0.45);
+
+  z-index: 1;
 }
 
-/* CHAT */
+/* =======================================================
+   MOUNTAINS
+======================================================= */
+
+.mountain {
+
+  position: absolute;
+
+  bottom: 0;
+
+  width: 0;
+  height: 0;
+}
+
+/* BACK */
+
+.mountain-1 {
+
+  border-left: 220px solid transparent;
+  border-right: 220px solid transparent;
+  border-bottom: 180px solid rgba(255,255,255,0.08);
+
+  left: -140px;
+
+  z-index: 1;
+}
+
+/* MIDDLE */
+
+.mountain-2 {
+
+  border-left: 260px solid transparent;
+  border-right: 260px solid transparent;
+  border-bottom: 250px solid rgba(255,255,255,0.11);
+
+  left: -10px;
+
+  z-index: 2;
+}
+
+/* FRONT */
+
+.mountain-3 {
+
+  border-left: 240px solid transparent;
+  border-right: 240px solid transparent;
+  border-bottom: 145px solid rgba(120,35,20,0.18);
+
+  left: 80px;
+
+  z-index: 3;
+}
+
+/* =======================================================
+   AXIOM TITLE
+======================================================= */
+
+.sidebar h1 {
+
+  font-family:
+    Georgia,
+    serif;
+
+  font-size: 58px;
+
+  line-height: 1;
+
+  color: #fff8f2;
+
+  letter-spacing: -1px;
+
+  font-weight: 900;
+
+  text-shadow:
+    0 4px 0 rgba(120,40,20,0.18),
+    0 10px 28px rgba(0,0,0,0.20);
+
+  margin-bottom: 26px;
+
+  position: relative;
+
+  z-index: 5;
+}
+
+/* =======================================================
+   SUBTEXT
+======================================================= */
+
+.sidebar p {
+
+  line-height: 2;
+
+  color: rgba(255,248,240,0.96);
+
+  font-size: 14px;
+
+  letter-spacing: 2px;
+
+  text-transform: uppercase;
+
+  font-weight: 500;
+
+  position: relative;
+
+  z-index: 5;
+}
+
+/* =======================================================
+   CHAT CONTAINER
+======================================================= */
 
 .chat-container {
 
@@ -93,46 +288,78 @@ body {
   display: flex;
 
   flex-direction: column;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.72),
+      rgba(248,240,233,0.90)
+    );
 }
 
-/* HEADER */
+/* =======================================================
+   HEADER
+======================================================= */
 
 .chat-header {
 
-  height: 90px;
+  height: 115px;
 
   display: flex;
 
   align-items: center;
 
-  padding: 0 40px;
+  padding: 0 48px;
+
+  background:
+    rgba(255,255,255,0.58);
 
   backdrop-filter: blur(12px);
 
-  background:
-    rgba(255,255,255,0.25);
-
   border-bottom:
-    1px solid rgba(255,255,255,0.35);
+    1px solid rgba(220,150,120,0.12);
 }
+
+/* =======================================================
+   HEADER TITLE
+======================================================= */
 
 .chat-header h2 {
 
-  color: #4f6f52;
+  font-family:
+    Georgia,
+    serif;
 
-  font-size: 28px;
+  font-size: 62px;
 
-  margin-bottom: 5px;
+  color: #c55334;
+
+  letter-spacing: -2px;
+
+  font-weight: 900;
+
+  text-shadow:
+    0 5px 18px rgba(150,60,35,0.10);
+
+  margin-bottom: 6px;
 }
 
 .chat-header span {
 
-  color: #6b705c;
+  color: #d28066;
 
-  font-size: 14px;
+  font-size: 15px;
+
+  letter-spacing: 5px;
+
+  text-transform: uppercase;
+
+  font-weight: 600;
 }
 
-/* MESSAGES */
+/* =======================================================
+   MESSAGES
+======================================================= */
 
 .messages {
 
@@ -140,69 +367,183 @@ body {
 
   overflow-y: auto;
 
-  padding: 40px;
+  padding:
+    36px
+    48px;
 
   display: flex;
 
   flex-direction: column;
 
-  gap: 24px;
+  gap: 28px;
 }
+
+/* =======================================================
+   MESSAGE
+======================================================= */
 
 .message {
 
-  max-width: 70%;
+  width: 100%;
 
-  padding: 18px 24px;
+  display: flex;
+}
 
-  border-radius: 24px;
+.user {
+
+  justify-content: flex-end;
+}
+
+.ai {
+
+  justify-content: flex-start;
+}
+
+/* =======================================================
+   MESSAGE CONTENT
+======================================================= */
+
+.message-content {
+
+  width: 100%;
+
+  max-width: 1050px;
+
+  padding:
+    28px
+    34px;
+
+  border-radius: 32px;
 
   line-height: 1.8;
 
   font-size: 16px;
 
-  backdrop-filter: blur(14px);
-
-  box-shadow:
-    0 8px 30px rgba(0,0,0,0.05);
+  position: relative;
 }
 
-/* USER */
+/* =======================================================
+   USER CONTENT
+======================================================= */
 
-.user {
+.user .message-content {
 
-  align-self: flex-end;
+  width: fit-content;
+
+  max-width: 80%;
 
   background:
     linear-gradient(
       135deg,
-      #caffbf,
-      #9bf6ff
+      #dd6f4d,
+      #ca5636
     );
 
-  color: #355070;
+  color: white;
+
+  font-weight: 500;
+
+  box-shadow:
+    0 15px 40px rgba(190,80,40,0.20);
 }
 
-/* AI */
+/* =======================================================
+   AI CONTENT
+======================================================= */
 
-.ai {
-
-  align-self: flex-start;
+.ai .message-content {
 
   background:
-    rgba(255,255,255,0.45);
+    rgba(255,255,255,0.72);
 
   border:
-    1px solid rgba(255,255,255,0.4);
+    1px solid rgba(230,190,170,0.35);
 
-  color: #4f6f52;
+  box-shadow:
+    0 12px 35px rgba(180,120,90,0.08);
+
+  color: #3b2a21;
 }
 
-/* INPUT */
+/* =======================================================
+   INLINE RESPONSE
+======================================================= */
+
+.ai-inline-response {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 18px;
+}
+
+/* =======================================================
+   STEPS
+======================================================= */
+
+.math-step {
+
+  font-size: 16px;
+
+  line-height: 1.9;
+
+  color: #6a4331;
+}
+
+/* =======================================================
+   FINAL ANSWER
+======================================================= */
+
+.final-answer {
+
+  margin-top: 18px;
+
+  padding-top: 18px;
+
+  border-top:
+    1px solid rgba(210,170,150,0.35);
+
+  font-size: 26px;
+
+  font-weight: 700;
+
+  color: #c55334;
+}
+
+/* =======================================================
+   GRAPH
+======================================================= */
+
+.graph-container {
+
+  margin-top: 22px;
+
+  width: 100%;
+
+  border-radius: 28px;
+
+  overflow: hidden;
+
+  background:
+    rgba(255,252,249,0.88);
+
+  border:
+    1px solid rgba(230,190,170,0.35);
+
+  padding: 18px;
+
+  box-shadow:
+    0 10px 30px rgba(180,120,90,0.08);
+}
+
+/* =======================================================
+   INPUT AREA
+======================================================= */
 
 .input-area {
 
-  height: 100px;
+  height: 110px;
 
   display: flex;
 
@@ -210,72 +551,139 @@ body {
 
   gap: 18px;
 
-  padding: 20px 30px;
-
-  backdrop-filter: blur(14px);
+  padding:
+    22px
+    34px;
 
   background:
-    rgba(255,255,255,0.25);
+    rgba(255,255,255,0.60);
 
   border-top:
-    1px solid rgba(255,255,255,0.35);
+    1px solid rgba(220,170,140,0.15);
 }
+
+/* =======================================================
+   INPUT
+======================================================= */
 
 .input-area input {
 
   flex: 1;
 
-  height: 58px;
+  height: 64px;
 
   border: none;
 
   outline: none;
 
-  padding: 0 22px;
+  border-radius: 24px;
 
-  border-radius: 18px;
+  padding:
+    0 24px;
 
   background:
-    rgba(255,255,255,0.45);
+    rgba(255,255,255,0.95);
 
-  color: #355070;
+  color: #4a2d20;
 
   font-size: 16px;
 
-  backdrop-filter: blur(12px);
-}
+  border:
+    1px solid rgba(220,180,150,0.22);
 
-.input-area input::placeholder {
-
-  color: #7f8c8d;
-}
-
-.input-area button {
-
-  width: 58px;
-  height: 58px;
-
-  border: none;
-
-  border-radius: 18px;
-
-  cursor: pointer;
-
-  font-size: 22px;
-
-  color: white;
-
-  background:
-    linear-gradient(
-      135deg,
-      #84a98c,
-      #dda15e
-    );
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.03);
 
   transition: 0.25s;
 }
 
+.input-area input:focus {
+
+  border:
+    1px solid rgba(210,110,70,0.45);
+
+  box-shadow:
+    0 0 18px rgba(220,120,80,0.12);
+}
+
+.input-area input::placeholder {
+
+  color: #b08d7f;
+}
+
+/* =======================================================
+   BUTTON
+======================================================= */
+
+.input-area button {
+
+  width: 64px;
+  height: 64px;
+
+  border: none;
+
+  border-radius: 22px;
+
+  cursor: pointer;
+
+  color: white;
+
+  font-size: 22px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #dd6f4d,
+      #c34f30
+    );
+
+  box-shadow:
+    0 12px 30px rgba(190,80,40,0.24);
+
+  transition: all 0.25s ease;
+}
+
 .input-area button:hover {
 
-  transform: scale(1.06);
+  transform:
+    translateY(-2px)
+    scale(1.04);
+
+  box-shadow:
+    0 18px 40px rgba(190,80,40,0.32);
+}
+
+/* =======================================================
+   MATHJAX
+======================================================= */
+
+.MathJax {
+
+  font-size: 1em !important;
+}
+
+mjx-container {
+
+  font-size: 100% !important;
+
+  overflow-x: auto;
+
+  overflow-y: hidden;
+}
+
+/* =======================================================
+   SCROLLBAR
+======================================================= */
+
+::-webkit-scrollbar {
+
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+
+  background:
+    rgba(200,100,70,0.24);
+
+  border-radius: 10px;
 }

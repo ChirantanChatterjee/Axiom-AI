@@ -1,8 +1,9 @@
 package com.axiomai.api.controller;
 
 import com.axiomai.api.request.ChatRequest;
-import com.axiomai.api.response.ChatResponse;
-import com.axiomai.math.solver.MathSolver;
+import com.axiomai.api.response.MathResponse;
+import com.axiomai.service.AIService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -10,12 +11,16 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin("*")
 public class ChatController {
 
+    @Autowired
+    private AIService aiService;
+
     @PostMapping
-    public ChatResponse chat(@RequestBody ChatRequest request) {
+    public MathResponse chat(
+            @RequestBody ChatRequest request
+    ) {
 
-        String result =
-                MathSolver.solve(request.getMessage());
-
-        return new ChatResponse(result);
+        return aiService.process(
+                request.getMessage()
+        );
     }
 }
