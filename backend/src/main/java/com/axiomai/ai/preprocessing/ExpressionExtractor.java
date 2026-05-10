@@ -55,9 +55,16 @@ public class ExpressionExtractor {
         // Example:
         // "limit as x approaches 0 of sin(x)/x"
 
+//        Pattern limitPattern =
+//                Pattern.compile("of\\s+(.+)",
+//                        Pattern.CASE_INSENSITIVE);
+
         Pattern limitPattern =
-                Pattern.compile("of\\s+(.+)",
-                        Pattern.CASE_INSENSITIVE);
+                Pattern.compile(
+                        "of\\s+([a-zA-Z0-9+\\-*/^().\\s]+)",
+                        Pattern.CASE_INSENSITIVE
+                );
+
 
         Matcher m = limitPattern.matcher(text);
 

@@ -21,6 +21,7 @@ public class MathSolver {
         text = text.trim().toLowerCase();
 
         String intent = IntentClassifier.predict(text);
+
         System.out.println("DEBUG: Predicted intent = " + intent);
 
         switch (intent) {

@@ -67,7 +67,7 @@ function App() {
 
         sender: "ai",
 
-        text: response.data.text || "",
+        text: response.data.result || "",
 
         latex: response.data.latex || "",
 

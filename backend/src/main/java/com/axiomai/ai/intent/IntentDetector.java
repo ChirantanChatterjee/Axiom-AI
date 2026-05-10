@@ -54,28 +54,66 @@ public class IntentDetector {
 //        return false;
 //    }
 
+//    public static boolean isArithmetic(String text) {
+//
+//        text = text.toLowerCase();
+//
+//        // ONLY simple arithmetic expressions
+//
+//        if (text.matches("^\\s*\\d+\\s*[+\\-*/]\\s*\\d+\\s*$")) {
+//            return true;
+//        }
+//
+//        // Simple arithmetic keywords only
+//
+//        return text.contains("plus") ||
+//                text.contains("minus") ||
+//                text.contains("times") ||
+//                text.contains("multiplied by") ||
+//                text.contains("divided by") ||
+//                text.contains("addition") ||
+//                text.contains("subtraction") ||
+//                text.contains("multiplication") ||
+//                text.contains("division");
+//    }
+
     public static boolean isArithmetic(String text) {
 
-        text = text.toLowerCase();
+        text = text.toLowerCase().trim();
 
-        // ONLY simple arithmetic expressions
+        // =====================================================
+        // STRICT PURE EXPRESSIONS
+        // =====================================================
 
-        if (text.matches("^\\s*\\d+\\s*[+\\-*/]\\s*\\d+\\s*$")) {
+        if (text.matches(
+                "^[0-9().+\\-*/\\s]+$")) {
+
             return true;
         }
 
-        // Simple arithmetic keywords only
+        // =====================================================
+        // BASIC WORD ARITHMETIC
+        // =====================================================
 
-        return text.contains("plus") ||
-                text.contains("minus") ||
-                text.contains("times") ||
-                text.contains("multiplied by") ||
-                text.contains("divided by") ||
-                text.contains("addition") ||
-                text.contains("subtraction") ||
-                text.contains("multiplication") ||
-                text.contains("division");
+        return text.matches(
+                ".*\\d+\\s*(plus|minus|times|multiplied by|divided by)\\s*\\d+.*"
+        );
     }
+
+// =====================================================
+// GRAPH DETECTION
+// =====================================================
+
+    public static boolean isGraph(String text) {
+
+        text = text.toLowerCase();
+
+        return text.contains("plot") ||
+                text.contains("graph") ||
+                text.contains("draw") ||
+                text.contains("visualize");
+    }
+
 
     public static boolean isAdvancedMath(String text) {
 
