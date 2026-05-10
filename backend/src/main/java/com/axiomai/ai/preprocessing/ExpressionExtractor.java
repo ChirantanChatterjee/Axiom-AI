@@ -1,88 +1,96 @@
 package com.axiomai.ai.preprocessing;
 
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ExpressionExtractor {
 
-    // =====================================================
-    // EXPRESSION EXTRACTION
-    // =====================================================
+
+// =====================================================
+// GENERIC CLEANER
+// =====================================================
+
+    private static final String[] PHRASES = {
+
+            // derivatives
+            "find the derivative of",
+            "find derivative of",
+            "derivative of",
+            "differentiate",
+
+            // integrals
+            "find the integral of",
+            "find integral of",
+            "integral of",
+            "integrate",
+
+            // simplify
+            "simplify the expression",
+            "simplify",
+
+            // graph
+            "plot the graph of",
+            "show me the graph of",
+            "what is the graph of",
+            "graph of",
+            "plot",
+
+            // generic
+            "what is",
+            "what's",
+            "show me",
+            "can you",
+            "please"
+    };
+
+// =====================================================
+// MAIN EXTRACTION
+// =====================================================
 
     public static String extractExpression(String text) {
 
-        if (text == null) {
+        if (text == null || text.isBlank()) {
             return null;
         }
 
-        String lower = text.toLowerCase();
+        text = text.toLowerCase().trim();
 
-        // -------------------------------------------------
-        // DERIVATIVES / INTEGRALS
-        // -------------------------------------------------
+        // longest phrases first
+        Arrays.sort(
+                PHRASES,
+                (a, b) -> Integer.compare(
+                        b.length(),
+                        a.length()
+                )
+        );
 
-        String[] triggers = {
-                "differentiate",
-                "derivative of",
-                "integrate",
-                "integral of"
-        };
+        for (String p : PHRASES) {
 
-        for (String t : triggers) {
-
-            int idx = lower.indexOf(t);
-
-            if (idx != -1) {
-
-                String after =
-                        text.substring(idx + t.length()).trim();
-
-                after = after.replaceAll("with respect to x", "")
-                        .replaceAll("dx", "")
-                        .replaceAll("d x", "")
-                        .trim();
-
-                if (!after.isEmpty()) {
-                    return after;
-                }
-            }
+            text = text.replace(p, " ");
         }
 
-        // -------------------------------------------------
-        // LIMIT EXPRESSIONS
-        // -------------------------------------------------
+        // cleanup
+        text = text.replaceAll("y\\s*=", "");
+        text = text.replaceAll("with respect to x", "");
+        text = text.replaceAll("\\bdx\\b", "");
 
-        // Example:
-        // "limit as x approaches 0 of sin(x)/x"
+        text = text.replace("^", "^");
 
-//        Pattern limitPattern =
-//                Pattern.compile("of\\s+(.+)",
-//                        Pattern.CASE_INSENSITIVE);
+        text = text.replaceAll("\\s+", " ");
 
-        Pattern limitPattern =
-                Pattern.compile(
-                        "of\\s+([a-zA-Z0-9+\\-*/^().\\s]+)",
-                        Pattern.CASE_INSENSITIVE
-                );
+        text = text.trim();
 
-
-        Matcher m = limitPattern.matcher(text);
-
-        if (m.find()) {
-
-            String expr = m.group(1).trim();
-
-            if (!expr.isEmpty()) {
-                return expr;
-            }
+        if (text.isBlank()) {
+            return null;
         }
 
-        return null;
+        return text;
     }
 
-    // =====================================================
-    // LIMIT POINT EXTRACTION
-    // =====================================================
+// =====================================================
+// LIMIT POINT EXTRACTION
+// =====================================================
 
     public static String extractLimitPoint(String text) {
 
@@ -91,13 +99,6 @@ public class ExpressionExtractor {
         }
 
         String lower = text.toLowerCase();
-
-        // -------------------------------------------------
-        // x -> 0
-        // x → 0
-        // x approaches 0
-        // x tends to 0
-        // -------------------------------------------------
 
         Pattern p = Pattern.compile(
                 "(?:->|→|approaches|tends to)\\s*([a-zA-Z0-9+\\-\\.∞infinity]+)",

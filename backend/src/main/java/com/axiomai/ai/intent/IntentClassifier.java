@@ -1,6 +1,9 @@
 package com.axiomai.ai.intent;
 
 import com.axiomai.ai.neuralnetwork.NeuralNet;
+import com.axiomai.ai.preprocessing.MathNormalizer;
+import com.axiomai.service.Memory;
+
 import weka.classifiers.meta.FilteredClassifier;
 import weka.core.*;
 import weka.core.SerializationHelper;
@@ -32,6 +35,12 @@ public class IntentClassifier {
 
                     ).readObject();
 
+            System.out.println(
+                    "NN PATH = " +
+                            IntentClassifier.class
+                                    .getResource("/nn.model")
+            );
+
         } catch (Exception e) {
 
             nn = new NeuralNet();
@@ -39,6 +48,8 @@ public class IntentClassifier {
             System.out.println(
                     "NN model failed to load → fallback NN"
             );
+
+            e.printStackTrace();
         }
     }
 
@@ -127,42 +138,105 @@ public class IntentClassifier {
 
         try {
 
+            text = MathNormalizer.normalize(text);
+
             text = text.toLowerCase().trim();
 
-            // =================================================
-            // HARD RULE OVERRIDES
-            // =================================================
+            // =====================================================
+            // QUIZ FOLLOWUPS
+            // =====================================================
 
-            // ---------------------------------------------
-            // GRAPH
-            // ---------------------------------------------
+            if (Memory.awaitingQuizConfirmation) {
+
+                if (text.equals("yes") ||
+                        text.equals("another") ||
+                        text.equals("one more") ||
+                        text.equals("continue")) {
+
+                    return "QUIZ_CONTINUE";
+                }
+
+                if (text.equals("no") ||
+                        text.equals("stop") ||
+                        text.equals("quit")) {
+
+                    return "QUIZ_STOP";
+                }
+            }
+
+            // =====================================================
+            // HARD COMMAND ROUTING
+            // =====================================================
+
+            if (text.equals("math") ||
+                    text.equals("maths") ||
+                    text.equals("math solving") ||
+                    text.equals("solve math")) {
+
+                return "ARITHMETIC";
+            }
+
+            if (text.equals("quiz") ||
+                    text.equals("ask me something") ||
+                    text.equals("ask question") ||
+                    text.equals("can you ask me something")) {
+
+                return "ASK_QUESTION";
+            }
+
+            if (text.equals("graph plotting") ||
+                    text.equals("plot graph")) {
+
+                return "GRAPH";
+            }
+
+            // =====================================================
+            // BREAKDOWN SHORTCUTS
+            // =====================================================
+
+            if (
+
+                    text.equals("explain")
+
+                            ||
+
+                            text.equals("breakdown")
+
+                            ||
+
+                            text.equals("explain this")
+
+                            ||
+
+                            text.equals("how")
+
+                            ||
+
+                            text.equals("why")
+
+            ) {
+
+                return "BREAKDOWN";
+            }
+
+            // =====================================================
+            // HARD RULE ROUTING
+            // =====================================================
 
             if (IntentDetector.isGraph(text)) {
 
                 return "GRAPH";
             }
 
-            // ---------------------------------------------
-            // ADVANCED MATH
-            // ---------------------------------------------
-
             if (IntentDetector.isAdvancedMath(text)) {
 
                 return "ADVANCED_MATH";
             }
 
-            // ---------------------------------------------
-            // PURE ARITHMETIC
-            // ---------------------------------------------
-
             if (IntentDetector.isArithmetic(text)) {
 
                 return "ARITHMETIC";
             }
-
-            // ---------------------------------------------
-            // INVESTMENT ROUTING
-            // ---------------------------------------------
 
             if (IntentDetector.isInvestment(text)) {
 
@@ -184,9 +258,9 @@ public class IntentClassifier {
                 return "INVEST_SIMPLE";
             }
 
-            // =================================================
-            // WEKA PREDICTION
-            // =================================================
+            // =====================================================
+            // WEKA ROUTING
+            // =====================================================
 
             Instance inst =
                     new DenseInstance(2);
@@ -215,9 +289,9 @@ public class IntentClassifier {
                             java.util.Arrays.toString(dist)
             );
 
-            // =================================================
-            // CONFIDENCE METRICS
-            // =================================================
+            // =====================================================
+            // CONFIDENCE FEATURES
+            // =====================================================
 
             double top =
                     dist[(int) predIndex];
@@ -233,8 +307,7 @@ public class IntentClassifier {
                 }
             }
 
-            double gap =
-                    top - second;
+            double gap = top - second;
 
             double entropy = 0.0;
 
@@ -258,12 +331,7 @@ public class IntentClassifier {
                 }
             }
 
-            // =================================================
-            // NN CONFIDENCE
-            // =================================================
-
             double[] x = {
-
                     top,
                     second,
                     gap,
@@ -279,30 +347,59 @@ public class IntentClassifier {
                             .value((int) predIndex);
 
             System.out.println(
-                    "NN confidence = "
-                            + nnScore
+                    "NN confidence = " + nnScore
             );
 
             System.out.println(
-                    "Predicted intent = "
-                            + predictedIntent
+                    "Predicted intent = " +
+                            predictedIntent
             );
 
-            // =================================================
-            // HIGH CONFIDENCE
-            // =================================================
+            // =====================================================
+            // HYBRID CONFIDENCE ROUTING
+            // =====================================================
 
-            if (nnScore >= 0.30) {
+            // VERY HIGH CONFIDENCE
+            if (nnScore >= 0.75) {
+
+                System.out.println(
+                        "HIGH CONFIDENCE ROUTE"
+                );
 
                 return predictedIntent;
             }
 
-            // =================================================
-            // LOW CONFIDENCE
-            // =================================================
+            // MEDIUM CONFIDENCE
+            if (
 
+                    nnScore >= 0.45
+
+                            &&
+
+                            top >= 0.55
+
+            ) {
+
+                System.out.println(
+                        "MEDIUM CONFIDENCE ROUTE"
+                );
+
+                return predictedIntent;
+            }
+
+            // STRONG WEKA SIGNAL
+            if (top >= 0.80) {
+
+                System.out.println(
+                        "WEKA STRONG SIGNAL ROUTE"
+                );
+
+                return predictedIntent;
+            }
+
+            // LOW CONFIDENCE
             System.out.println(
-                    "Low confidence → OTHER"
+                    "LOW CONFIDENCE → OTHER"
             );
 
             return "OTHER";

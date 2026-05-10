@@ -1,18 +1,28 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
+import sympy as sp
 from sympy import *
 from sympy import latex
 from sympy import lambdify
 
+import re
+import numpy as np
+
 from sympy.parsing.sympy_parser import (
     parse_expr,
     standard_transformations,
-    implicit_multiplication_application
+    implicit_multiplication_application,
+    convert_xor
 )
 
-import numpy as np
+# =========================================================
+# APP
+# =========================================================
 
 app = Flask(__name__)
+
+CORS(app)
 
 # =========================================================
 # SYMBOLS
@@ -21,19 +31,230 @@ app = Flask(__name__)
 x, y, z = symbols('x y z')
 
 # =========================================================
-# SMART PARSER
+# TRANSFORMATIONS
 # =========================================================
 
 transformations = (
         standard_transformations +
-        (implicit_multiplication_application,)
+        (
+            implicit_multiplication_application,
+            convert_xor
+        )
 )
 
 # =========================================================
-# STEP GENERATORS
+# LOCAL DICT
 # =========================================================
 
-def generate_derivative_steps(expr, result):
+local_dict = {
+
+    "x": x,
+    "y": y,
+    "z": z,
+
+    "sin": sin,
+    "cos": cos,
+    "tan": tan,
+
+    "asin": asin,
+    "acos": acos,
+    "atan": atan,
+
+    "log": log,
+    "ln": log,
+
+    "sqrt": sqrt,
+    "exp": exp,
+
+    "pi": pi,
+    "e": E
+}
+
+# =========================================================
+# NLP NORMALIZATION
+# =========================================================
+
+def normalize_nlp_math(text):
+
+    text = text.lower()
+
+    replacements = {
+
+        "squared": "^2",
+        "cubed": "^3",
+
+        "plus": "+",
+        "minus": "-",
+
+        "multiplied by": "*",
+        "times": "*",
+
+        "divided by": "/",
+
+        "to the power of": "^",
+
+        "equals": "="
+    }
+
+    for k, v in replacements.items():
+
+        text = text.replace(k, v)
+
+    # =====================================================
+    # REMOVE EXTRA SPACES
+    # =====================================================
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    ).strip()
+
+    # =====================================================
+    # x ^2 -> x^2
+    # =====================================================
+
+    text = re.sub(
+        r'([a-zA-Z])\s*\^\s*(\d+)',
+        r'\1^\2',
+        text
+    )
+
+    # =====================================================
+    # 5x -> 5*x
+    # =====================================================
+
+    text = re.sub(
+        r'(\d)([a-zA-Z])',
+        r'\1*\2',
+        text
+    )
+
+    return text
+
+# =========================================================
+# CLEANER
+# =========================================================
+
+def clean_expression_text(text):
+
+    text = normalize_nlp_math(text)
+
+    text = text.lower().strip()
+
+    garbage = [
+
+        # SOLVE
+        "solve for x",
+        "solve equation",
+        "solve",
+
+        # GRAPH
+        "what is the graph of",
+        "plot the graph of",
+        "show the graph of",
+        "show graph of",
+        "plot graph of",
+        "graph of",
+
+        # DERIVATIVE
+        "find the derivative of",
+        "find derivative of",
+        "derivative of",
+
+        # INTEGRAL
+        "find the integral of",
+        "find integral of",
+        "integral of",
+
+        # SIMPLIFY
+        "simplify the expression",
+
+        # GENERIC NLP
+        "what is",
+        "what's",
+        "what are",
+
+        "can you",
+        "could you",
+        "would you",
+
+        "please",
+
+        "show me",
+        "tell me",
+        "give me",
+        "help me",
+
+        # COMMANDS
+        "differentiate",
+        "integrate",
+        "simplify",
+
+        "graph",
+        "plot",
+        "draw",
+        "visualize",
+
+        "the"
+    ]
+
+    garbage.sort(
+        key=len,
+        reverse=True
+    )
+
+    for phrase in garbage:
+
+        escaped = re.escape(phrase)
+
+        text = re.sub(
+            rf"\b{escaped}\b",
+            " ",
+            text
+        )
+
+    text = text.replace("^", "**")
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
+
+    return text.strip()
+
+# =========================================================
+# EQUATION STEPS
+# =========================================================
+
+def solve_equation_steps(eq, solutions):
+
+    steps = []
+
+    steps.append(
+        rf"{latex(eq.lhs)} = {latex(eq.rhs)}"
+    )
+
+    steps.append(
+        r"\text{Solving equation for } x"
+    )
+
+    sol_text = ", ".join(
+        [latex(s) for s in solutions]
+    )
+
+    steps.append(
+        rf"\text{{Solutions: }} {sol_text}"
+    )
+
+    return steps
+
+# =========================================================
+# DERIVATIVE STEPS
+# =========================================================
+
+def derivative_steps(expr, result):
 
     steps = []
 
@@ -46,39 +267,15 @@ def generate_derivative_steps(expr, result):
 
     expr_str = str(expr)
 
-    # -----------------------------------------------------
-    # CHAIN RULE
-    # -----------------------------------------------------
-
-    if "sin" in expr_str and "**" in expr_str:
-
-        steps.append(
-            r"\text{Detected composite trigonometric expression.}"
-        )
-
-        steps.append(
-            r"\text{Applying chain rule: } "
-            r"\frac{d}{dx}[\sin(u)] = \cos(u)\frac{du}{dx}"
-        )
-
-    # -----------------------------------------------------
-    # PRODUCT RULE
-    # -----------------------------------------------------
-
     if "*" in expr_str:
 
         steps.append(
-            r"\text{Detected multiplication.}"
+            r"\text{Detected multiplication. Applying product rule.}"
         )
 
         steps.append(
-            r"\text{Applying product rule: } "
             r"(uv)' = u'v + uv'"
         )
-
-    # -----------------------------------------------------
-    # POWER RULE
-    # -----------------------------------------------------
 
     if "**" in expr_str:
 
@@ -86,14 +283,20 @@ def generate_derivative_steps(expr, result):
             r"\text{Applying power rule where needed.}"
         )
 
-    # -----------------------------------------------------
-    # EXPONENTIAL
-    # -----------------------------------------------------
+        steps.append(
+            r"\frac{d}{dx}(x^n)=nx^{n-1}"
+        )
 
-    if "exp" in expr_str or "e**" in expr_str:
+    if "sin" in expr_str:
 
         steps.append(
-            r"\text{Detected exponential function.}"
+            r"\frac{d}{dx}(\sin x)=\cos x"
+        )
+
+    if "cos" in expr_str:
+
+        steps.append(
+            r"\frac{d}{dx}(\cos x)=-\sin x"
         )
 
     steps.append(
@@ -103,8 +306,10 @@ def generate_derivative_steps(expr, result):
     return steps
 
 # =========================================================
+# INTEGRAL STEPS
+# =========================================================
 
-def generate_integral_steps(expr, result):
+def integral_steps(expr, result):
 
     steps = []
 
@@ -117,47 +322,32 @@ def generate_integral_steps(expr, result):
 
     expr_str = str(expr)
 
-    # -----------------------------------------------------
-    # POLYNOMIAL
-    # -----------------------------------------------------
-
     if "**" in expr_str:
 
         steps.append(
-            r"\text{Detected polynomial/power expression.}"
+            r"\text{Applying power rule for integration.}"
         )
 
         steps.append(
-            r"\text{Applying power rule for integration: } "
             r"\int x^n dx = \frac{x^{n+1}}{n+1}"
         )
-
-    # -----------------------------------------------------
-    # TRIG
-    # -----------------------------------------------------
 
     if "sin" in expr_str:
 
         steps.append(
-            r"\text{Using identity: } "
             r"\int \sin(x)\,dx = -\cos(x)"
         )
 
     if "cos" in expr_str:
 
         steps.append(
-            r"\text{Using identity: } "
             r"\int \cos(x)\,dx = \sin(x)"
         )
 
-    # -----------------------------------------------------
-    # EXPONENTIAL
-    # -----------------------------------------------------
-
-    if "exp" in expr_str or "e**" in expr_str:
+    if "exp" in expr_str:
 
         steps.append(
-            r"\text{Detected exponential expression.}"
+            r"\int e^x dx = e^x"
         )
 
     steps.append(
@@ -167,8 +357,10 @@ def generate_integral_steps(expr, result):
     return steps
 
 # =========================================================
+# SIMPLIFY STEPS
+# =========================================================
 
-def generate_simplify_steps(expr, result):
+def simplify_steps(expr, result):
 
     steps = []
 
@@ -179,56 +371,22 @@ def generate_simplify_steps(expr, result):
         rf"{expr_latex}"
     )
 
-    expr_str = str(expr)
+    if simplify(expr) == 1:
 
-    # -----------------------------------------------------
-    # TRIG IDENTITY
-    # -----------------------------------------------------
-
-    if "sin" in expr_str and "cos" in expr_str:
-
-        simplified_check = simplify(expr)
-
-        if simplified_check == 1:
-
-            steps.append(
-                r"\text{Using Pythagorean identity:}"
-            )
-
-            steps.append(
-                r"\sin^2(x) + \cos^2(x) = 1"
-            )
-
-    # -----------------------------------------------------
-    # FACTORIZATION
-    # -----------------------------------------------------
+        steps.append(
+            r"\sin^2(x)+\cos^2(x)=1"
+        )
 
     factored = factor(expr)
 
     if factored != expr:
 
         steps.append(
-            r"\text{Expression can be factorized symbolically.}"
+            r"\text{Factorized form:}"
         )
 
         steps.append(
             rf"{latex(factored)}"
-        )
-
-    # -----------------------------------------------------
-    # EXPANSION
-    # -----------------------------------------------------
-
-    expanded = expand(expr)
-
-    if expanded != expr:
-
-        steps.append(
-            r"\text{Expanded algebraic form:}"
-        )
-
-        steps.append(
-            rf"{latex(expanded)}"
         )
 
     steps.append(
@@ -238,38 +396,80 @@ def generate_simplify_steps(expr, result):
     return steps
 
 # =========================================================
-# GRAPH GENERATOR
+# GRAPH
 # =========================================================
 
 def generate_graph(expr):
 
     try:
 
-        func = lambdify(x, expr, "numpy")
+        expr_str = str(expr)
 
-        x_vals = np.linspace(-10, 10, 500)
+        if "log" in expr_str or "ln" in expr_str:
+
+            x_vals = np.linspace(
+                0.1,
+                10,
+                2000
+            )
+
+        elif "tan" in expr_str:
+
+            x_vals = np.linspace(
+                -2 * np.pi,
+                2 * np.pi,
+                4000
+            )
+
+        else:
+
+            x_vals = np.linspace(
+                -10,
+                10,
+                2000
+            )
+
+        func = lambdify(
+            x,
+            expr,
+            "numpy"
+        )
 
         y_vals = func(x_vals)
 
-        x_list = x_vals.tolist()
+        cleaned_x = []
+        cleaned_y = []
 
-        y_list = []
-
-        for val in y_vals:
+        for xv, yv in zip(x_vals, y_vals):
 
             try:
 
-                if np.isfinite(val):
-                    y_list.append(float(val))
-                else:
-                    y_list.append(None)
+                if not np.isfinite(yv):
+
+                    cleaned_x.append(float(xv))
+                    cleaned_y.append(None)
+
+                    continue
+
+                if abs(yv) > 100:
+
+                    cleaned_x.append(float(xv))
+                    cleaned_y.append(None)
+
+                    continue
+
+                cleaned_x.append(float(xv))
+                cleaned_y.append(float(yv))
 
             except:
-                y_list.append(None)
+
+                cleaned_x.append(float(xv))
+                cleaned_y.append(None)
 
         return {
-            "x": x_list,
-            "y": y_list
+
+            "x": cleaned_x,
+            "y": cleaned_y
         }
 
     except Exception as e:
@@ -287,30 +487,102 @@ def solve():
 
     data = request.json
 
-    problem = data.get("problem", "")
+    problem = data.get(
+        "problem",
+        ""
+    )
 
     try:
 
-        lower = problem.lower()
+        # =====================================================
+        # IMPORTANT NORMALIZATION
+        # =====================================================
+
+        normalized_problem = normalize_nlp_math(problem)
+
+        lower = normalized_problem.lower()
+
+        # =====================================================
+        # EQUATION SOLVER
+        # =====================================================
+
+        if "=" in lower:
+
+            expr_text = clean_expression_text(
+                normalized_problem
+            )
+
+            print("SOLVE EXPR =", expr_text)
+
+            left, right = expr_text.split("=")
+
+            lhs = parse_expr(
+                left,
+                transformations=transformations,
+                local_dict=local_dict
+            )
+
+            rhs = parse_expr(
+                right,
+                transformations=transformations,
+                local_dict=local_dict
+            )
+
+            eq = Eq(lhs, rhs)
+
+            solutions = sp.solve(eq, x)
+
+            solution_text = ", ".join(
+                [str(s) for s in solutions]
+            )
+
+            return jsonify({
+
+                "type": "equation",
+
+                "result": solution_text,
+
+                "latex": ", ".join(
+                    [latex(s) for s in solutions]
+                ),
+
+                "steps": solve_equation_steps(
+                    eq,
+                    solutions
+                ),
+
+                "graph": None
+            })
 
         # =====================================================
         # GRAPH
         # =====================================================
 
-        if "plot" in lower or "graph" in lower:
+        elif (
+                "plot" in lower or
+                "graph" in lower or
+                "draw" in lower or
+                "visualize" in lower
+        ):
 
-            expr_text = (
-                lower.replace("plot", "")
-                .replace("graph", "")
-                .strip()
+            expr_text = clean_expression_text(
+                normalized_problem
             )
 
-            expr_text = expr_text.replace("^", "**")
+            print("\n========================")
+            print("GRAPH REQUEST")
+            print("========================")
+
+            print("ORIGINAL =", problem)
+            print("CLEANED =", expr_text)
 
             expr = parse_expr(
                 expr_text,
-                transformations=transformations
+                transformations=transformations,
+                local_dict=local_dict
             )
+
+            print("PARSED =", expr)
 
             graph_data = generate_graph(expr)
 
@@ -318,14 +590,14 @@ def solve():
 
                 "type": "graph",
 
-                "text": f"Plotting function: {expr_text}",
+                "result": f"Graph of {expr_text}",
 
                 "latex": latex(expr),
 
                 "graph": graph_data,
 
                 "steps": [
-                    rf"\text{{Plotting function: }} {latex(expr)}"
+                    rf"\text{{Plotting function }} {latex(expr)}"
                 ]
             })
 
@@ -333,28 +605,24 @@ def solve():
         # DERIVATIVE
         # =====================================================
 
-        elif "derivative" in lower or "differentiate" in lower:
+        elif (
+                "derivative" in lower or
+                "differentiate" in lower
+        ):
 
-            expr_text = (
-                lower.replace("find the derivative of", "")
-                .replace("derivative of", "")
-                .replace("differentiate", "")
-                .strip()
+            expr_text = clean_expression_text(
+                normalized_problem
             )
 
-            expr_text = expr_text.replace("^", "**")
+            print("DERIVATIVE EXPR =", expr_text)
 
             expr = parse_expr(
                 expr_text,
-                transformations=transformations
+                transformations=transformations,
+                local_dict=local_dict
             )
 
             result = diff(expr, x)
-
-            steps = generate_derivative_steps(
-                expr,
-                result
-            )
 
             return jsonify({
 
@@ -364,35 +632,36 @@ def solve():
 
                 "latex": latex(result),
 
-                "steps": steps
+                "steps": derivative_steps(
+                    expr,
+                    result
+                ),
+
+                "graph": None
             })
 
         # =====================================================
         # INTEGRAL
         # =====================================================
 
-        elif "integral" in lower or "integrate" in lower:
+        elif (
+                "integral" in lower or
+                "integrate" in lower
+        ):
 
-            expr_text = (
-                lower.replace("find the integral of", "")
-                .replace("integral of", "")
-                .replace("integrate", "")
-                .strip()
+            expr_text = clean_expression_text(
+                normalized_problem
             )
 
-            expr_text = expr_text.replace("^", "**")
+            print("INTEGRAL EXPR =", expr_text)
 
             expr = parse_expr(
                 expr_text,
-                transformations=transformations
+                transformations=transformations,
+                local_dict=local_dict
             )
 
             result = integrate(expr, x)
-
-            steps = generate_integral_steps(
-                expr,
-                result
-            )
 
             return jsonify({
 
@@ -402,20 +671,12 @@ def solve():
 
                 "latex": latex(result),
 
-                "steps": steps
-            })
+                "steps": integral_steps(
+                    expr,
+                    result
+                ),
 
-        # =====================================================
-        # LIMIT
-        # =====================================================
-
-        elif "limit" in lower:
-
-            return jsonify({
-
-                "type": "limit",
-
-                "result": "Limit support coming next."
+                "graph": None
             })
 
         # =====================================================
@@ -424,55 +685,60 @@ def solve():
 
         else:
 
-            expr_text = (
-                lower.replace("simplify", "")
-                .strip()
+            expr_text = clean_expression_text(
+                normalized_problem
             )
 
-            expr_text = expr_text.replace("^", "**")
+            print("SIMPLIFY EXPR =", expr_text)
 
             expr = parse_expr(
                 expr_text,
-                transformations=transformations
+                transformations=transformations,
+                local_dict=local_dict
             )
 
             simplified = simplify(expr)
-
-            result = factor(simplified)
-
-            steps = generate_simplify_steps(
-                expr,
-                result
-            )
 
             return jsonify({
 
                 "type": "expression",
 
-                "result": str(result),
+                "result": str(simplified),
 
-                "latex": latex(result),
+                "latex": latex(simplified),
 
-                "steps": steps
+                "steps": simplify_steps(
+                    expr,
+                    simplified
+                ),
+
+                "graph": None
             })
-
-    # =========================================================
-    # ERROR HANDLING
-    # =========================================================
 
     except Exception as e:
 
-        print("ERROR:", e)
+        print("\nERROR:", e)
 
         return jsonify({
 
-            "error": str(e)
+            "type": "error",
+
+            "result": "SymPy engine failed.",
+
+            "latex": "",
+
+            "steps": [str(e)],
+
+            "graph": None
         })
 
 # =========================================================
-# RUN SERVER
+# RUN
 # =========================================================
 
 if __name__ == '__main__':
 
-    app.run(port=5000)
+    app.run(
+        port=5000,
+        debug=True
+    )

@@ -4,22 +4,57 @@ import java.util.Random;
 
 public class GreetingResponder {
 
-    private static final Random rand = new Random();
+    private static final Random random =
+            new Random();
 
-    private static final String[] RESPONSES = {
-            "Hey! Good to see you.",
-            "Hello! Ready for some math?",
-            "Hi there — what’s on your mind?",
+    public static boolean
+            lastGreetingWasInteractive = false;
+
+    private static final String[]
+            interactiveGreetings = {
+
             "Hey! Want to try a question?",
-            "Hello! How can I help today?",
-            "Hi! I’m here and ready.",
-            "Heya! What shall we do?",
-            "Yo! Want to crunch some numbers?",
-            "Greetings! What would you like to explore?",
-            "Hey! I’m all ears."
+
+            "Hello! Want a quick math challenge?",
+
+            "Hi there! Want me to ask you something?",
+
+            "Hey! Ready for a math question?"
+    };
+
+    private static final String[]
+            normalGreetings = {
+
+            "Hello!",
+
+            "Hey there!",
+
+            "Greetings!",
+
+            "Hi! I'm ready to help."
     };
 
     public static String randomGreeting() {
-        return RESPONSES[rand.nextInt(RESPONSES.length)];
+
+        boolean interactive =
+                random.nextInt(100) < 70;
+
+        lastGreetingWasInteractive =
+                interactive;
+
+        if (interactive) {
+
+            return interactiveGreetings[
+                    random.nextInt(
+                            interactiveGreetings.length
+                    )
+                    ];
+        }
+
+        return normalGreetings[
+                random.nextInt(
+                        normalGreetings.length
+                )
+                ];
     }
 }

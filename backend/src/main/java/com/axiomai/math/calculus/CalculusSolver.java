@@ -4,222 +4,215 @@ import com.axiomai.ai.preprocessing.ExpressionExtractor;
 import com.axiomai.ai.preprocessing.SymbolicParser;
 import com.axiomai.math.expression.Expr;
 import com.axiomai.math.expression.Simplifier;
+import com.axiomai.service.Memory;
 
 public class CalculusSolver {
 
-    // =====================================================
-    // DERIVATIVES
-    // =====================================================
+
+// =====================================================
+// DERIVATIVE
+// =====================================================
 
     public static String solveDerivative(String text) {
 
-        System.out.println("DEBUG CALCULUS INPUT = " + text);
+        System.out.println(
+                "DEBUG CALCULUS INPUT = " + text
+        );
 
-        String exprText = ExpressionExtractor.extractExpression(text);
+        String exprText =
+                ExpressionExtractor.extractExpression(text);
 
-        System.out.println("DEBUG EXTRACTED EXPR = " + exprText);
+        System.out.println(
+                "DEBUG EXTRACTED EXPR = " + exprText
+        );
 
-        if (exprText == null) {
-            return "I couldn't see which function you want to differentiate.";
+        if (
+                exprText == null
+                        ||
+                        exprText.isBlank()
+        ) {
+
+            return """
+                I couldn't detect
+                the expression
+                to differentiate.
+                """;
         }
 
         try {
 
-            Expr expr = SymbolicParser.parse(exprText);
+            Expr expr =
+                    SymbolicParser.parse(exprText);
 
-            Expr derivative = Differentiator.d(expr);
+            Expr derivative =
+                    Differentiator.d(expr);
 
-            Expr simplified = Simplifier.simplify(derivative);
+            Expr simplified =
+                    Simplifier.simplify(derivative);
 
-            return "The derivative of " +
-                    exprText +
-                    " is:\n\n" +
-                    simplified;
+            String result =
+                    simplified.toString();
+
+            String answer =
+                    """
+                    The derivative of
+                    """ + exprText + """
+
+                is:
+
+                """ + result;
+
+            Memory.lastAnswer =
+                    answer;
+
+            Memory.lastBreakdown =
+                    StepGenerator.derivativeSteps(
+                            exprText,
+                            result
+                    );
+
+            return answer;
 
         } catch (Exception e) {
 
-            System.out.println("DERIVATIVE SOLVER ERROR: " + e.getMessage());
+            System.out.println(
+                    "DERIVATIVE ERROR: "
+                            + e.getMessage()
+            );
 
-            e.printStackTrace();
-
-            return "I couldn't parse the expression for differentiation.";
+            return """
+                Native derivative solver failed.
+                """;
         }
     }
 
-    // =====================================================
-    // INTEGRALS
-    // =====================================================
+// =====================================================
+// INTEGRAL
+// =====================================================
 
     public static String solveIntegral(String text) {
 
-        System.out.println("DEBUG CALCULUS INPUT = " + text);
+        System.out.println(
+                "DEBUG CALCULUS INPUT = " + text
+        );
 
-        String exprText = ExpressionExtractor.extractExpression(text);
+        String exprText =
+                ExpressionExtractor.extractExpression(text);
 
-        System.out.println("DEBUG EXTRACTED EXPR = " + exprText);
+        System.out.println(
+                "DEBUG EXTRACTED EXPR = " + exprText
+        );
 
-        if (exprText == null) {
-            return "I couldn't see which function you want to integrate.";
+        if (
+                exprText == null
+                        ||
+                        exprText.isBlank()
+        ) {
+
+            return """
+                I couldn't detect
+                the expression
+                to integrate.
+                """;
         }
 
         try {
 
-            Expr expr = SymbolicParser.parse(exprText);
+            Expr expr =
+                    SymbolicParser.parse(exprText);
 
-            Expr integral = Integrator.integrate(expr);
+            Expr integral =
+                    Integrator.integrate(expr);
 
-            Expr simplified = Simplifier.simplify(integral);
+            Expr simplified =
+                    Simplifier.simplify(integral);
 
-            return "An antiderivative of " +
-                    exprText +
-                    " is:\n\n" +
-                    simplified +
-                    " + C";
+            String result =
+                    simplified.toString();
 
-        } catch (UnsupportedOperationException u) {
+            String answer =
+                    """
+                    The integral of
+                    """ + exprText + """
 
-            return "I don't yet know how to integrate that expression symbolically.";
+                is:
+
+                """ + result + " + C";
+
+            Memory.lastAnswer =
+                    answer;
+
+            Memory.lastBreakdown =
+                    StepGenerator.integralSteps(
+                            exprText,
+                            result
+                    );
+
+            return answer;
 
         } catch (Exception e) {
 
-            System.out.println("INTEGRAL SOLVER ERROR: " + e.getMessage());
+            System.out.println(
+                    "INTEGRAL ERROR: "
+                            + e.getMessage()
+            );
 
-            e.printStackTrace();
-
-            return "I couldn't parse the expression for integration.";
+            return """
+                Native integral solver failed.
+                """;
         }
     }
 
-    // =====================================================
-    // LIMITS
-    // =====================================================
+// =====================================================
+// LIMIT
+// =====================================================
 
     public static String solveLimit(String text) {
 
-        System.out.println("DEBUG CALCULUS INPUT = " + text);
+        String expr =
+                ExpressionExtractor.extractExpression(text);
 
-        String exprText = ExpressionExtractor.extractExpression(text);
+        String point =
+                ExpressionExtractor
+                        .extractLimitPoint(text);
 
-        String pointText = ExpressionExtractor.extractLimitPoint(text);
-
-        System.out.println("DEBUG EXTRACTED EXPR = " + exprText);
-        System.out.println("DEBUG EXTRACTED LIMIT POINT = " + pointText);
-
-        if (exprText == null || pointText == null) {
-            return "I couldn't fully parse the limit expression and point.";
-        }
-
-        try {
-
-            String cleanedExpr =
-                    exprText.replaceAll("\\s+", "").toLowerCase();
-
-            String cleanedPoint =
-                    pointText.replaceAll("\\s+", "").toLowerCase();
-
-            // -------------------------------------------------
-            // CLASSIC TRIG LIMITS
-            // -------------------------------------------------
-
-            if (cleanedExpr.contains("sin(x)/x") &&
-                    cleanedPoint.equals("0")) {
-
-                return """
-                        lim(x→0) sin(x)/x = 1
-
-                        This is a standard trigonometric limit.
-                        """;
-            }
-
-            if (cleanedExpr.contains("tan(x)/x") &&
-                    cleanedPoint.equals("0")) {
-
-                return """
-                        lim(x→0) tan(x)/x = 1
-
-                        This is another classic trigonometric limit.
-                        """;
-            }
-
-            if (cleanedExpr.contains("(1-cos(x))/x") &&
-                    cleanedPoint.equals("0")) {
-
-                return """
-                        lim(x→0) (1-cos(x))/x = 0
-                        """;
-            }
-
-            // -------------------------------------------------
-            // EXPONENTIAL / LOG LIMITS
-            // -------------------------------------------------
-
-            if (cleanedExpr.contains("(e^x-1)/x") &&
-                    cleanedPoint.equals("0")) {
-
-                return """
-                        lim(x→0) (e^x - 1)/x = 1
-                        """;
-            }
-
-            if (cleanedExpr.contains("ln(1+x)/x") &&
-                    cleanedPoint.equals("0")) {
-
-                return """
-                        lim(x→0) ln(1+x)/x = 1
-                        """;
-            }
-
-            if (cleanedExpr.contains("(1+1/x)^x") &&
-                    cleanedPoint.contains("infinity")) {
-
-                return """
-                        lim(x→∞) (1 + 1/x)^x = e
-                        """;
-            }
-
-            // -------------------------------------------------
-            // POLYNOMIAL LIMITS
-            // -------------------------------------------------
-
-            if (!cleanedExpr.contains("/") &&
-                    cleanedPoint.matches("-?\\d+")) {
-
-                return """
-                        For polynomial functions,
-                        limits are usually evaluated
-                        using direct substitution.
-
-                        Full symbolic substitution
-                        engine is coming soon.
-                        """;
-            }
-
-            // -------------------------------------------------
-            // SYMBOLIC PARSE TEST
-            // -------------------------------------------------
-
-            Expr expr = SymbolicParser.parse(exprText);
+        if (
+                expr == null
+                        ||
+                        point == null
+        ) {
 
             return """
-                    I successfully parsed the limit expression:
-
-                    """ + exprText + """
-
-                    approaching:
-
-                    """ + pointText + """
-
-                    but advanced symbolic limit solving
-                    is still under development.
-                    """;
-
-        } catch (Exception e) {
-
-            System.out.println("LIMIT SOLVER ERROR: " + e.getMessage());
-
-            e.printStackTrace();
-
-            return "I couldn't solve the limit problem.";
+                I couldn't parse
+                the limit expression.
+                """;
         }
+
+        String answer =
+                """
+                Parsed limit expression:
+    
+                """ + expr + """
+
+            approaching:
+
+            """ + point;
+
+        Memory.lastAnswer =
+                answer;
+
+        Memory.lastBreakdown =
+                """
+                Limit breakdown:
+    
+                Expression:
+                """ + expr + """
+
+            Point:
+            """ + point;
+
+        return answer;
     }
+
+
 }
