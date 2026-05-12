@@ -22,7 +22,7 @@ function App() {
   const [messages, setMessages] = useState([
     {
       sender: "ai",
-      text: "Hello Chirantan 🌿 I am Axiom-AI."
+      text: "Hello Chirantan 🌿 I am Agent Infrastructure Foundation (AIF)."
     }
   ]);
 
@@ -114,10 +114,10 @@ function App() {
 
           <div className="sidebar-content">
 
-            <h1>Axiom•AI</h1>
+            <h1>AIF</h1>
 
             <p>
-              Intelligent Mathematical
+              Intelligent Infrastructure
               <br />
               Reasoning Engine
             </p>
@@ -146,7 +146,7 @@ function App() {
 
             <div>
 
-              <h2>Axiom AI Assistant</h2>
+              <h2>Agent Infrastructure Foundation</h2>
 
               <span>
                 Advanced Symbolic Mathematics
@@ -384,7 +384,7 @@ function App() {
                 setInput(e.target.value)
               }
 
-              placeholder="Ask Axiom-AI anything..."
+              placeholder="Ask AIF anything..."
 
               onKeyDown={(e) => {
 
