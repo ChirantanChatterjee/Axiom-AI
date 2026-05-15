@@ -1,8 +1,7 @@
 package com.axiomai.qa.generator.flow;
 
 import com.axiomai.qa.flow.DetectedFlow;
-import com.axiomai.qa.flow.FlowStep;
-
+import com.axiomai.qa.models.FlowStep;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;

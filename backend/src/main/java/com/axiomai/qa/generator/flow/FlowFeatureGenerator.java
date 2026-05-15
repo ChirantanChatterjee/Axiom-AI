@@ -1,8 +1,7 @@
 package com.axiomai.qa.generator.flow;
 
 import com.axiomai.qa.flow.DetectedFlow;
-import com.axiomai.qa.flow.FlowStep;
-import com.axiomai.qa.flow.FlowType;
+import com.axiomai.qa.models.FlowStep;
 
 import org.springframework.stereotype.Component;
 
@@ -22,7 +21,9 @@ public class FlowFeatureGenerator {
         StringBuilder feature =
                 new StringBuilder();
 
-        feature.append("Feature: AI Generated Flow Automation\n\n");
+        feature.append(
+                "Feature: AI Generated Flow Automation\n\n"
+        );
 
         for (DetectedFlow flow : flows) {
 
@@ -47,7 +48,9 @@ public class FlowFeatureGenerator {
 
         sb.append("  Scenario: ");
 
-        sb.append(buildScenarioName(flow));
+        sb.append(
+                buildScenarioName(flow)
+        );
 
         sb.append("\n");
 
@@ -63,22 +66,40 @@ public class FlowFeatureGenerator {
             String role =
                     step.getTarget();
 
-            if ("TYPE".equalsIgnoreCase(action)) {
+            if (
+                    "TYPE".equalsIgnoreCase(action)
+            ) {
 
-                sb.append("    When user enters \"Playwright Java\" into ")
-                        .append(role.toLowerCase())
+                sb.append(
+                                "    When user enters \"Playwright Java\" into "
+                        )
+
+                        .append(
+                                role.toLowerCase()
+                        )
+
                         .append("\n");
             }
 
-            if ("CLICK".equalsIgnoreCase(action)) {
+            if (
+                    "CLICK".equalsIgnoreCase(action)
+            ) {
 
-                sb.append("    And user clicks ")
-                        .append(role.toLowerCase())
+                sb.append(
+                                "    And user clicks "
+                        )
+
+                        .append(
+                                role.toLowerCase()
+                        )
+
                         .append("\n");
             }
         }
 
-        sb.append("    Then flow should complete successfully\n\n");
+        sb.append(
+                "    Then flow should complete successfully\n\n"
+        );
 
         return sb.toString();
     }
@@ -91,22 +112,43 @@ public class FlowFeatureGenerator {
             DetectedFlow flow
     ) {
 
-        FlowType type =
-                flow.getFlowType();
+        String flowType =
 
-        if (type == FlowType.SEARCH) {
+                flow.getFlowType() == null
+
+                        ? ""
+
+                        : flow.getFlowType()
+                        .toUpperCase();
+
+        if (
+                flowType.contains("SEARCH")
+        ) {
 
             return "User performs search";
         }
 
-        if (type == FlowType.LOGIN) {
+        if (
+                flowType.contains("LOGIN")
+        ) {
 
             return "User logs into application";
         }
 
-        if (type == FlowType.REGISTRATION) {
+        if (
+                flowType.contains("REGISTRATION")
+                        ||
+                        flowType.contains("SIGNUP")
+        ) {
 
             return "User registers into application";
+        }
+
+        if (
+                flowType.contains("FORM")
+        ) {
+
+            return "User submits form";
         }
 
         return "User performs generated flow";

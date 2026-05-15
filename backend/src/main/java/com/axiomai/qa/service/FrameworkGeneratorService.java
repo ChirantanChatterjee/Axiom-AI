@@ -1,7 +1,7 @@
 package com.axiomai.qa.service;
 
-import com.axiomai.qa.models.*;
-
+import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.qa.models.GeneratedFramework;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -41,15 +41,37 @@ public class FrameworkGeneratorService {
             List<DetectedFlow> flows
     ) {
 
-        return """
-Feature: Search functionality
+        StringBuilder builder =
+                new StringBuilder();
 
-  Scenario: User searches in Google
-    Given user launches "https://google.com"
-    When user enters "Playwright Java" into search field
-    And user clicks search button
-    Then search results should be displayed
-""";
+        builder.append(
+                "Feature: AI Generated Flow\n\n"
+        );
+
+        int scenarioCounter = 1;
+
+        for (DetectedFlow flow : flows) {
+
+            builder.append(
+                    "  Scenario: Generated Flow "
+                            + scenarioCounter++
+                            + "\n"
+            );
+
+            builder.append(
+                    "    Given user opens application\n"
+            );
+
+            builder.append(
+                    "    When user performs generated actions\n"
+            );
+
+            builder.append(
+                    "    Then flow should complete successfully\n\n"
+            );
+        }
+
+        return builder.toString();
     }
 
     // =====================================================
@@ -65,30 +87,18 @@ package com.axiomai.generated.pages;
 
 import com.microsoft.playwright.*;
 
-public class GooglePage {
+public class GeneratedPage {
 
     private final Page page;
 
-    private final Locator searchField;
-
-    private final Locator searchButton;
-
-    public GooglePage(Page page) {
+    public GeneratedPage(Page page) {
 
         this.page = page;
-
-        this.searchField =
-                page.locator("textarea#APjFqb");
-
-        this.searchButton =
-                page.locator("input[name='btnK']");
     }
 
-    public void search(String text) {
+    public Locator locate(String selector) {
 
-        searchField.fill(text);
-
-        searchButton.click();
+        return page.locator(selector);
     }
 }
 """;
@@ -109,9 +119,9 @@ import io.cucumber.java.en.*;
 
 import com.microsoft.playwright.*;
 
-import com.axiomai.generated.pages.GooglePage;
+import com.axiomai.generated.pages.GeneratedPage;
 
-public class GoogleSteps {
+public class GeneratedSteps {
 
     private static Playwright playwright;
 
@@ -119,10 +129,10 @@ public class GoogleSteps {
 
     private static Page page;
 
-    private GooglePage googlePage;
+    private GeneratedPage generatedPage;
 
-    @Given("user launches {string}")
-    public void userLaunches(String url) {
+    @Given("user opens application")
+    public void openApplication() {
 
         playwright = Playwright.create();
 
@@ -133,31 +143,26 @@ public class GoogleSteps {
                                         .setHeadless(false)
                         );
 
-        page = browser.newPage();
+        page =
+                browser.newPage();
 
-        page.navigate(url);
-
-        googlePage =
-                new GooglePage(page);
+        generatedPage =
+                new GeneratedPage(page);
     }
 
-    @When("user enters {string} into search field")
-    public void userSearches(String value) {
-
-        googlePage.search(value);
-    }
-
-    @When("user clicks search button")
-    public void userClicksSearchButton() {
-
-        // already handled
-    }
-
-    @Then("search results should be displayed")
-    public void resultsDisplayed() {
+    @When("user performs generated actions")
+    public void performActions() {
 
         System.out.println(
-                "Search completed successfully"
+                "Executing generated flow..."
+        );
+    }
+
+    @Then("flow should complete successfully")
+    public void flowComplete() {
+
+        System.out.println(
+                "Generated flow completed."
         );
 
         browser.close();

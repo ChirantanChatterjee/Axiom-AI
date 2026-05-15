@@ -1,18 +1,30 @@
 package com.axiomai.qa.flow;
 
+import com.axiomai.qa.models.FlowStep;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class DetectedFlow {
 
     // =====================================================
-    // FLOW INFO
+    // FLOW TYPE
     // =====================================================
 
-    private FlowType flowType;
+    private String flowType;
+
+    // =====================================================
+    // PAGE URL
+    // =====================================================
 
     private String pageUrl;
 
-    private List<FlowStep> steps;
+    // =====================================================
+    // STEPS
+    // =====================================================
+
+    private List<FlowStep> steps =
+            new ArrayList<>();
 
     // =====================================================
     // CONSTRUCTORS
@@ -22,7 +34,7 @@ public class DetectedFlow {
     }
 
     public DetectedFlow(
-            FlowType flowType,
+            String flowType,
             String pageUrl,
             List<FlowStep> steps
     ) {
@@ -36,12 +48,12 @@ public class DetectedFlow {
     // GETTERS / SETTERS
     // =====================================================
 
-    public FlowType getFlowType() {
+    public String getFlowType() {
         return flowType;
     }
 
     public void setFlowType(
-            FlowType flowType
+            String flowType
     ) {
 
         this.flowType = flowType;
@@ -67,5 +79,19 @@ public class DetectedFlow {
     ) {
 
         this.steps = steps;
+    }
+
+    // =====================================================
+    // DEBUG
+    // =====================================================
+
+    @Override
+    public String toString() {
+
+        return "DetectedFlow{" +
+                "flowType='" + flowType + '\'' +
+                ", pageUrl='" + pageUrl + '\'' +
+                ", steps=" + steps +
+                '}';
     }
 }

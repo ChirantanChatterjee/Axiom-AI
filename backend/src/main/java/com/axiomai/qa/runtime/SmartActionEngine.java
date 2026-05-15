@@ -1,5 +1,8 @@
 package com.axiomai.qa.runtime;
 
+import com.axiomai.runtime.locator.SmartLocatorResolver;
+import com.axiomai.runtime.model.ActionExecutionResult;
+import com.axiomai.runtime.wait.SmartWaitEngine;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 
@@ -11,7 +14,7 @@ public class SmartActionEngine {
     // SMART CLICK
     // =====================================================
 
-    public static void click(
+    public static ActionExecutionResult click(
 
             Page page,
             List<String> selectors
@@ -20,48 +23,95 @@ public class SmartActionEngine {
 
         int retries = 3;
 
-        while (retries > 0) {
+        int retryCounter = 0;
 
-            try {
+        long start =
+                System.currentTimeMillis();
 
-                Locator locator =
-                        SmartLocatorResolver.resolve(
-                                page,
-                                selectors
-                        );
+        for (String selector : selectors) {
 
-                locator.click();
+            retries = 3;
 
-                SmartWaitEngine.stabilize(page);
+            while (retries > 0) {
 
-                System.out.println(
-                        "CLICK SUCCESS"
-                );
+                try {
 
-                return;
+                    Locator locator =
+                            SmartLocatorResolver.resolve(
+                                    page,
+                                    List.of(selector)
+                            );
 
-            } catch (Exception e) {
+                    SmartWaitEngine
+                            .waitForElementReady(locator);
 
-                retries--;
+                    locator.click();
 
-                System.out.println(
-                        "CLICK RETRYING..."
-                );
+                    SmartWaitEngine
+                            .stabilizeDOM(page);
 
-                SmartWaitEngine.stabilize(page);
+                    System.out.println(
+                            "CLICK SUCCESS"
+                    );
+
+                    String strategy =
+                            selectors.indexOf(selector) == 0
+                                    ? "PRIMARY"
+                                    : "FALLBACK";
+
+                    return ActionExecutionResult
+                            .builder()
+                            .success(true)
+                            .locatorUsed(selector)
+                            .locatorStrategy(strategy)
+                            .retryCount(retryCounter)
+                            .durationMs(
+                                    System.currentTimeMillis()
+                                            - start
+                            )
+                            .fallbackUsed(
+                                    "FALLBACK".equals(strategy)
+                            )
+                            .healed(
+                                    "FALLBACK".equals(strategy)
+                            )
+                            .build();
+
+                } catch (Exception e) {
+
+                    retries--;
+
+                    retryCounter++;
+
+                    System.out.println(
+                            "CLICK RETRYING..."
+                    );
+
+                    SmartWaitEngine
+                            .stabilizeDOM(page);
+                }
             }
         }
 
-        throw new RuntimeException(
-                "SMART CLICK FAILED"
-        );
+        return ActionExecutionResult
+                .builder()
+                .success(false)
+                .errorMessage(
+                        "SMART CLICK FAILED"
+                )
+                .retryCount(retryCounter)
+                .durationMs(
+                        System.currentTimeMillis()
+                                - start
+                )
+                .build();
     }
 
     // =====================================================
     // SMART TYPE
     // =====================================================
 
-    public static void type(
+    public static ActionExecutionResult type(
 
             Page page,
             List<String> selectors,
@@ -71,40 +121,88 @@ public class SmartActionEngine {
 
         int retries = 3;
 
-        while (retries > 0) {
+        int retryCounter = 0;
 
-            try {
+        long start =
+                System.currentTimeMillis();
 
-                Locator locator =
-                        SmartLocatorResolver.resolve(
-                                page,
-                                selectors
-                        );
+        for (String selector : selectors) {
 
-                locator.fill(value);
+            retries = 3;
 
-                SmartWaitEngine.stabilize(page);
+            while (retries > 0) {
 
-                System.out.println(
-                        "TYPE SUCCESS"
-                );
+                try {
 
-                return;
+                    Locator locator =
+                            SmartLocatorResolver.resolve(
+                                    page,
+                                    List.of(selector)
+                            );
 
-            } catch (Exception e) {
+                    SmartWaitEngine
+                            .waitForElementReady(locator);
 
-                retries--;
+                    locator.fill(value);
 
-                System.out.println(
-                        "TYPE RETRYING..."
-                );
+                    SmartWaitEngine
+                            .stabilizeDOM(page);
 
-                SmartWaitEngine.stabilize(page);
+                    System.out.println(
+                            "TYPE SUCCESS"
+                    );
+
+                    String strategy =
+                            selectors.indexOf(selector) == 0
+                                    ? "PRIMARY"
+                                    : "FALLBACK";
+
+                    return ActionExecutionResult
+                            .builder()
+                            .success(true)
+                            .locatorUsed(selector)
+                            .locatorStrategy(strategy)
+                            .retryCount(retryCounter)
+                            .durationMs(
+                                    System.currentTimeMillis()
+                                            - start
+                            )
+                            .fallbackUsed(
+                                    "FALLBACK".equals(strategy)
+                            )
+                            .healed(
+                                    "FALLBACK".equals(strategy)
+                            )
+                            .build();
+
+                } catch (Exception e) {
+
+                    retries--;
+
+                    retryCounter++;
+
+                    System.out.println(
+                            "TYPE RETRYING..."
+                    );
+
+                    SmartWaitEngine
+                            .stabilizeDOM(page);
+                }
             }
         }
 
-        throw new RuntimeException(
-                "SMART TYPE FAILED"
-        );
+        return ActionExecutionResult
+                .builder()
+                .success(false)
+                .errorMessage(
+                        "SMART TYPE FAILED"
+                )
+                .retryCount(retryCounter)
+                .durationMs(
+                        System.currentTimeMillis()
+                                - start
+                )
+                .build();
     }
+
 }

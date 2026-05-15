@@ -1,11 +1,11 @@
 package com.axiomai.math.solver;
 
 import com.axiomai.ai.preprocessing.ExpressionExtractor;
+import com.axiomai.api.response.MathResponse;
 import com.axiomai.math.calculus.CalculusSolver;
 import com.axiomai.math.calculus.StepGenerator;
 import com.axiomai.service.Memory;
 import com.axiomai.service.SymPyService;
-import com.axiomai.api.response.MathResponse;
 
 public class AdvancedMathSolver {
 

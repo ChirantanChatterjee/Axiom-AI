@@ -1,7 +1,8 @@
 package com.axiomai.qa.service;
 
-import com.axiomai.qa.models.*;
-
+import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.qa.models.FlowStep;
+import com.axiomai.qa.models.GeneratedFeature;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -9,6 +10,10 @@ import java.util.List;
 
 @Service
 public class GherkinGeneratorService {
+
+    // =====================================================
+    // GENERATE MULTIPLE FEATURES
+    // =====================================================
 
     public List<GeneratedFeature> generateFeatures(
             List<DetectedFlow> flows
@@ -19,87 +24,98 @@ public class GherkinGeneratorService {
 
         for (DetectedFlow flow : flows) {
 
-            switch (flow.getFlowType()) {
+            GeneratedFeature feature =
+                    new GeneratedFeature();
 
-                case SEARCH:
+            feature.setFeatureName(
+                    flow.getFlowType()
+            );
 
-                    features.add(
-                            generateSearchFeature(flow)
-                    );
+            feature.setFeatureContent(
+                    buildFeature(flow)
+            );
 
-                    break;
-
-                case LOGIN:
-
-                    features.add(
-                            generateLoginFeature(flow)
-                    );
-
-                    break;
-
-                default:
-
-                    break;
-            }
+            features.add(feature);
         }
 
         return features;
     }
 
     // =====================================================
-    // SEARCH FEATURE
+    // SINGLE FEATURE
     // =====================================================
 
-    private GeneratedFeature generateSearchFeature(
-            DetectedFlow flow
+    public String generateFeature(
+            List<DetectedFlow> flows
     ) {
 
-        String gherkin =
-                """
-                Feature: Search functionality
+        StringBuilder builder =
+                new StringBuilder();
 
-                  Scenario: User performs search
-                    Given user launches "%s"
-                    When user enters "Playwright Java" into search field
-                    And user clicks search button
-                    Then search results should be displayed
-                """.formatted(
-                        flow.getPageUrl()
-                );
+        for (DetectedFlow flow : flows) {
 
-        return new GeneratedFeature(
-                "Search functionality",
-                "User performs search",
-                gherkin
-        );
+            builder.append(
+                    buildFeature(flow)
+            );
+
+            builder.append("\n\n");
+        }
+
+        return builder.toString();
     }
 
     // =====================================================
-    // LOGIN FEATURE
+    // BUILD FEATURE
     // =====================================================
 
-    private GeneratedFeature generateLoginFeature(
+    private String buildFeature(
             DetectedFlow flow
     ) {
 
-        String gherkin =
-                """
-                Feature: Login functionality
+        StringBuilder builder =
+                new StringBuilder();
 
-                  Scenario: Successful login
-                    Given user launches "%s"
-                    When user enters username
-                    And user enters password
-                    And user clicks login button
-                    Then dashboard should be displayed
-                """.formatted(
-                        flow.getPageUrl()
-                );
+        builder.append("Feature: ")
+                .append(flow.getFlowType())
+                .append("\n\n");
 
-        return new GeneratedFeature(
-                "Login functionality",
-                "Successful login",
-                gherkin
-        );
+        builder.append("  Scenario: Execute ")
+                .append(flow.getFlowType())
+                .append(" flow\n");
+
+        builder.append("    Given user launches \"")
+                .append(flow.getPageUrl())
+                .append("\"\n");
+
+        for (FlowStep step : flow.getSteps()) {
+
+            switch (
+                    step.getAction().toUpperCase()
+            ) {
+
+                case "TYPE" ->
+
+                        builder.append(
+                                        "    When user enters value into ")
+                                .append(step.getTarget())
+                                .append("\n");
+
+                case "CLICK" ->
+
+                        builder.append(
+                                        "    And user clicks ")
+                                .append(step.getTarget())
+                                .append("\n");
+
+                default ->
+
+                        builder.append(
+                                        "    Then validate ")
+                                .append(step.getTarget())
+                                .append("\n");
+            }
+        }
+
+        return builder.toString();
     }
 }

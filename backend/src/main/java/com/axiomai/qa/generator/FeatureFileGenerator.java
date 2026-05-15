@@ -2,9 +2,7 @@ package com.axiomai.qa.generator;
 
 import com.axiomai.qa.models.PageElement;
 import com.axiomai.qa.models.PageScanResult;
-
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;

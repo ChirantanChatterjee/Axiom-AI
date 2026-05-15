@@ -1,5 +1,6 @@
 package com.axiomai.qa.flow;
 
+import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.models.PageElement;
 
 import java.util.ArrayList;
@@ -17,6 +18,11 @@ public class FlowDetectionEngine {
             List<PageElement> elements
 
     ) {
+
+        System.out.println(
+                "ELEMENT COUNT = "
+                        + elements.size()
+        );
 
         List<DetectedFlow> flows =
                 new ArrayList<>();
@@ -211,7 +217,7 @@ public class FlowDetectionEngine {
 
             return new DetectedFlow(
 
-                    FlowType.LOGIN,
+                    "LOGIN",
                     url,
                     steps
             );
@@ -324,7 +330,7 @@ public class FlowDetectionEngine {
 
             return new DetectedFlow(
 
-                    FlowType.SEARCH,
+                    "SEARCH",
                     url,
                     steps
             );
@@ -459,7 +465,7 @@ public class FlowDetectionEngine {
 
             return new DetectedFlow(
 
-                    FlowType.FORM_SUBMISSION,
+                    "FORM_SUBMISSION",
                     url,
                     steps
             );

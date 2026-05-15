@@ -1,64 +1,66 @@
 package com.axiomai.qa.controller;
 
-import com.axiomai.qa.models.*;
-import com.axiomai.qa.service.*;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.qa.models.GeneratedFramework;
+import com.axiomai.qa.models.SiteMapResult;
+import com.axiomai.qa.service.FlowDetectionService;
+import com.axiomai.qa.service.FrameworkGeneratorService;
+import com.axiomai.qa.service.WebsiteCrawlerService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/qa")
-@CrossOrigin("*")
+@RequestMapping("/api/framework")
+
+@RequiredArgsConstructor
+
 public class FrameworkController {
 
-    @Autowired
-    private WebsiteCrawlerService crawlerService;
+    private final WebsiteCrawlerService
+            websiteCrawlerService;
 
-    @Autowired
-    private FlowDetectionService flowDetectionService;
+    private final FlowDetectionService
+            flowDetectionService;
 
-    @Autowired
-    private FrameworkGeneratorService frameworkGeneratorService;
-
-    @Autowired
-    private GeneratedProjectWriterService writerService;
+    private final FrameworkGeneratorService
+            frameworkGeneratorService;
 
     // =====================================================
     // GENERATE FRAMEWORK
     // =====================================================
 
-    @PostMapping("/generate-framework")
+    @PostMapping("/generate")
+
     public GeneratedFramework generateFramework(
-            @RequestBody ScanRequest request
+            @RequestParam String url
     ) {
 
+        // =================================================
+        // CRAWL WEBSITE
+        // =================================================
+
         SiteMapResult siteMap =
-                crawlerService.crawl(
-                        request.getUrl()
-                );
+                websiteCrawlerService
+                        .crawl(url);
+
+        // =================================================
+        // DETECT FLOWS
+        // =================================================
 
         List<DetectedFlow> flows =
-                flowDetectionService.detectFlows(
-                        siteMap
-                );
+                flowDetectionService
+                        .detectFlows(siteMap);
 
-        GeneratedFramework framework =
-                frameworkGeneratorService
-                        .generate(flows);
+        // =================================================
+        // GENERATE FRAMEWORK
+        // =================================================
 
-        // =============================================
-        // WRITE FILES
-        // =============================================
-
-        String result =
-                writerService.writeFramework(
-                        framework
-                );
-
-        System.out.println(result);
-
-        return framework;
+        return frameworkGeneratorService
+                .generate(flows);
     }
 }

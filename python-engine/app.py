@@ -1,14 +1,12 @@
+import re
+
+import numpy as np
+import sympy as sp
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-
-import sympy as sp
 from sympy import *
-from sympy import latex
 from sympy import lambdify
-
-import re
-import numpy as np
-
+from sympy import latex
 from sympy.parsing.sympy_parser import (
     parse_expr,
     standard_transformations,
