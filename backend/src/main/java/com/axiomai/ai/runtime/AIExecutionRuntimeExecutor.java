@@ -1,14 +1,11 @@
 package com.axiomai.ai.runtime;
 
 import com.axiomai.ai.execution.AIExecutionPlan;
-import com.axiomai.ai.execution.PlannedAction;
 import com.axiomai.ai.execution.ScenarioPlan;
-import com.axiomai.qa.models.FlowStep;
-import com.axiomai.qa.runtime.AIActionExecutor;
-import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserType;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Playwright;
+import com.axiomai.core.adapter.ScenarioPlanAdapter;
+import com.axiomai.core.execution.ExecutionResult;
+import com.axiomai.core.graph.FlowGraph;
+import com.axiomai.core.runtime.SemanticRuntimeExecutor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,236 +14,62 @@ import org.springframework.stereotype.Component;
 
 public class AIExecutionRuntimeExecutor {
 
-    private final SemanticActionMapper
-            semanticActionMapper;
+    private final ScenarioPlanAdapter
+            scenarioPlanAdapter;
 
-    private final RuntimeValueResolver
-            valueResolver;
+    private final SemanticRuntimeExecutor
+            semanticRuntimeExecutor;
 
     // =====================================================
     // EXECUTE PLAN
     // =====================================================
 
-    public void execute(
+    public ExecutionResult execute(
             AIExecutionPlan plan
     ) {
 
-        ExecutionSession session =
-                ExecutionSession.builder()
+        if (
 
-                        .status("RUNNING")
-
-                        .targetUrl(
-                                plan.getTargetUrl()
-                        )
-
-                        .build();
-
-        System.out.println(
-                "[AI EXECUTION STARTED]"
-        );
-
-        System.out.println(
-                "[SESSION] "
-                        + session.getSessionId()
-        );
-
-        try (
-
-                Playwright playwright =
-                        Playwright.create()
+                plan.getScenarios() == null
+                        ||
+                        plan.getScenarios().isEmpty()
 
         ) {
 
-            Browser browser =
-                    playwright.chromium()
-                            .launch(
-
-                                    new BrowserType
-                                            .LaunchOptions()
-
-                                            .setHeadless(
-                                                    plan.isHeadless()
-                                            )
-
-                            );
-
-            Page page =
-                    browser.newPage();
-
-            page.navigate(
-                    plan.getTargetUrl()
-            );
-
-            page.waitForLoadState();
-
-            RuntimeExecutionContext context =
-
-                    RuntimeExecutionContext
-                            .builder()
-
-                            .page(page)
-
-                            .variableContext(
-                                    plan.getVariables()
-                            )
-
-                            .build();
-
-            // =================================================
-            // EXECUTE SCENARIOS
-            // =================================================
-
-            for (
-
-                    ScenarioPlan scenario
-                    : plan.getScenarios()
-
-            ) {
-
-                executeScenario(
-                        context,
-                        scenario
-                );
-            }
-
-            session.setStatus("COMPLETED");
-
-            System.out.println(
-                    "[AI EXECUTION COMPLETED]"
-            );
-
-            browser.close();
-
-        } catch (Exception e) {
-
-            session.setStatus("FAILED");
-
-            System.out.println(
-                    "[AI EXECUTION FAILED]"
-            );
-
-            e.printStackTrace();
-
-            throw new RuntimeException(e);
-        }
-    }
-
-    // =====================================================
-    // EXECUTE SCENARIO
-    // =====================================================
-
-    private void executeScenario(
-
-            RuntimeExecutionContext context,
-
-            ScenarioPlan scenario
-
-    ) {
-
-        System.out.println(
-                "[SCENARIO] "
-                        + scenario.getScenarioName()
-        );
-
-        context.setCurrentScenario(
-                scenario.getScenarioName()
-        );
-
-        for (
-
-                PlannedAction action
-                : scenario.getActions()
-
-        ) {
-
-            executeAction(
-                    context,
-                    action
+            throw new RuntimeException(
+                    "No scenarios available for execution."
             );
         }
-    }
 
-    // =====================================================
-    // EXECUTE ACTION
-    // =====================================================
+        // =================================================
+        // PRIMARY SCENARIO
+        // =================================================
 
-    private void executeAction(
+        ScenarioPlan scenario =
+                plan.getScenarios().get(0);
 
-            RuntimeExecutionContext context,
+        // =================================================
+        // CONVERT TO FLOW GRAPH
+        // =================================================
 
-            PlannedAction action
+        FlowGraph graph =
 
-    ) {
+                scenarioPlanAdapter
+                        .convert(scenario);
 
-        System.out.println(
-                "[ACTION] "
-                        + action.getActionType()
-                        + " -> "
-                        + action.getSemanticTarget()
+        // =================================================
+        // APPLY URL
+        // =================================================
+
+        graph.setBaseUrl(
+                plan.getTargetUrl()
         );
 
-        FlowStep flowStep =
-                semanticActionMapper
-                        .map(action);
+        // =================================================
+        // EXECUTE
+        // =================================================
 
-        switch (
-
-                action.getActionType()
-                        .toUpperCase()
-
-        ) {
-
-            // =============================================
-            // TYPE
-            // =============================================
-
-            case "TYPE" -> {
-
-                String value =
-                        valueResolver.resolve(
-
-                                context.getVariableContext(),
-
-                                action.getVariableKey()
-
-                        );
-
-                AIActionExecutor.type(
-
-                        context.getPage(),
-
-                        flowStep,
-
-                        value
-
-                );
-            }
-
-            // =============================================
-            // CLICK
-            // =============================================
-
-            case "CLICK" ->
-
-                    AIActionExecutor.click(
-
-                            context.getPage(),
-
-                            flowStep
-
-                    );
-
-            // =============================================
-            // UNSUPPORTED
-            // =============================================
-
-            default -> throw new RuntimeException(
-
-                    "Unsupported action type: "
-                            + action.getActionType()
-
-            );
-        }
+        return semanticRuntimeExecutor
+                .execute(graph);
     }
 }
