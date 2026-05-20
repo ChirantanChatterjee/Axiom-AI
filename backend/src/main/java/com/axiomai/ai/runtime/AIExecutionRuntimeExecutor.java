@@ -9,6 +9,8 @@ import com.axiomai.core.runtime.SemanticRuntimeExecutor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+
 @Component
 @RequiredArgsConstructor
 
@@ -64,6 +66,31 @@ public class AIExecutionRuntimeExecutor {
         graph.setBaseUrl(
                 plan.getTargetUrl()
         );
+
+        // =================================================
+        // APPLY RUNTIME VARIABLES
+        // =================================================
+
+        if (
+                graph.getMetadata() == null
+        ) {
+
+            graph.setMetadata(
+                    new HashMap<>()
+            );
+        }
+
+        if (
+                plan.getVariables() != null
+        ) {
+
+            graph.getMetadata()
+                    .put(
+                            "variables",
+                            plan.getVariables()
+                                    .getVariables()
+                    );
+        }
 
         // =================================================
         // EXECUTE

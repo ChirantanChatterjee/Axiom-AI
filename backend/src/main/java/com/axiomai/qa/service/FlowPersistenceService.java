@@ -187,26 +187,35 @@
 
             if (
                     target.contains("USERNAME")
+                            ||
+                            target.contains("USER")
+                            ||
+                            target.contains("LOGIN")
             ) {
 
-                return "Admin";
+                return "${username}";
             }
 
             if (
                     target.contains("PASSWORD")
+                            ||
+                            target.contains("PASS")
             ) {
 
-                return "admin123";
+                return "${password}";
             }
 
             if (
                     target.contains("SEARCH")
             ) {
 
-                return "Axiom AI";
+                return "${search}";
             }
 
-            return "Sample Data";
+            return "${"
+                    + target.toLowerCase()
+                    .replaceAll("[^a-z0-9]+", "")
+                    + "}";
         }
 
         // =====================================================

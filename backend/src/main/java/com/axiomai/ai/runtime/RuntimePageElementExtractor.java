@@ -482,6 +482,12 @@ public class RuntimePageElementExtractor {
 
                 combined.contains("email")
                         ||
+                        combined.contains("username")
+                        ||
+                        combined.contains("user-name")
+                        ||
+                        combined.contains("user name")
+                        ||
                         combined.contains("phone")
                         ||
                         combined.contains("identifier")
@@ -521,6 +527,63 @@ public class RuntimePageElementExtractor {
             ) {
 
                 return "#" + id;
+            }
+
+            String dataTestId =
+                    safeAttribute(
+                            locator,
+                            "data-testid"
+                    );
+
+            if (
+
+                    dataTestId != null
+                            &&
+                            !dataTestId.isBlank()
+
+            ) {
+
+                return "[data-testid='"
+                        + cssAttr(dataTestId)
+                        + "']";
+            }
+
+            String dataTest =
+                    safeAttribute(
+                            locator,
+                            "data-test"
+                    );
+
+            if (
+
+                    dataTest != null
+                            &&
+                            !dataTest.isBlank()
+
+            ) {
+
+                return "[data-test='"
+                        + cssAttr(dataTest)
+                        + "']";
+            }
+
+            String dataCy =
+                    safeAttribute(
+                            locator,
+                            "data-cy"
+                    );
+
+            if (
+
+                    dataCy != null
+                            &&
+                            !dataCy.isBlank()
+
+            ) {
+
+                return "[data-cy='"
+                        + cssAttr(dataCy)
+                        + "']";
             }
 
             String name =
@@ -619,5 +682,14 @@ public class RuntimePageElementExtractor {
         return value == null
                 ? ""
                 : value;
+    }
+
+    private String cssAttr(
+            String value
+    ) {
+
+        return safe(value)
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
     }
 }

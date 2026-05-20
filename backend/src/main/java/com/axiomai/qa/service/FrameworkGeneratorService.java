@@ -1,13 +1,20 @@
 package com.axiomai.qa.service;
 
 import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.qa.generator.flow.FlowFrameworkAssembler;
+import com.axiomai.qa.models.GeneratedFlowFramework;
 import com.axiomai.qa.models.GeneratedFramework;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class FrameworkGeneratorService {
+
+    private final FlowFrameworkAssembler
+            flowFrameworkAssembler;
 
     // =====================================================
     // MAIN GENERATION
@@ -17,19 +24,14 @@ public class FrameworkGeneratorService {
             List<DetectedFlow> flows
     ) {
 
-        String feature =
-                generateFeature(flows);
-
-        String pageObject =
-                generatePageObject(flows);
-
-        String stepDefs =
-                generateStepDefinitions(flows);
+        GeneratedFlowFramework generated =
+                flowFrameworkAssembler
+                        .assemble(flows);
 
         return new GeneratedFramework(
-                feature,
-                pageObject,
-                stepDefs
+                generated.getFeatureFile(),
+                generated.getPageObject(),
+                generated.getStepDefinitions()
         );
     }
 

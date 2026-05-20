@@ -16,4 +16,10 @@ public class AIResponse {
 
     private Object data;
 
+    private String type;
+
+    private String downloadUrl;
+
+    private String reportUrl;
+
 }

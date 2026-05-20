@@ -14,4 +14,12 @@ public class ChatRequest {
 
     private String message;
 
+    private String sessionId;
+
+    private String websiteUrl;
+
+    private String domainName;
+
+    private Boolean frameworkLocked;
+
 }

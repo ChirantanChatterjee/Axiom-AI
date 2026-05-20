@@ -1,14 +1,18 @@
 package com.axiomai.ai.service;
 
 import com.axiomai.ai.model.GPTIntentResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +34,25 @@ public class OpenAIIntentService {
 
         try {
 
+            if (
+                    apiKey == null
+                            ||
+                            apiKey.isBlank()
+            ) {
+
+                System.out.println(
+                        "OPENAI_API_KEY NOT SET -> USING FALLBACK RULE ENGINE"
+                );
+
+                return GPTIntentResponse.builder()
+
+                        .intent("FALLBACK")
+
+                        .responseMessage(userMessage)
+
+                        .build();
+            }
+
             RestTemplate restTemplate =
                     new RestTemplate();
 
@@ -44,28 +67,49 @@ public class OpenAIIntentService {
 
             String prompt = """
 
-You are an AI automation orchestrator.
+You are an AI automation workspace orchestrator.
 
-Analyze the user request and extract:
-
-1. intent
-2. flowName
+Analyze the user request and extract these fields:
+- intent
+- flowName
+- url
+- featureName
+- artifactName
+- variables
 
 Allowed intents:
+- GENERATE_FRAMEWORK
+- GENERATE_FEATURE
+- UPDATE_TEST_DATA
+- EXECUTE_FEATURE
+- EXECUTE_FLOW
+- DOWNLOAD_FRAMEWORK
+- SHOW_REPORT
+- SHOW_DB
+- UNKNOWN
 
-EXECUTE_FLOW
-SHOW_REPORT
-SHOW_DB
-GENERATE_FRAMEWORK
-UNKNOWN
+Rules:
+- GENERATE_FRAMEWORK means the user wants a full automation framework for a website.
+- GENERATE_FEATURE means the user wants a specific feature/scenario/test created or updated.
+- UPDATE_TEST_DATA means the user provides values such as username, password, email, search term, or other field data.
+- EXECUTE_FEATURE means the user wants to run a named generated feature.
+- EXECUTE_FLOW means the user wants to run a detected or stored flow.
+- DOWNLOAD_FRAMEWORK means the user wants the generated framework zip/download.
+- Put website targets in url. Normalize bare domains if possible.
+- Put data values in variables as a JSON object with lower-case keys.
 
-Return ONLY valid JSON.
-
-Example:
+Return ONLY valid JSON with this shape:
 
 {
-  "intent":"EXECUTE_FLOW",
-  "flowName":"OrangeHRM Login"
+  "intent": "GENERATE_FEATURE",
+  "flowName": "login",
+  "url": "https://www.saucedemo.com",
+  "featureName": "login",
+  "artifactName": null,
+  "variables": {
+    "username": "standard_user",
+    "password": "secret_sauce"
+  }
 }
 
 User Request:
@@ -135,15 +179,18 @@ User Request:
                     message.get("content")
                             .toString();
 
+            content =
+                    extractJson(content);
+
+            GPTIntentResponse intentResponse =
+                    parseIntentResponse(content);
+
             System.out.println(
                     "OPENAI RESPONSE = "
-                            + content
+                            + formatForLog(intentResponse)
             );
 
-            return objectMapper.readValue(
-                    content,
-                    GPTIntentResponse.class
-            );
+            return intentResponse;
 
         } catch (Exception e) {
 
@@ -162,6 +209,269 @@ User Request:
                     .build();
         }
 
+    }
+
+    private String extractJson(
+            String content
+    ) {
+
+        if (
+                content == null
+        ) {
+
+            return null;
+        }
+
+        String cleaned =
+                content.trim();
+
+        if (
+                cleaned.startsWith("```")
+        ) {
+
+            cleaned =
+                    cleaned.replaceFirst(
+                            "^```(?:json)?\\s*",
+                            ""
+                    );
+
+            cleaned =
+                    cleaned.replaceFirst(
+                            "\\s*```$",
+                            ""
+                    )
+                            .trim();
+        }
+
+        int objectStart =
+                cleaned.indexOf('{');
+
+        int objectEnd =
+                cleaned.lastIndexOf('}');
+
+        if (
+                objectStart >= 0
+                        &&
+                        objectEnd > objectStart
+        ) {
+
+            return cleaned.substring(
+                    objectStart,
+                    objectEnd + 1
+            );
+        }
+
+        return cleaned;
+    }
+
+    private GPTIntentResponse parseIntentResponse(
+            String content
+    ) throws Exception {
+
+        JsonNode root =
+                objectMapper.readTree(content);
+
+        if (
+                root instanceof ObjectNode objectNode
+        ) {
+
+            normalizeVariables(objectNode);
+        }
+
+        return objectMapper.treeToValue(
+                root,
+                GPTIntentResponse.class
+        );
+    }
+
+    private void normalizeVariables(
+            ObjectNode root
+    ) {
+
+        JsonNode variables =
+                root.get("variables");
+
+        if (
+                variables == null
+                        ||
+                        variables.isNull()
+        ) {
+
+            return;
+        }
+
+        ObjectNode normalized =
+                objectMapper.createObjectNode();
+
+        if (
+                variables.isObject()
+        ) {
+
+            Iterator<Map.Entry<String, JsonNode>> fields =
+                    variables.fields();
+
+            while (
+                    fields.hasNext()
+            ) {
+
+                Map.Entry<String, JsonNode> field =
+                        fields.next();
+
+                normalized.put(
+                        field.getKey(),
+                        stringifyVariable(
+                                field.getValue()
+                        )
+                );
+            }
+
+        } else {
+
+            normalized.put(
+                    "value",
+                    stringifyVariable(variables)
+            );
+        }
+
+        root.set(
+                "variables",
+                normalized
+        );
+    }
+
+    private String stringifyVariable(
+            JsonNode node
+    ) {
+
+        try {
+
+            if (
+                    node == null
+                            ||
+                            node.isNull()
+            ) {
+
+                return "";
+            }
+
+            if (
+                    node.isValueNode()
+            ) {
+
+                return node.asText();
+            }
+
+            return objectMapper.writeValueAsString(node);
+
+        } catch (Exception ignored) {
+
+            return "";
+        }
+    }
+
+    private String formatForLog(
+            GPTIntentResponse response
+    ) {
+
+        try {
+
+            ObjectNode node =
+                    objectMapper.valueToTree(response);
+
+            JsonNode variables =
+                    node.get("variables");
+
+            if (
+                    variables instanceof ObjectNode objectNode
+            ) {
+
+                Iterator<Map.Entry<String, JsonNode>> fields =
+                        objectNode.fields();
+
+                List<String> sensitiveKeys =
+                        new ArrayList<>();
+
+                while (
+                        fields.hasNext()
+                ) {
+
+                    Map.Entry<String, JsonNode> field =
+                            fields.next();
+
+                    if (
+                            isSensitiveVariable(
+                                    field.getKey(),
+                                    field.getValue()
+                            )
+                    ) {
+
+                        sensitiveKeys.add(
+                                field.getKey()
+                        );
+                    }
+                }
+
+                for (
+                        String sensitiveKey
+                        : sensitiveKeys
+                ) {
+
+                    objectNode.put(
+                            sensitiveKey,
+                            "<redacted>"
+                    );
+                }
+            }
+
+            return objectMapper
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(node);
+
+        } catch (Exception ignored) {
+
+            return "<parsed>";
+        }
+    }
+
+    private boolean isSensitiveVariable(
+            String key,
+            JsonNode value
+    ) {
+
+        String lowerKey =
+                key == null
+                        ? ""
+                        : key.toLowerCase();
+
+        if (
+                lowerKey.contains("password")
+                        ||
+                        lowerKey.contains("pass")
+                        ||
+                        lowerKey.contains("secret")
+                        ||
+                        lowerKey.contains("token")
+                        ||
+                        lowerKey.contains("otp")
+                        ||
+                        lowerKey.contains("email")
+                        ||
+                        lowerKey.contains("username")
+                        ||
+                        lowerKey.equals("user")
+        ) {
+
+            return true;
+        }
+
+        String text =
+                value == null
+                        ? ""
+                        : value.asText("");
+
+        return text.matches(
+                ".*[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}.*"
+        );
     }
 
 }

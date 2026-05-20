@@ -76,6 +76,10 @@ public class UnifiedRuntimeContext {
     private List<String> screenshots =
             new ArrayList<>();
 
+    @Builder.Default
+    private List<RuntimeStepReport> stepReports =
+            new ArrayList<>();
+
     // =====================================================
     // METADATA
     // =====================================================

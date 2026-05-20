@@ -1,193 +1,398 @@
 package com.axiomai.qa.service;
 
 import com.axiomai.qa.models.GeneratedFramework;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
+@RequiredArgsConstructor
 public class GeneratedProjectWriterService {
 
-    @Autowired
-    private HookGeneratorService hookGeneratorService;
+    private final HookGeneratorService
+            hookGeneratorService;
 
-    @Autowired
-    private RunnerGeneratorService runnerGeneratorService;
+    private final RunnerGeneratorService
+            runnerGeneratorService;
 
-    @Autowired
-    private PomGeneratorService pomGeneratorService;
+    private final PomGeneratorService
+            pomGeneratorService;
 
     // =====================================================
-    // MAIN WRITE METHOD
+    // BACKWARD COMPATIBLE WRITE METHOD
     // =====================================================
 
     public String writeFramework(
             GeneratedFramework framework
     ) {
 
+        return writeFramework(
+                framework,
+                "default-session",
+                "generated"
+        );
+    }
+
+    // =====================================================
+    // SESSION-AWARE WRITE METHOD
+    // =====================================================
+
+    public String writeFramework(
+
+            GeneratedFramework framework,
+
+            String sessionId,
+
+            String featureName
+
+    ) {
+
         try {
 
-            // =================================================
-            // ROOT
-            // =================================================
-
-            String root =
-                    "generated-framework";
-
-            // =================================================
-            // FEATURE FOLDER
-            // =================================================
+            Path root =
+                    getFrameworkRoot(sessionId);
 
             Path featureFolder =
-                    Paths.get(
-                            root,
+                    root.resolve(
                             "src/test/resources/features"
                     );
 
-            // =================================================
-            // STEP DEFINITIONS
-            // =================================================
-
             Path stepFolder =
-                    Paths.get(
-                            root,
+                    root.resolve(
                             "src/test/java/com/axiomai/generated/steps"
                     );
 
-            // =================================================
-            // PAGE OBJECTS
-            // =================================================
-
             Path pageFolder =
-                    Paths.get(
-                            root,
+                    root.resolve(
                             "src/test/java/com/axiomai/generated/pages"
                     );
 
-            // =================================================
-            // HOOKS
-            // =================================================
-
             Path hooksFolder =
-                    Paths.get(
-                            root,
+                    root.resolve(
                             "src/test/java/com/axiomai/generated/hooks"
                     );
 
-            // =================================================
-            // RUNNER
-            // =================================================
-
             Path runnerFolder =
-                    Paths.get(
-                            root,
+                    root.resolve(
                             "src/test/java/com/axiomai/generated/runner"
                     );
 
-            // =================================================
-            // CREATE DIRECTORIES
-            // =================================================
-
             Files.createDirectories(featureFolder);
-
             Files.createDirectories(stepFolder);
-
             Files.createDirectories(pageFolder);
-
             Files.createDirectories(hooksFolder);
-
             Files.createDirectories(runnerFolder);
 
-            // =================================================
-            // WRITE FEATURE FILE
-            // =================================================
-
             Files.writeString(
-
                     featureFolder.resolve(
-                            "search.feature"
+                            sanitizeFeatureName(featureName)
+                                    + ".feature"
                     ),
-
                     framework.getFeatureFile()
             );
 
-            // =================================================
-            // WRITE PAGE OBJECT
-            // =================================================
-
             Files.writeString(
-
                     pageFolder.resolve(
-                            "GooglePage.java"
+                            "GeneratedPage.java"
                     ),
-
                     framework.getPageObject()
             );
 
-            // =================================================
-            // WRITE STEP DEFINITIONS
-            // =================================================
-
             Files.writeString(
-
                     stepFolder.resolve(
-                            "GoogleSteps.java"
+                            "GeneratedSteps.java"
                     ),
-
                     framework.getStepDefinition()
             );
 
-            // =================================================
-            // WRITE HOOKS
-            // =================================================
-
             Files.writeString(
-
                     hooksFolder.resolve(
                             "Hooks.java"
                     ),
-
                     hookGeneratorService.generateHooks()
             );
 
-            // =================================================
-            // WRITE TEST RUNNER
-            // =================================================
-
             Files.writeString(
-
                     runnerFolder.resolve(
                             "TestRunner.java"
                     ),
-
                     runnerGeneratorService.generateRunner()
             );
 
-            // =================================================
-            // WRITE POM.XML
-            // =================================================
-
             Files.writeString(
-
-                    Paths.get(
-                            root,
-                            "pom.xml"
-                    ),
-
+                    root.resolve("pom.xml"),
                     pomGeneratorService.generatePom()
             );
 
-            return "Framework generated successfully.";
+            Files.writeString(
+                    root.resolve("README.md"),
+                    generateReadme()
+            );
+
+            return root.toAbsolutePath()
+                    .normalize()
+                    .toString();
 
         } catch (IOException e) {
 
-            e.printStackTrace();
-
-            return "Framework generation failed.";
+            throw new RuntimeException(
+                    "Framework generation failed.",
+                    e
+            );
         }
+    }
+
+    // =====================================================
+    // WRITE SINGLE FEATURE
+    // =====================================================
+
+    public String writeFeatureFile(
+
+            String sessionId,
+
+            String featureName,
+
+            String content
+
+    ) {
+
+        try {
+
+            Path featureFolder =
+                    getFrameworkRoot(sessionId)
+                            .resolve(
+                                    "src/test/resources/features"
+                            );
+
+            Files.createDirectories(featureFolder);
+
+            Path featureFile =
+                    featureFolder.resolve(
+                            sanitizeFeatureName(featureName)
+                                    + ".feature"
+                    );
+
+            Files.writeString(
+                    featureFile,
+                    content
+            );
+
+            return featureFile.toAbsolutePath()
+                    .normalize()
+                    .toString();
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Feature generation failed.",
+                    e
+            );
+        }
+    }
+
+    // =====================================================
+    // ZIP FRAMEWORK
+    // =====================================================
+
+    public String zipFramework(
+            String sessionId
+    ) {
+
+        try {
+
+            Path root =
+                    getFrameworkRoot(sessionId);
+
+            if (
+                    !Files.exists(root)
+            ) {
+
+                throw new RuntimeException(
+                        "No generated framework exists for this session."
+                );
+            }
+
+            Path workspaceRoot =
+                    getWorkspaceRoot(sessionId);
+
+            Files.createDirectories(workspaceRoot);
+
+            Path zipPath =
+                    workspaceRoot.resolve(
+                            "framework.zip"
+                    );
+
+            Files.deleteIfExists(zipPath);
+
+            try (
+                    OutputStream outputStream =
+                            Files.newOutputStream(zipPath);
+
+                    ZipOutputStream zipOutputStream =
+                            new ZipOutputStream(outputStream)
+            ) {
+
+                try (
+                        Stream<Path> paths =
+                                Files.walk(root)
+                ) {
+
+                    paths.sorted(
+                                    Comparator.naturalOrder()
+                            )
+                            .filter(Files::isRegularFile)
+                            .forEach(path -> addZipEntry(
+                                    root,
+                                    path,
+                                    zipOutputStream
+                            ));
+                }
+            }
+
+            return zipPath.toAbsolutePath()
+                    .normalize()
+                    .toString();
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Framework zip generation failed.",
+                    e
+            );
+        }
+    }
+
+    private void addZipEntry(
+
+            Path root,
+
+            Path path,
+
+            ZipOutputStream zipOutputStream
+
+    ) {
+
+        try {
+
+            String entryName =
+                    root.relativize(path)
+                            .toString()
+                            .replace("\\", "/");
+
+            zipOutputStream.putNextEntry(
+                    new ZipEntry(entryName)
+            );
+
+            Files.copy(
+                    path,
+                    zipOutputStream
+            );
+
+            zipOutputStream.closeEntry();
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Failed to add file to framework zip: "
+                            + path,
+                    e
+            );
+        }
+    }
+
+    // =====================================================
+    // PATHS
+    // =====================================================
+
+    public Path getWorkspaceRoot(
+            String sessionId
+    ) {
+
+        return Paths.get(
+                "generated-frameworks",
+                sanitizePathPart(sessionId)
+        );
+    }
+
+    public Path getFrameworkRoot(
+            String sessionId
+    ) {
+
+        return getWorkspaceRoot(sessionId)
+                .resolve("framework");
+    }
+
+    private String sanitizeFeatureName(
+            String featureName
+    ) {
+
+        if (
+                featureName == null
+                        ||
+                        featureName.isBlank()
+        ) {
+
+            return "generated";
+        }
+
+        return sanitizePathPart(featureName)
+                .toLowerCase();
+    }
+
+    private String sanitizePathPart(
+            String value
+    ) {
+
+        if (
+                value == null
+                        ||
+                        value.isBlank()
+        ) {
+
+            return "default";
+        }
+
+        return value.replaceAll(
+                "[^A-Za-z0-9._-]",
+                "-"
+        );
+    }
+
+    private String generateReadme() {
+
+        return """
+                # Generated Axiom AI Test Framework
+
+                ## Run All Tests
+
+                ```bash
+                mvn test
+                ```
+
+                ## Run By Tag
+
+                ```bash
+                mvn test -Dcucumber.filter.tags="@generated"
+                mvn test -Dcucumber.filter.tags="@login"
+                mvn test -Dcucumber.filter.tags="@ai_requirement"
+                ```
+
+                Runtime data can be passed as Maven properties:
+
+                ```bash
+                mvn test -Dusername="user@example.com" -Dpassword="secret" -Dproduct="Sauce Labs Backpack"
+                ```
+
+                The Cucumber HTML report is written to `target/cucumber-report.html` and includes screenshots captured after each step.
+                """;
     }
 }

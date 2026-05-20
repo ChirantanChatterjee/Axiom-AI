@@ -1,7 +1,6 @@
 package com.axiomai.qa.generator.flow;
 
 import com.axiomai.qa.flow.DetectedFlow;
-import com.axiomai.qa.models.FlowStep;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -9,301 +8,90 @@ import java.util.List;
 @Component
 public class FlowStepDefinitionGenerator {
 
-    // =====================================================
-    // GENERATE STEP DEFINITIONS
-    // =====================================================
-
     public static String generate(
-
             List<DetectedFlow> flows
-
     ) {
 
-        StringBuilder sb =
-                new StringBuilder();
-
-        sb.append(
-                "package com.axiomai.generated.steps;\n\n"
-        );
-
-        sb.append(
-                "import io.cucumber.java.en.*;\n"
-        );
+        return """
+                package com.axiomai.generated.steps;
 
-        sb.append(
-                "import com.microsoft.playwright.*;\n"
-        );
+                import com.axiomai.generated.hooks.Hooks;
+                import com.axiomai.generated.pages.GeneratedPage;
+                import io.cucumber.java.en.*;
 
-        sb.append(
-                "import com.axiomai.generated.pages.GeneratedPage;\n"
-        );
+                public class GeneratedSteps {
 
-        sb.append(
-                "import com.axiomai.qa.runtime.AIActionExecutor;\n"
-        );
+                    private GeneratedPage generatedPage() {
 
-        sb.append(
-                "import com.axiomai.qa.models.FlowStep;\n\n"
-        );
+                        return new GeneratedPage(Hooks.page);
+                    }
 
-        sb.append(
-                "public class GeneratedSteps {\n\n"
-        );
+                    @Given("user launches {string}")
+                    public void userLaunches(String url) {
 
-        // =================================================
-        // PLAYWRIGHT
-        // =================================================
+                        generatedPage().launch(resolveValue(url));
+                    }
 
-        sb.append(
-                "    private static Playwright playwright;\n"
-        );
+                    @When("user enters {string} into {string}")
+                    public void userEntersInto(String value, String target) {
 
-        sb.append(
-                "    private static Browser browser;\n"
-        );
+                        generatedPage().enter(
+                                resolveValue(target),
+                                resolveValue(value)
+                        );
+                    }
 
-        sb.append(
-                "    private static Page page;\n\n"
-        );
+                    @When("user clicks {string}")
+                    public void userClicks(String target) {
 
-        sb.append(
-                "    private GeneratedPage generatedPage;\n\n"
-        );
+                        generatedPage().click(
+                                resolveValue(target)
+                        );
+                    }
 
-        // =================================================
-        // GIVEN
-        // =================================================
+                    @Then("user should see {string}")
+                    public void userShouldSee(String expectedText) {
 
-        sb.append(
-                "    @Given(\"user launches {string}\")\n"
-        );
+                        generatedPage().shouldSee(
+                                resolveValue(expectedText)
+                        );
+                    }
 
-        sb.append(
-                "    public void userLaunches(String url) {\n\n"
-        );
+                    @Then("flow should complete successfully")
+                    public void flowCompleted() {
 
-        sb.append(
-                "        playwright = Playwright.create();\n\n"
-        );
+                        System.out.println("Flow completed successfully");
+                    }
 
-        sb.append(
-                "        browser = playwright.chromium()\n"
-        );
+                    private String resolveValue(String value) {
 
-        sb.append(
-                "                .launch(\n"
-        );
+                        if (
+                                value == null
+                                        ||
+                                        !value.startsWith("${")
+                                        ||
+                                        !value.endsWith("}")
+                        ) {
 
-        sb.append(
-                "                        new BrowserType.LaunchOptions()\n"
-        );
+                            return value;
+                        }
 
-        sb.append(
-                "                                .setHeadless(false)\n"
-        );
+                        String key = value.substring(2, value.length() - 1);
+                        String systemValue = System.getProperty(key);
 
-        sb.append(
-                "                );\n\n"
-        );
+                        if (systemValue != null && !systemValue.isBlank()) {
+                            return systemValue;
+                        }
 
-        sb.append(
-                "        page = browser.newPage();\n\n"
-        );
+                        String envValue = System.getenv(key.toUpperCase());
 
-        sb.append(
-                "        page.navigate(url);\n\n"
-        );
+                        if (envValue != null && !envValue.isBlank()) {
+                            return envValue;
+                        }
 
-        sb.append(
-                "        generatedPage = new GeneratedPage(page);\n"
-        );
-
-        sb.append(
-                "    }\n\n"
-        );
-
-        // =================================================
-        // GENERATE STEPS
-        // =================================================
-
-        for (DetectedFlow flow : flows) {
-
-            for (FlowStep step : flow.getSteps()) {
-
-                generateStepMethod(
-                        sb,
-                        step
-                );
-            }
-        }
-
-        // =================================================
-        // THEN
-        // =================================================
-
-        sb.append(
-                "    @Then(\"flow should complete successfully\")\n"
-        );
-
-        sb.append(
-                "    public void flowCompleted() {\n\n"
-        );
-
-        sb.append(
-                "        System.out.println(\"Flow completed successfully\");\n\n"
-        );
-
-        sb.append(
-                "        browser.close();\n"
-        );
-
-        sb.append(
-                "        playwright.close();\n"
-        );
-
-        sb.append(
-                "    }\n\n"
-        );
-
-        sb.append("}\n");
-
-        return sb.toString();
-    }
-
-    // =====================================================
-    // GENERATE STEP METHOD
-    // =====================================================
-
-    private static void generateStepMethod(
-
-            StringBuilder sb,
-            FlowStep step
-
-    ) {
-
-        String methodName =
-                buildMethodName(step);
-
-        String selector =
-                escape(step.getSelector());
-
-        // =================================================
-        // TYPE STEP
-        // =================================================
-
-        if (
-
-                step.getAction()
-                        .equalsIgnoreCase("TYPE")
-
-        ) {
-
-            sb.append(
-                    "    @When(\"user enters {string} into "
-                            + step.getTarget().toLowerCase()
-                            + "\")\n"
-            );
-
-            sb.append(
-                    "    public void "
-                            + methodName
-                            + "(String value) {\n\n"
-            );
-
-            sb.append(
-                    "        FlowStep step = new FlowStep();\n"
-            );
-
-            sb.append(
-                    "        step.setSelector(\""
-                            + selector
-                            + "\");\n"
-            );
-
-            sb.append(
-                    "        AIActionExecutor.type(page, step, value);\n"
-            );
-
-            sb.append(
-                    "    }\n\n"
-            );
-        }
-
-        // =================================================
-        // CLICK STEP
-        // =================================================
-
-        if (
-
-                step.getAction()
-                        .equalsIgnoreCase("CLICK")
-
-        ) {
-
-            sb.append(
-                    "    @When(\"user clicks "
-                            + step.getTarget().toLowerCase()
-                            + "\")\n"
-            );
-
-            sb.append(
-                    "    public void "
-                            + methodName
-                            + "() {\n\n"
-            );
-
-            sb.append(
-                    "        FlowStep step = new FlowStep();\n"
-            );
-
-            sb.append(
-                    "        step.setSelector(\""
-                            + selector
-                            + "\");\n"
-            );
-
-            sb.append(
-                    "        AIActionExecutor.click(page, step);\n"
-            );
-
-            sb.append(
-                    "    }\n\n"
-            );
-        }
-    }
-
-    // =====================================================
-    // METHOD NAME
-    // =====================================================
-
-    private static String buildMethodName(
-            FlowStep step
-    ) {
-
-        return step.getAction()
-                .toLowerCase()
-                +
-                "_"
-                +
-                step.getTarget()
-                        .toLowerCase();
-    }
-
-    // =====================================================
-    // ESCAPE
-    // =====================================================
-
-    private static String escape(
-            String value
-    ) {
-
-        if (value == null) {
-
-            return "";
-        }
-
-        return value
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"");
+                        return value;
+                    }
+                }
+                """;
     }
 }

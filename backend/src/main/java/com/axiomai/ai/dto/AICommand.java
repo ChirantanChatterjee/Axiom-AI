@@ -7,6 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Getter
 @Setter
 @Builder
@@ -38,6 +41,28 @@ public class AICommand {
     // =====================================================
 
     private String url;
+
+    // =====================================================
+    // FEATURE / ARTIFACT
+    // =====================================================
+
+    private String featureName;
+
+    private String artifactName;
+
+    // =====================================================
+    // CHAT SESSION
+    // =====================================================
+
+    private String userId;
+
+    // =====================================================
+    // CHAT VARIABLES
+    // =====================================================
+
+    @Builder.Default
+    private Map<String, String> variables =
+            new HashMap<>();
 
     // =====================================================
     // RAW MESSAGE

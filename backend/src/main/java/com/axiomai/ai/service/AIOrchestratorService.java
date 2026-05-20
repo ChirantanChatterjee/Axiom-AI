@@ -6,6 +6,8 @@ import com.axiomai.ai.intent.IntentParser;
 import com.axiomai.ai.orchestrator.AICommandOrchestrator;
 import com.axiomai.core.memory.ExecutionMemoryService;
 import com.axiomai.core.session.ExecutionSession;
+import com.axiomai.workspace.AutomationSession;
+import com.axiomai.workspace.AutomationWorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,9 @@ public class AIOrchestratorService {
     private final ExecutionMemoryService
             executionMemoryService;
 
+    private final AutomationWorkspaceService
+            automationWorkspaceService;
+
     // =====================================================
     // PROCESS MESSAGE
     // =====================================================
@@ -31,8 +36,48 @@ public class AIOrchestratorService {
             String message
     ) {
 
+        return processMessage(
+                message,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    public AIResponse processMessage(
+
+            String message,
+
+            String sessionId
+
+    ) {
+
+        return processMessage(
+                message,
+                sessionId,
+                null,
+                null,
+                null
+        );
+    }
+
+    public AIResponse processMessage(
+
+            String message,
+
+            String sessionId,
+
+            String websiteUrl,
+
+            String domainName,
+
+            Boolean frameworkLocked
+
+    ) {
+
         String userId =
-                "default-user";
+                resolveUserId(sessionId);
 
         // =================================================
         // SESSION
@@ -45,12 +90,29 @@ public class AIOrchestratorService {
                                 userId
                         );
 
+        AutomationSession workspace =
+
+                automationWorkspaceService
+                        .getOrCreateSession(
+                                userId
+                        );
+
+        restoreClientSessionContext(
+                userId,
+                workspace,
+                websiteUrl,
+                domainName,
+                frameworkLocked
+        );
+
         // =================================================
         // PARSE
         // =================================================
 
         AICommand command =
                 intentParser.parse(message);
+
+        command.setUserId(userId);
 
         // =================================================
         // NORMALIZATION
@@ -68,7 +130,8 @@ public class AIOrchestratorService {
         recoverConversationalIntent(
                 command,
                 message,
-                session
+                session,
+                workspace
         );
 
         // =================================================
@@ -77,7 +140,8 @@ public class AIOrchestratorService {
 
         enrichCommandFromSession(
                 command,
-                session
+                session,
+                workspace
         );
 
         // =================================================
@@ -101,6 +165,75 @@ public class AIOrchestratorService {
         );
     }
 
+    private String resolveUserId(
+            String sessionId
+    ) {
+
+        if (
+                sessionId == null
+                        ||
+                        sessionId.isBlank()
+        ) {
+
+            return "default-user";
+        }
+
+        String normalized =
+                sessionId.trim()
+                        .replaceAll(
+                                "[^A-Za-z0-9._-]",
+                                "-"
+                        );
+
+        return normalized.isBlank()
+                ? "default-user"
+                : normalized;
+    }
+
+    private void restoreClientSessionContext(
+
+            String userId,
+
+            AutomationSession workspace,
+
+            String websiteUrl,
+
+            String domainName,
+
+            Boolean frameworkLocked
+
+    ) {
+
+        if (
+                !Boolean.TRUE.equals(frameworkLocked)
+                        ||
+                        websiteUrl == null
+                        ||
+                        websiteUrl.isBlank()
+                        ||
+                        workspace.getWebsiteUrl() != null
+        ) {
+
+            return;
+        }
+
+        automationWorkspaceService
+                .setWebsite(
+                        userId,
+                        websiteUrl
+                );
+
+        automationWorkspaceService
+                .setDomain(
+                        userId,
+                        domainName == null
+                                ||
+                                domainName.isBlank()
+                                ? extractDomain(websiteUrl)
+                                : domainName
+                );
+    }
+
     // =====================================================
     // NORMALIZATION
     // =====================================================
@@ -119,10 +252,7 @@ public class AIOrchestratorService {
 
         if (
 
-                "GENERATE_FRAMEWORK"
-                        .equalsIgnoreCase(
-                                command.getIntent()
-                        )
+                isGenerationIntent(command)
 
                         &&
 
@@ -144,6 +274,31 @@ public class AIOrchestratorService {
             command.setUrl(
                     command.getFlowName()
             );
+        }
+
+        if (
+
+                isGenerationIntent(command)
+
+                        &&
+
+                        (
+                                command.getUrl() == null
+                                        ||
+                                        command.getUrl().isBlank()
+                        )
+
+        ) {
+
+            String extractedUrl =
+                    extractUrl(message);
+
+            if (
+                    extractedUrl != null
+            ) {
+
+                command.setUrl(extractedUrl);
+            }
         }
 
         // =================================================
@@ -171,6 +326,17 @@ public class AIOrchestratorService {
             );
         }
 
+        if (
+                command.getFeatureName() == null
+                        ||
+                        command.getFeatureName().isBlank()
+        ) {
+
+            command.setFeatureName(
+                    extractFeatureName(message)
+            );
+        }
+
         command.setMessage(message);
     }
 
@@ -184,7 +350,9 @@ public class AIOrchestratorService {
 
             String message,
 
-            ExecutionSession session
+            ExecutionSession session,
+
+            AutomationSession workspace
 
     ) {
 
@@ -192,7 +360,64 @@ public class AIOrchestratorService {
                 message.toLowerCase();
 
         // =================================================
-        // EXECUTE IT
+        // UPDATE TEST DATA
+        // =================================================
+
+        if (
+
+                "UNKNOWN".equalsIgnoreCase(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        command.getVariables() != null
+                        &&
+                        !command.getVariables()
+                                .isEmpty()
+
+        ) {
+
+            command.setIntent(
+                    "UPDATE_TEST_DATA"
+            );
+
+            return;
+        }
+
+        // =================================================
+        // DOWNLOAD FRAMEWORK
+        // =================================================
+
+        if (
+
+                "UNKNOWN".equalsIgnoreCase(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        (
+                                lower.contains("download")
+                                        ||
+                                        lower.contains("zip")
+                        )
+
+        ) {
+
+            command.setIntent(
+                    "DOWNLOAD_FRAMEWORK"
+            );
+
+            command.setArtifactName(
+                    "framework"
+            );
+
+            return;
+        }
+
+        // =================================================
+        // EXECUTE IT / EXECUTE FEATURE
         // =================================================
 
         if (
@@ -213,13 +438,30 @@ public class AIOrchestratorService {
 
         ) {
 
-            command.setIntent(
-                    "EXECUTE_FLOW"
-            );
+            if (
+                    lower.contains("feature")
+                            ||
+                            workspace.getActiveFeature() != null
+            ) {
 
-            command.setTarget(
-                    session.getActiveFlowName()
-            );
+                command.setIntent(
+                        "EXECUTE_FEATURE"
+                );
+
+                command.setFeatureName(
+                        workspace.getActiveFeature()
+                );
+
+            } else {
+
+                command.setIntent(
+                        "EXECUTE_FLOW"
+                );
+
+                command.setTarget(
+                        session.getActiveFlowName()
+                );
+            }
 
             return;
         }
@@ -269,6 +511,39 @@ public class AIOrchestratorService {
                     "GENERATE_FRAMEWORK"
             );
         }
+
+        // =================================================
+        // GENERATE FEATURE
+        // =================================================
+
+        if (
+
+                "UNKNOWN".equalsIgnoreCase(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        lower.contains("generate")
+                        &&
+                        (
+                                lower.contains("feature")
+                                        ||
+                                        lower.contains("scenario")
+                                        ||
+                                        lower.contains("test")
+                        )
+
+        ) {
+
+            command.setIntent(
+                    "GENERATE_FEATURE"
+            );
+
+            command.setFeatureName(
+                    extractFeatureName(message)
+            );
+        }
     }
 
     // =====================================================
@@ -279,7 +554,9 @@ public class AIOrchestratorService {
 
             AICommand command,
 
-            ExecutionSession session
+            ExecutionSession session,
+
+            AutomationSession workspace
 
     ) {
 
@@ -297,13 +574,18 @@ public class AIOrchestratorService {
 
                         &&
 
-                        session.getActiveFlowName()
-                                != null
+                        firstNonBlank(
+                                workspace.getActiveFlowName(),
+                                session.getActiveFlowName()
+                        ) != null
 
         ) {
 
             command.setTarget(
-                    session.getActiveFlowName()
+                    firstNonBlank(
+                            workspace.getActiveFlowName(),
+                            session.getActiveFlowName()
+                    )
             );
         }
 
@@ -321,14 +603,164 @@ public class AIOrchestratorService {
 
                         &&
 
-                        session.getActiveUrl()
-                                != null
+                        firstNonBlank(
+                                workspace.getWebsiteUrl(),
+                                session.getActiveUrl()
+                        ) != null
 
         ) {
 
             command.setUrl(
-                    session.getActiveUrl()
+                    firstNonBlank(
+                            workspace.getWebsiteUrl(),
+                            session.getActiveUrl()
+                    )
             );
         }
+
+        // =================================================
+        // FEATURE
+        // =================================================
+
+        if (
+
+                (
+                        command.getFeatureName() == null
+                                ||
+                                command.getFeatureName().isBlank()
+                )
+
+                        &&
+
+                        workspace.getActiveFeature()
+                                != null
+
+        ) {
+
+            command.setFeatureName(
+                    workspace.getActiveFeature()
+            );
+        }
+    }
+
+    private boolean isGenerationIntent(
+            AICommand command
+    ) {
+
+        return "GENERATE_FRAMEWORK"
+                .equalsIgnoreCase(
+                        command.getIntent()
+                )
+                ||
+                "GENERATE_FEATURE"
+                        .equalsIgnoreCase(
+                                command.getIntent()
+                        );
+    }
+
+    private String firstNonBlank(
+
+            String first,
+
+            String second
+
+    ) {
+
+        if (
+                first != null
+                        &&
+                        !first.isBlank()
+        ) {
+
+            return first;
+        }
+
+        return second;
+    }
+
+    private String extractUrl(
+            String message
+    ) {
+
+        String[] tokens =
+                message.split("\\s+");
+
+        for (String token : tokens) {
+
+            String cleaned =
+                    token.replaceAll("[\\)\\].,;]+$", "");
+
+            if (
+                    cleaned.startsWith("http://")
+                            ||
+                            cleaned.startsWith("https://")
+            ) {
+
+                return cleaned;
+            }
+
+            if (
+                    cleaned.matches("(?:www\\.)?[A-Za-z0-9-]+\\.[A-Za-z]{2,}(?:/.*)?")
+            ) {
+
+                return "https://"
+                        + cleaned;
+            }
+        }
+
+        return null;
+    }
+
+    private String extractDomain(
+            String url
+    ) {
+
+        if (
+                url == null
+        ) {
+
+            return null;
+        }
+
+        return url.replace("https://", "")
+                .replace("http://", "")
+                .replace("www.", "")
+                .split("/")[0];
+    }
+
+    private String extractFeatureName(
+            String message
+    ) {
+
+        String lower =
+                message.toLowerCase();
+
+        if (lower.contains("login")) {
+            return "login";
+        }
+
+        if (lower.contains("search")) {
+            return "search";
+        }
+
+        if (
+                lower.contains("register")
+                        ||
+                        lower.contains("signup")
+                        ||
+                        lower.contains("sign up")
+        ) {
+            return "registration";
+        }
+
+        if (lower.contains("checkout")) {
+            return "checkout";
+        }
+
+        if (lower.contains("form")) {
+            return "form";
+        }
+
+        return null;
     }
 }

@@ -5,6 +5,7 @@ import com.axiomai.qa.models.FlowStep;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SelectorFallbackEngine {
@@ -75,6 +76,41 @@ public class SelectorFallbackEngine {
             System.out.println(
                     "[AI SELECTOR] PRIMARY FAILED"
             );
+        }
+
+        // =================================================
+        // COMMON TEST ATTRIBUTE VARIANTS
+        // =================================================
+
+        for (
+                String selector
+                : equivalentTestAttributeSelectors(
+                step.getSelector()
+        )
+        ) {
+
+            try {
+
+                Locator locator =
+                        page.locator(selector);
+
+                if (locator.count() > 0) {
+
+                    System.out.println(
+                            "[AI HEALING] TEST ATTRIBUTE SUCCESS -> "
+                                    + selector
+                    );
+
+                    return locator.first();
+                }
+
+            } catch (Exception ignored) {
+
+                System.out.println(
+                        "[AI HEALING] TEST ATTRIBUTE FAILED -> "
+                                + selector
+                );
+            }
         }
 
         // =================================================
@@ -178,5 +214,106 @@ public class SelectorFallbackEngine {
                 "Unable to locate element for target: "
                         + step.getTarget()
         );
+    }
+
+    private static List<String> equivalentTestAttributeSelectors(
+            String selector
+    ) {
+
+        List<String> selectors =
+                new ArrayList<>();
+
+        if (
+                selector == null
+                        ||
+                        selector.isBlank()
+        ) {
+
+            return selectors;
+        }
+
+        addVariant(
+                selectors,
+                selector,
+                "data-testid",
+                "data-test"
+        );
+
+        addVariant(
+                selectors,
+                selector,
+                "data-testid",
+                "data-cy"
+        );
+
+        addVariant(
+                selectors,
+                selector,
+                "data-test",
+                "data-testid"
+        );
+
+        addVariant(
+                selectors,
+                selector,
+                "data-test",
+                "data-cy"
+        );
+
+        addVariant(
+                selectors,
+                selector,
+                "data-cy",
+                "data-testid"
+        );
+
+        addVariant(
+                selectors,
+                selector,
+                "data-cy",
+                "data-test"
+        );
+
+        return selectors;
+    }
+
+    private static void addVariant(
+
+            List<String> selectors,
+            String selector,
+            String from,
+            String to
+
+    ) {
+
+        String singleQuoted =
+                "[" + from + "='";
+
+        String doubleQuoted =
+                "[" + from + "=\"";
+
+        if (
+                selector.contains(singleQuoted)
+        ) {
+
+            selectors.add(
+                    selector.replace(
+                            singleQuoted,
+                            "[" + to + "='"
+                    )
+            );
+        }
+
+        if (
+                selector.contains(doubleQuoted)
+        ) {
+
+            selectors.add(
+                    selector.replace(
+                            doubleQuoted,
+                            "[" + to + "=\""
+                    )
+            );
+        }
     }
 }

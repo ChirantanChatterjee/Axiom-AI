@@ -47,6 +47,10 @@ public class DetectedFlowAdapter {
                                     step.getFallbackSelectors()
                             )
 
+                            .inputValue(
+                                    buildInputPlaceholder(step)
+                            )
+
                             .businessRole(
                                     step.getBusinessRole()
                             )
@@ -83,5 +87,79 @@ public class DetectedFlowAdapter {
                 .nodes(nodes)
 
                 .build();
+    }
+
+    private String buildInputPlaceholder(
+            FlowStep step
+    ) {
+
+        if (
+                step == null
+                        ||
+                        step.getAction() == null
+                        ||
+                        !"TYPE".equalsIgnoreCase(
+                                step.getAction()
+                        )
+        ) {
+
+            return null;
+        }
+
+        String target =
+                step.getTarget() == null
+                        ? ""
+                        : step.getTarget()
+                        .toLowerCase();
+
+        if (
+                target.contains("user")
+                        ||
+                        target.contains("login")
+        ) {
+
+            return "${username}";
+        }
+
+        if (
+                target.contains("password")
+                        ||
+                        target.contains("pass")
+        ) {
+
+            return "${password}";
+        }
+
+        if (
+                target.contains("email")
+        ) {
+
+            return "${email}";
+        }
+
+        if (
+                target.contains("search")
+        ) {
+
+            return "${search}";
+        }
+
+        String key =
+                target.replaceAll(
+                        "[^a-z0-9]+",
+                        ""
+                );
+
+        if (
+                key.isBlank()
+        ) {
+
+            key =
+                    "value";
+        }
+
+        return "${"
+                + key
+                + "}";
     }
 }

@@ -43,6 +43,10 @@ public class ScenarioPlanAdapter {
                                     action.getDescription()
                             )
 
+                            .inputValue(
+                                    buildInputPlaceholder(action)
+                            )
+
                             .metadata(
                                     action.getMetadata()
                             )
@@ -71,5 +75,70 @@ public class ScenarioPlanAdapter {
                 .nodes(nodes)
 
                 .build();
+    }
+
+    private String buildInputPlaceholder(
+            PlannedAction action
+    ) {
+
+        if (
+                action == null
+                        ||
+                        action.getActionType() == null
+                        ||
+                        !"TYPE".equalsIgnoreCase(
+                                action.getActionType()
+                        )
+        ) {
+
+            return null;
+        }
+
+        if (
+                action.getVariableKey() != null
+                        &&
+                        !action.getVariableKey()
+                                .isBlank()
+        ) {
+
+            return "${"
+                    + action.getVariableKey()
+                    + "}";
+        }
+
+        String target =
+                action.getSemanticTarget() == null
+                        ? ""
+                        : action.getSemanticTarget()
+                        .toLowerCase();
+
+        if (
+                target.contains("user")
+                        ||
+                        target.contains("email")
+                        ||
+                        target.contains("auth")
+        ) {
+
+            return "${username}";
+        }
+
+        if (
+                target.contains("password")
+                        ||
+                        target.contains("pass")
+        ) {
+
+            return "${password}";
+        }
+
+        if (
+                target.contains("search")
+        ) {
+
+            return "${search}";
+        }
+
+        return null;
     }
 }

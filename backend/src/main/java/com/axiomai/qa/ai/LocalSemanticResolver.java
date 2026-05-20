@@ -315,9 +315,27 @@ public class LocalSemanticResolver {
 
         if (
 
-                intent.contains("username_field")
+                isUsernameIntent(intent)
 
         ) {
+
+            if (
+                    placeholder.contains("username")
+            ) {
+                score += 1.0;
+            }
+
+            if (
+                    placeholder.contains("user name")
+            ) {
+                score += 1.0;
+            }
+
+            if (
+                    placeholder.contains("user-name")
+            ) {
+                score += 1.0;
+            }
 
             if (
                     placeholder.contains("email")
@@ -338,7 +356,15 @@ public class LocalSemanticResolver {
             }
 
             if (
+                    aria.contains("username")
+            ) {
+                score += 0.85;
+            }
+
+            if (
                     role.contains("username_field")
+                            ||
+                            role.contains("auth_field")
             ) {
                 score += 0.95;
             }
@@ -347,6 +373,24 @@ public class LocalSemanticResolver {
                     selector.contains("email")
             ) {
                 score += 1.0;
+            }
+
+            if (
+                    selector.contains("username")
+            ) {
+                score += 1.0;
+            }
+
+            if (
+                    selector.contains("user-name")
+            ) {
+                score += 1.0;
+            }
+
+            if (
+                    selector.contains("user")
+            ) {
+                score += 0.75;
             }
 
             if (
@@ -365,6 +409,12 @@ public class LocalSemanticResolver {
                     type.contains("text")
             ) {
                 score += 0.50;
+            }
+
+            if (
+                    element.isVisible()
+            ) {
+                score += 0.75;
             }
         }
 
@@ -569,6 +619,11 @@ public class LocalSemanticResolver {
                         element.getText()
                 );
 
+        String placeholder =
+                normalize(
+                        element.getPlaceholder()
+                );
+
         String aria =
                 normalize(
                         element.getAriaLabel()
@@ -611,6 +666,65 @@ public class LocalSemanticResolver {
         // ============================================
         // PASSWORD FIELD
         // ============================================
+
+        if (
+                isUsernameIntent(intent)
+        ) {
+
+            return !(
+
+                    type.contains("email")
+                            ||
+
+                            type.contains("text")
+                            ||
+
+                            type.contains("tel")
+                            ||
+
+                            selector.contains("email")
+                            ||
+
+                            selector.contains("username")
+                            ||
+
+                            selector.contains("user-name")
+                            ||
+
+                            selector.contains("identifier")
+                            ||
+
+                            selector.contains("phone")
+                            ||
+
+                            placeholder.contains("username")
+                            ||
+
+                            placeholder.contains("user name")
+                            ||
+
+                            placeholder.contains("email")
+                            ||
+
+                            placeholder.contains("phone")
+                            ||
+
+                            role.contains("username")
+                            ||
+
+                            role.contains("auth")
+                            ||
+
+                            aria.contains("email")
+                            ||
+
+                            aria.contains("username")
+                            ||
+
+                            aria.contains("phone")
+
+            );
+        }
 
         if (
                 intent.contains("password_field")
@@ -748,6 +862,28 @@ public class LocalSemanticResolver {
                 : value
                 .trim()
                 .toLowerCase();
+    }
+
+    private boolean isUsernameIntent(
+            String intent
+    ) {
+
+        if (
+                intent == null
+        ) {
+
+            return false;
+        }
+
+        return intent.contains("username")
+                ||
+                intent.contains("auth_field")
+                ||
+                intent.equals("auth")
+                ||
+                intent.equals("email")
+                ||
+                intent.contains("email_field");
     }
 
     // =====================================================

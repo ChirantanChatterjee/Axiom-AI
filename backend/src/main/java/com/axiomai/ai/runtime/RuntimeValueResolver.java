@@ -83,7 +83,10 @@ public class RuntimeValueResolver {
                     "[VARIABLE RESOLUTION] "
                             + normalizedKey
                             + " -> "
-                            + value
+                            + maskIfSensitive(
+                            normalizedKey,
+                            value
+                    )
             );
 
             return value;
@@ -166,5 +169,38 @@ public class RuntimeValueResolver {
         return value == null
                 ? null
                 : value.trim().toLowerCase();
+    }
+
+    private String maskIfSensitive(
+
+            String key,
+
+            String value
+
+    ) {
+
+        if (
+                key == null
+                        ||
+                        value == null
+        ) {
+
+            return value;
+        }
+
+        if (
+                key.contains("password")
+                        ||
+                        key.contains("token")
+                        ||
+                        key.contains("secret")
+                        ||
+                        key.contains("otp")
+        ) {
+
+            return "<redacted>";
+        }
+
+        return value;
     }
 }

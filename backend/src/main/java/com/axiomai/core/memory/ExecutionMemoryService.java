@@ -133,6 +133,72 @@ public class ExecutionMemoryService {
     }
 
     // =====================================================
+    // RUNTIME VARIABLES
+    // =====================================================
+
+    public void putRuntimeVariable(
+
+            String userId,
+
+            String key,
+
+            Object value
+
+    ) {
+
+        ExecutionSession session =
+                getOrCreateSession(userId);
+
+        session.getRuntimeVariables()
+                .put(
+                        key.toLowerCase(),
+                        value
+                );
+
+        session.setUpdatedAt(
+                LocalDateTime.now()
+        );
+    }
+
+    public void putRuntimeVariables(
+
+            String userId,
+
+            Map<String, String> variables
+
+    ) {
+
+        if (
+                variables == null
+                        ||
+                        variables.isEmpty()
+        ) {
+
+            return;
+        }
+
+        for (
+                Map.Entry<String, String> entry
+                : variables.entrySet()
+        ) {
+
+            putRuntimeVariable(
+                    userId,
+                    entry.getKey(),
+                    entry.getValue()
+            );
+        }
+    }
+
+    public Map<String, Object> getRuntimeVariables(
+            String userId
+    ) {
+
+        return getOrCreateSession(userId)
+                .getRuntimeVariables();
+    }
+
+    // =====================================================
     // GET ACTIVE FLOW
     // =====================================================
 

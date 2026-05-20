@@ -2,6 +2,9 @@ package com.axiomai.ai.model;
 
 import lombok.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Getter
 @Setter
 @Builder
@@ -35,6 +38,22 @@ public class GPTIntentResponse {
     // =====================================================
 
     private String url;
+
+    // =====================================================
+    // FEATURE / ARTIFACT
+    // =====================================================
+
+    private String featureName;
+
+    private String artifactName;
+
+    // =====================================================
+    // VARIABLES
+    // =====================================================
+
+    @Builder.Default
+    private Map<String, String> variables =
+            new HashMap<>();
 
     // =====================================================
     // REPORTS

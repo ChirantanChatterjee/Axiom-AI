@@ -16,7 +16,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OpenAIService {
 
-    @Value("${openai.api.key}")
+    @Value("${openai.api.key:}")
     private String apiKey;
 
     private final ObjectMapper objectMapper =
@@ -25,6 +25,19 @@ public class OpenAIService {
     public String ask(String prompt) {
 
         try {
+
+            if (
+                    apiKey == null
+                            ||
+                            apiKey.isBlank()
+            ) {
+
+                System.out.println(
+                        "[OPENAI SERVICE] API key not configured. Skipping LLM fallback."
+                );
+
+                return "";
+            }
 
             WebClient client =
                     WebClient.builder()
@@ -75,7 +88,10 @@ public class OpenAIService {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[OPENAI SERVICE] Request failed: "
+                            + e.getMessage()
+            );
 
             return "OpenAI request failed.";
 

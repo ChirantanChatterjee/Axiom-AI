@@ -35,15 +35,49 @@ public class Hooks {
                         .launch(
                                 new BrowserType.LaunchOptions()
                                         .setHeadless(false)
+                                        .setArgs(java.util.Arrays.asList(
+                                                "--incognito",
+                                                "--start-maximized",
+                                                "--start-fullscreen",
+                                                "--no-first-run",
+                                                "--no-default-browser-check"
+                                        ))
                         );
 
-        context = browser.newContext();
+        context = browser.newContext(
+                new Browser.NewContextOptions()
+                        .setViewportSize(null)
+        );
 
         page = context.newPage();
     }
 
+    @AfterStep
+    public void captureStepScreenshot(Scenario scenario) {
+
+        if (page == null) {
+            return;
+        }
+
+        byte[] screenshot =
+                page.screenshot(
+                        new Page.ScreenshotOptions()
+                                .setFullPage(true)
+                );
+
+        scenario.attach(
+                screenshot,
+                "image/png",
+                "step-screenshot"
+        );
+    }
+
     @After
     public void tearDown() {
+
+        if (context != null) {
+            context.close();
+        }
 
         if (browser != null) {
             browser.close();

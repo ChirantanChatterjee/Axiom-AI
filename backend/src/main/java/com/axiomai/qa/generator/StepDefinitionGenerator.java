@@ -37,6 +37,7 @@ public class StepDefinitionGenerator {
 
         sb.append("    private static Playwright playwright;\n");
         sb.append("    private static Browser browser;\n");
+        sb.append("    private static BrowserContext browserContext;\n");
         sb.append("    private static Page page;\n\n");
 
         sb.append("    private ")
@@ -57,9 +58,15 @@ public class StepDefinitionGenerator {
                 .append("                .launch(\n")
                 .append("                        new BrowserType.LaunchOptions()\n")
                 .append("                                .setHeadless(false)\n")
+                .append("                                .setArgs(java.util.Arrays.asList(\"--incognito\", \"--start-maximized\", \"--start-fullscreen\", \"--no-first-run\", \"--no-default-browser-check\"))\n")
                 .append("                );\n\n");
 
-        sb.append("        page = browser.newPage();\n\n");
+        sb.append("        browserContext = browser.newContext(\n")
+                .append("                new Browser.NewContextOptions()\n")
+                .append("                        .setViewportSize(null)\n")
+                .append("        );\n\n");
+
+        sb.append("        page = browserContext.newPage();\n\n");
 
         sb.append("        page.navigate(url);\n\n");
 
@@ -102,6 +109,8 @@ public class StepDefinitionGenerator {
         sb.append("    public void searchResultsShouldBeDisplayed() {\n\n");
 
         sb.append("        System.out.println(\"Validation successful\");\n\n");
+
+        sb.append("        browserContext.close();\n\n");
 
         sb.append("        browser.close();\n\n");
 

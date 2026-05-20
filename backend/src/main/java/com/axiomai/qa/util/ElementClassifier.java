@@ -13,13 +13,15 @@ public class ElementClassifier {
     ) {
 
         String tag =
-                safe(element.getTag());
+                safe(element.getTag())
+                        .toLowerCase();
 
         String text =
                 safe(element.getText());
 
         String type =
-                safe(element.getType());
+                safe(element.getType())
+                        .toLowerCase();
 
         String name =
                 safe(element.getName());
@@ -27,45 +29,48 @@ public class ElementClassifier {
         String placeholder =
                 safe(element.getPlaceholder());
 
+        String ariaLabel =
+                safe(element.getAriaLabel());
+
+        String dataTestId =
+                safe(element.getDataTestId());
+
         String combined = (
 
                 tag + " "
                         + text + " "
                         + type + " "
                         + name + " "
-                        + placeholder
+                        + placeholder + " "
+                        + ariaLabel + " "
+                        + dataTestId
 
         ).toLowerCase();
 
-        // =================================================
-        // AUTH FIELD
-        // =================================================
-
-        if (
-
-                combined.contains("username")
+        boolean inputLike =
+                tag.equals("input")
                         ||
-                        combined.contains("email")
+                        tag.equals("textarea")
                         ||
-                        combined.contains("user")
+                        tag.equals("select");
+
+        boolean buttonControl =
+                tag.equals("button")
                         ||
+                        (
+                                tag.equals("input")
+                                        &&
+                                        (
+                                                type.equals("submit")
+                                                        ||
+                                                        type.equals("button")
+                                        )
+                        );
 
-                        combined.contains("用户名")
+        boolean actionLike =
+                buttonControl
                         ||
-                        combined.contains("邮箱")
-                        ||
-                        combined.contains("账号")
-
-        ) {
-
-            element.setBusinessRole(
-                    "AUTH_FIELD"
-            );
-
-            element.setImportanceScore(95);
-
-            return;
-        }
+                        tag.equals("a");
 
         // =================================================
         // PASSWORD FIELD
@@ -73,12 +78,13 @@ public class ElementClassifier {
 
         if (
 
-                combined.contains("password")
-                        ||
-                        type.equalsIgnoreCase("password")
-                        ||
-
-                        combined.contains("密码")
+                inputLike
+                        &&
+                        (
+                                combined.contains("password")
+                                        ||
+                                        type.equals("password")
+                        )
 
         ) {
 
@@ -92,20 +98,97 @@ public class ElementClassifier {
         }
 
         // =================================================
+        // AUTH FIELD
+        // =================================================
+
+        if (
+
+                inputLike
+                        &&
+                        (
+                                combined.contains("username")
+                                        ||
+                                        combined.contains("email")
+                                        ||
+                                        combined.contains("user")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "AUTH_FIELD"
+            );
+
+            element.setImportanceScore(95);
+
+            return;
+        }
+
+        // =================================================
+        // SEARCH BUTTON
+        // =================================================
+
+        if (
+
+                actionLike
+                        &&
+                        combined.contains("search")
+
+        ) {
+
+            element.setBusinessRole(
+                    "SEARCH_BUTTON"
+            );
+
+            element.setImportanceScore(85);
+
+            return;
+        }
+
+        // =================================================
+        // NEXT / CONTINUE BUTTON
+        // =================================================
+
+        if (
+
+                actionLike
+                        &&
+                        (
+                                combined.contains("next")
+                                        ||
+                                        combined.contains("continue")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "NEXT_BUTTON"
+            );
+
+            element.setImportanceScore(90);
+
+            return;
+        }
+
+        // =================================================
         // LOGIN BUTTON
         // =================================================
 
         if (
 
-                combined.contains("login")
-                        ||
-                        combined.contains("sign in")
-                        ||
-                        combined.contains("signin")
-
-                        ||
-
-                        combined.contains("登录")
+                actionLike
+                        &&
+                        (
+                                combined.contains("login")
+                                        ||
+                                        combined.contains("log in")
+                                        ||
+                                        combined.contains("sign in")
+                                        ||
+                                        combined.contains("signin")
+                                        ||
+                                        combined.contains("submit")
+                        )
 
         ) {
 
@@ -124,9 +207,13 @@ public class ElementClassifier {
 
         if (
 
-                combined.contains("search")
-                        ||
-                        combined.contains("find")
+                inputLike
+                        &&
+                        (
+                                combined.contains("search")
+                                        ||
+                                        combined.contains("find")
+                        )
 
         ) {
 
@@ -140,35 +227,14 @@ public class ElementClassifier {
         }
 
         // =================================================
-        // SEARCH BUTTON
-        // =================================================
-
-        if (
-
-                tag.equals("button")
-                        &&
-                        combined.contains("search")
-
-        ) {
-
-            element.setBusinessRole(
-                    "SEARCH_BUTTON"
-            );
-
-            element.setImportanceScore(85);
-
-            return;
-        }
-
-        // =================================================
         // TEXT INPUT
         // =================================================
 
         if (
 
-                tag.equals("input")
-                        ||
-                        tag.equals("textarea")
+                inputLike
+                        &&
+                        !type.equals("hidden")
 
         ) {
 
@@ -187,7 +253,7 @@ public class ElementClassifier {
 
         if (
 
-                tag.equals("button")
+                buttonControl
 
         ) {
 

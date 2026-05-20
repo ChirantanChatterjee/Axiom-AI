@@ -7,6 +7,7 @@ import com.axiomai.flow.entity.FlowEntity;
 import com.axiomai.flow.repository.FlowRepository;
 import com.axiomai.flowstep.entity.FlowStepEntity;
 import com.axiomai.flowstep.repository.FlowStepRepository;
+import com.axiomai.qa.runtime.PlaywrightBrowserFactory;
 import com.axiomai.qa.runtime.SmartActionEngine;
 import com.axiomai.reporting.service.HtmlReportService;
 import com.axiomai.runtime.assertion.AssertionResult;
@@ -14,7 +15,7 @@ import com.axiomai.runtime.assertion.SmartAssertionEngine;
 import com.axiomai.runtime.model.ActionExecutionResult;
 import com.axiomai.runtime.screenshot.ScreenshotService;
 import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import lombok.RequiredArgsConstructor;
@@ -75,15 +76,17 @@ public class RuntimeFlowExecutor {
             ) {
 
                 Browser browser =
-                        playwright.chromium()
-                                .launch(
-                                        new BrowserType
-                                                .LaunchOptions()
-                                                .setHeadless(false)
-                                );
+                        PlaywrightBrowserFactory
+                                .launchVisibleChromium(playwright);
+
+                BrowserContext browserContext =
+                        browser.newContext(
+                                new Browser.NewContextOptions()
+                                        .setViewportSize(null)
+                        );
 
                 Page page =
-                        browser.newPage();
+                        browserContext.newPage();
 
                 // ================================================
                 // DYNAMIC URL
@@ -141,6 +144,8 @@ public class RuntimeFlowExecutor {
                         "REPORT GENERATED = "
                                 + reportPath
                 );
+
+                browserContext.close();
 
                 browser.close();
             }

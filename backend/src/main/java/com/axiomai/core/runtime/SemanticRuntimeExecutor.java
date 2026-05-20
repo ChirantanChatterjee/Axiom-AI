@@ -5,9 +5,16 @@ import com.axiomai.core.graph.ActionNode;
 import com.axiomai.core.graph.FlowGraph;
 import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.runtime.AIActionExecutor;
+import com.axiomai.qa.runtime.PlaywrightBrowserFactory;
 import com.microsoft.playwright.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -40,6 +47,11 @@ public class SemanticRuntimeExecutor {
                                 graph.getName()
                         );
 
+        hydrateVariables(
+                graph,
+                context
+        );
+
         try (
 
                 Playwright playwright =
@@ -49,18 +61,17 @@ public class SemanticRuntimeExecutor {
 
             Browser browser =
 
-                    playwright.chromium()
-                            .launch(
+                    PlaywrightBrowserFactory
+                            .launchVisibleChromium(playwright);
 
-                                    new BrowserType
-                                            .LaunchOptions()
-
-                                            .setHeadless(false)
-
-                            );
+            BrowserContext browserContext =
+                    browser.newContext(
+                            new Browser.NewContextOptions()
+                                    .setViewportSize(null)
+                    );
 
             Page page =
-                    browser.newPage();
+                    browserContext.newPage();
 
             context.setPage(page);
 
@@ -100,6 +111,8 @@ public class SemanticRuntimeExecutor {
                 );
             }
 
+            browserContext.close();
+
             browser.close();
 
             // =================================================
@@ -133,11 +146,32 @@ public class SemanticRuntimeExecutor {
 
             e.printStackTrace();
 
-            return executionTracker
-                    .failExecution(
-                            context,
-                            e
-                    );
+            ExecutionResult result =
+                    executionTracker
+                            .failExecution(
+                                    context,
+                                    e
+                            );
+
+            try {
+
+                String reportPath =
+                        reportManager
+                                .generateReport(
+                                        context
+                                );
+
+                reportManager.attachReport(
+                        result,
+                        reportPath
+                );
+
+            } catch (Exception reportException) {
+
+                reportException.printStackTrace();
+            }
+
+            return result;
         }
     }
 
@@ -152,6 +186,9 @@ public class SemanticRuntimeExecutor {
             ActionNode node
 
     ) {
+
+        long started =
+                System.currentTimeMillis();
 
         try {
 
@@ -194,13 +231,19 @@ public class SemanticRuntimeExecutor {
                 case "TYPE" -> {
 
                     String value =
-                            resolveInputValue(node);
+                            resolveInputValue(
+                                    context,
+                                    node
+                            );
 
                     System.out.println(
                             "[RUNTIME DATA] "
                                     + node.getSemanticTarget()
                                     + " = "
-                                    + value
+                                    + maskIfSensitive(
+                                    node.getSemanticTarget(),
+                                    value
+                            )
                     );
 
                     AIActionExecutor.type(
@@ -258,6 +301,14 @@ public class SemanticRuntimeExecutor {
             context.getExecutedNodes()
                     .add(node.getNodeId());
 
+            recordStep(
+                    context,
+                    node,
+                    "PASSED",
+                    started,
+                    null
+            );
+
         } catch (Exception e) {
 
             context.getFailedNodes()
@@ -269,7 +320,129 @@ public class SemanticRuntimeExecutor {
                     e
             );
 
+            recordStep(
+                    context,
+                    node,
+                    "FAILED",
+                    started,
+                    e
+            );
+
             throw new RuntimeException(e);
+        }
+    }
+
+    private void recordStep(
+
+            UnifiedRuntimeContext context,
+            ActionNode node,
+            String status,
+            long started,
+            Exception error
+
+    ) {
+
+        int stepOrder =
+                context.getStepReports()
+                        .size()
+                        + 1;
+
+        String screenshotPath =
+                captureScreenshot(
+                        context,
+                        stepOrder,
+                        status
+                );
+
+        long duration =
+                System.currentTimeMillis()
+                        - started;
+
+        context.getStepReports()
+                .add(
+                        RuntimeStepReport.builder()
+                                .stepOrder(stepOrder)
+                                .nodeId(node.getNodeId())
+                                .action(node.getActionType())
+                                .target(node.getSemanticTarget())
+                                .status(status)
+                                .durationMs(duration)
+                                .screenshotPath(screenshotPath)
+                                .errorMessage(
+                                        error == null
+                                                ? null
+                                                : error.getMessage()
+                                )
+                                .executedAt(
+                                        LocalDateTime.now()
+                                )
+                                .build()
+                );
+    }
+
+    private String captureScreenshot(
+
+            UnifiedRuntimeContext context,
+            int stepOrder,
+            String status
+
+    ) {
+
+        try {
+
+            if (
+                    context.getPage() == null
+            ) {
+
+                return null;
+            }
+
+            Path screenshotFolder =
+                    Paths.get(
+                            "reports",
+                            "screenshots"
+                    );
+
+            Files.createDirectories(
+                    screenshotFolder
+            );
+
+            Path screenshotPath =
+                    screenshotFolder.resolve(
+                            context.getExecutionId()
+                                    + "_step_"
+                                    + stepOrder
+                                    + "_"
+                                    + status.toLowerCase()
+                                    + ".png"
+                    );
+
+            context.getPage()
+                    .screenshot(
+                            new Page.ScreenshotOptions()
+                                    .setPath(screenshotPath)
+                                    .setFullPage(true)
+                    );
+
+            String path =
+                    screenshotPath
+                            .toAbsolutePath()
+                            .normalize()
+                            .toString();
+
+            context.getScreenshots()
+                    .add(path);
+
+            return path;
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "[REPORT] Screenshot capture failed: "
+                            + e.getMessage()
+            );
+
+            return null;
         }
     }
 
@@ -278,11 +451,14 @@ public class SemanticRuntimeExecutor {
     // =====================================================
 
     private String resolveInputValue(
+
+            UnifiedRuntimeContext context,
+
             ActionNode node
     ) {
 
         // =================================================
-        // EXPLICIT VALUE
+        // EXPLICIT VALUE / PLACEHOLDER
         // =================================================
 
         if (
@@ -293,54 +469,246 @@ public class SemanticRuntimeExecutor {
 
         ) {
 
-            return node.getInputValue();
+            String inputValue =
+                    node.getInputValue();
+
+            String placeholderKey =
+                    extractPlaceholderKey(
+                            inputValue
+                    );
+
+            if (
+                    placeholderKey == null
+            ) {
+
+                return inputValue;
+            }
+
+            Object resolved =
+                    context.getVariables()
+                            .get(
+                                    placeholderKey.toLowerCase()
+                            );
+
+            if (
+                    resolved != null
+            ) {
+
+                return resolved.toString();
+            }
+
+            throw new RuntimeException(
+                    "Missing runtime variable: "
+                            + placeholderKey
+            );
         }
 
-        String semantic =
+        String semanticKey =
 
                 node.getSemanticTarget() != null
                         ?
-                        node.getSemanticTarget()
-                                .toLowerCase()
+                        variableKey(
+                                node.getSemanticTarget()
+                        )
                         :
                         "";
 
         // =================================================
-        // USERNAME
+        // WORKSPACE VARIABLE
         // =================================================
 
         if (
-
-                semantic.contains("user")
-                        ||
-                        semantic.contains("email")
-                        ||
-                        semantic.contains("login")
+                !semanticKey.isBlank()
 
         ) {
 
-            return "standard_user";
+            Object resolved =
+                    context.getVariables()
+                            .get(
+                                    semanticKey.toLowerCase()
+                            );
+
+            if (
+                    resolved != null
+            ) {
+
+                return resolved.toString();
+            }
         }
 
-        // =================================================
-        // PASSWORD
-        // =================================================
+        throw new RuntimeException(
+                "No input value provided for "
+                        + node.getSemanticTarget()
+        );
+    }
+
+    // =====================================================
+    // VARIABLES
+    // =====================================================
+
+    private void hydrateVariables(
+
+            FlowGraph graph,
+
+            UnifiedRuntimeContext context
+
+    ) {
 
         if (
+                graph.getMetadata() == null
+        ) {
 
+            return;
+        }
+
+        Object variables =
+                graph.getMetadata()
+                        .get("variables");
+
+        if (
+                variables instanceof Map<?, ?> map
+        ) {
+
+            for (
+                    Map.Entry<?, ?> entry
+                    : map.entrySet()
+            ) {
+
+                if (
+                        entry.getKey() != null
+                                &&
+                                entry.getValue() != null
+                ) {
+
+                    context.getVariables()
+                            .put(
+                                    entry.getKey()
+                                            .toString()
+                                            .toLowerCase(),
+                                    entry.getValue()
+                            );
+                }
+            }
+        }
+    }
+
+    private String extractPlaceholderKey(
+            String value
+    ) {
+
+        if (
+                value == null
+        ) {
+
+            return null;
+        }
+
+        String trimmed =
+                value.trim();
+
+        if (
+                trimmed.startsWith("${")
+                        &&
+                        trimmed.endsWith("}")
+        ) {
+
+            return trimmed.substring(
+                    2,
+                    trimmed.length() - 1
+            );
+        }
+
+        return null;
+    }
+
+    private String variableKey(
+            String semanticTarget
+    ) {
+
+        String semantic =
+                semanticTarget == null
+                        ? ""
+                        : semanticTarget.toLowerCase();
+
+        if (
+                semantic.contains("user")
+                        ||
+                        semantic.contains("auth")
+                        ||
+                        semantic.contains("login")
+        ) {
+
+            return "username";
+        }
+
+        if (
                 semantic.contains("password")
                         ||
                         semantic.contains("pass")
-
         ) {
 
-            return "secret_sauce";
+            return "password";
         }
 
-        // =================================================
-        // DEFAULT
-        // =================================================
+        if (
+                semantic.contains("email")
+        ) {
 
-        return "test-data";
+            return "email";
+        }
+
+        if (
+                semantic.contains("search")
+        ) {
+
+            return "search";
+        }
+
+        return semantic.replaceAll(
+                "[^a-z0-9]+",
+                ""
+        );
+    }
+
+    private String maskIfSensitive(
+
+            String key,
+
+            String value
+
+    ) {
+
+        if (
+                key == null
+                        ||
+                        value == null
+        ) {
+
+            return value;
+        }
+
+        String lower =
+                key.toLowerCase();
+
+        if (
+                lower.contains("password")
+                        ||
+                        lower.contains("token")
+                        ||
+                        lower.contains("secret")
+                        ||
+                        lower.contains("otp")
+                        ||
+                        lower.contains("username")
+                        ||
+                        lower.contains("email")
+                        ||
+                        lower.equals("user")
+        ) {
+
+            return "<redacted>";
+        }
+
+        return value;
     }
 }

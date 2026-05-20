@@ -4,11 +4,13 @@ import com.axiomai.qa.models.PageElement;
 import com.axiomai.qa.models.PageLink;
 import com.axiomai.qa.models.PageNode;
 import com.axiomai.qa.models.SiteMapResult;
+import com.axiomai.qa.runtime.PlaywrightBrowserFactory;
 import com.axiomai.qa.util.ElementClassifier;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
 import java.util.*;
 
 @Service
@@ -42,14 +44,8 @@ public class WebsiteCrawlerService {
 
             Browser browser =
 
-                    playwright.chromium()
-                            .launch(
-
-                                    new BrowserType
-                                            .LaunchOptions()
-
-                                            .setHeadless(false)
-                            );
+                    PlaywrightBrowserFactory
+                            .launchVisibleChromium(playwright);
 
             while (
 
@@ -90,8 +86,14 @@ public class WebsiteCrawlerService {
 
                 try {
 
+                    BrowserContext browserContext =
+                            browser.newContext(
+                                    new Browser.NewContextOptions()
+                                            .setViewportSize(null)
+                            );
+
                     Page page =
-                            browser.newPage();
+                            browserContext.newPage();
 
                     // =============================================
                     // NAVIGATE
@@ -211,11 +213,10 @@ public class WebsiteCrawlerService {
                         // =========================================
 
                         if (
-
-                                !href.contains(
-                                        extractDomain(rootUrl)
+                                !isAllowedCrawlTarget(
+                                        rootUrl,
+                                        href
                                 )
-
                         ) {
 
                             continue;
@@ -268,6 +269,8 @@ public class WebsiteCrawlerService {
                     }
 
                     page.close();
+
+                    browserContext.close();
 
                 } catch (Exception e) {
 
@@ -364,6 +367,30 @@ public class WebsiteCrawlerService {
                                     "placeholder"
                             );
 
+                    String ariaLabel =
+                            safeAttr(
+                                    handle,
+                                    "aria-label"
+                            );
+
+                    String dataTestId =
+                            safeAttr(
+                                    handle,
+                                    "data-testid"
+                            );
+
+                    String dataTest =
+                            safeAttr(
+                                    handle,
+                                    "data-test"
+                            );
+
+                    String dataCy =
+                            safeAttr(
+                                    handle,
+                                    "data-cy"
+                            );
+
                     boolean visible =
                             handle.isVisible();
 
@@ -387,7 +414,12 @@ public class WebsiteCrawlerService {
                                     tag,
                                     id,
                                     name,
-                                    type
+                                    type,
+                                    text,
+                                    ariaLabel,
+                                    dataTestId,
+                                    dataTest,
+                                    dataCy
                             );
 
                     String xpath =
@@ -396,7 +428,9 @@ public class WebsiteCrawlerService {
 
                                     tag,
                                     id,
-                                    name
+                                    name,
+                                    ariaLabel,
+                                    text
                             );
 
                     // =========================================
@@ -452,6 +486,15 @@ public class WebsiteCrawlerService {
                                     ""
                             );
 
+                    element.setAriaLabel(ariaLabel);
+                    element.setDataTestId(
+                            firstNonBlank(
+                                    dataTestId,
+                                    dataTest,
+                                    dataCy
+                            )
+                    );
+
                     // =========================================
                     // AI CLASSIFICATION
                     // =========================================
@@ -481,6 +524,9 @@ public class WebsiteCrawlerService {
 
                                     + " | PLACEHOLDER="
                                     + placeholder
+
+                                    + " | ARIA="
+                                    + ariaLabel
 
                                     + " | ROLE="
                                     + element.getBusinessRole()
@@ -555,7 +601,10 @@ public class WebsiteCrawlerService {
                     if (href.startsWith("/")) {
 
                         href =
-                                sourceUrl + href;
+                                resolveUrl(
+                                        sourceUrl,
+                                        href
+                                );
                     }
 
                     PageLink link =
@@ -593,15 +642,59 @@ public class WebsiteCrawlerService {
             String tag,
             String id,
             String name,
-            String type
+            String type,
+            String text,
+            String ariaLabel,
+            String dataTestId,
+            String dataTest,
+            String dataCy
 
     ) {
 
         tag = safe(tag).toLowerCase();
 
         if (
+                !safe(dataTestId).isBlank()
+        ) {
+
+            return "[data-testid='"
+                    + cssAttr(dataTestId)
+                    + "']";
+        }
+
+        if (
+                !safe(dataTest).isBlank()
+        ) {
+
+            return "[data-test='"
+                    + cssAttr(dataTest)
+                    + "']";
+        }
+
+        if (
+                !safe(dataCy).isBlank()
+        ) {
+
+            return "[data-cy='"
+                    + cssAttr(dataCy)
+                    + "']";
+        }
+
+        if (
+                !safe(ariaLabel).isBlank()
+        ) {
+
+            return tag
+                    + "[aria-label='"
+                    + cssAttr(ariaLabel)
+                    + "']";
+        }
+
+        if (
 
                 !safe(id).isBlank()
+                        &&
+                        !isGenericId(id)
 
         ) {
 
@@ -618,6 +711,18 @@ public class WebsiteCrawlerService {
                     + "[name='"
                     + name
                     + "']";
+        }
+
+        if (
+                isTextSelectableTag(tag)
+                        &&
+                        !selectorText(text).isBlank()
+        ) {
+
+            return tag
+                    + ":has-text(\""
+                    + cssText(selectorText(text))
+                    + "\")";
         }
 
         if (
@@ -643,7 +748,9 @@ public class WebsiteCrawlerService {
 
             String tag,
             String id,
-            String name
+            String name,
+            String ariaLabel,
+            String text
 
     ) {
 
@@ -652,6 +759,8 @@ public class WebsiteCrawlerService {
         if (
 
                 !safe(id).isBlank()
+                        &&
+                        !isGenericId(id)
 
         ) {
 
@@ -672,6 +781,30 @@ public class WebsiteCrawlerService {
                     + tag
                     + "[@name='"
                     + name
+                    + "']";
+        }
+
+        if (
+                !safe(ariaLabel).isBlank()
+        ) {
+
+            return "//"
+                    + tag
+                    + "[@aria-label='"
+                    + xpathAttr(ariaLabel)
+                    + "']";
+        }
+
+        if (
+                isTextSelectableTag(tag)
+                        &&
+                        !selectorText(text).isBlank()
+        ) {
+
+            return "//"
+                    + tag
+                    + "[normalize-space()='"
+                    + xpathAttr(selectorText(text))
                     + "']";
         }
 
@@ -740,6 +873,20 @@ public class WebsiteCrawlerService {
 
         try {
 
+            URI uri =
+                    URI.create(url);
+
+            if (
+                    uri.getHost() != null
+            ) {
+
+                return uri.getHost()
+                        .replaceFirst(
+                                "^www\\.",
+                                ""
+                        );
+            }
+
             String cleaned = url
 
                     .replace("https://", "")
@@ -752,6 +899,163 @@ public class WebsiteCrawlerService {
 
             return "unknown-domain";
         }
+    }
+
+    private boolean isAllowedCrawlTarget(
+
+            String rootUrl,
+
+            String href
+
+    ) {
+
+        String rootDomain =
+                extractDomain(rootUrl);
+
+        String hrefDomain =
+                extractDomain(href);
+
+        if (
+                rootDomain.equals(hrefDomain)
+                        ||
+                        hrefDomain.endsWith(
+                                "." + rootDomain
+                        )
+        ) {
+
+            return true;
+        }
+
+        return rootDomain.equals("youtube.com")
+                &&
+                (
+                        hrefDomain.equals("accounts.google.com")
+                                ||
+                                hrefDomain.equals("consent.youtube.com")
+                );
+    }
+
+    private String resolveUrl(
+
+            String sourceUrl,
+
+            String href
+
+    ) {
+
+        try {
+
+            return URI.create(sourceUrl)
+                    .resolve(href)
+                    .toString();
+
+        } catch (Exception e) {
+
+            return sourceUrl + href;
+        }
+    }
+
+    private boolean isGenericId(
+            String id
+    ) {
+
+        String normalized =
+                safe(id).toLowerCase();
+
+        return normalized.equals("button")
+                ||
+                normalized.equals("endpoint")
+                ||
+                normalized.equals("text")
+                ||
+                normalized.equals("content")
+                ||
+                normalized.equals("contents")
+                ||
+                normalized.equals("icon")
+                ||
+                normalized.equals("label")
+                ||
+                normalized.equals("container");
+    }
+
+    private boolean isTextSelectableTag(
+            String tag
+    ) {
+
+        return "button".equals(tag)
+                ||
+                "a".equals(tag);
+    }
+
+    private String selectorText(
+            String text
+    ) {
+
+        String cleaned =
+                safe(text)
+                        .replaceAll(
+                                "\\s+",
+                                " "
+                        )
+                        .trim();
+
+        if (
+                cleaned.length() > 80
+        ) {
+
+            return cleaned.substring(0, 80);
+        }
+
+        return cleaned;
+    }
+
+    private String cssAttr(
+            String value
+    ) {
+
+        return safe(value)
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
+    }
+
+    private String cssText(
+            String value
+    ) {
+
+        return safe(value)
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+    }
+
+    private String xpathAttr(
+            String value
+    ) {
+
+        return safe(value)
+                .replace("'", "&apos;");
+    }
+
+    private String firstNonBlank(
+            String... values
+    ) {
+
+        for (
+                String value
+                : values
+        ) {
+
+            if (
+                    value != null
+                            &&
+                            !value.isBlank()
+            ) {
+
+                return value;
+            }
+        }
+
+        return "";
     }
 
     // =====================================================

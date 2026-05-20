@@ -46,6 +46,16 @@ public class FlowFeatureGenerator {
         StringBuilder sb =
                 new StringBuilder();
 
+        sb.append("  @generated @flow_")
+                .append(
+                        tagFor(flow)
+                )
+                .append(" @")
+                .append(
+                        tagFor(flow)
+                )
+                .append("\n");
+
         sb.append("  Scenario: ");
 
         sb.append(
@@ -71,14 +81,22 @@ public class FlowFeatureGenerator {
             ) {
 
                 sb.append(
-                                "    When user enters \"Playwright Java\" into "
+                                "    When user enters \"${"
                         )
 
                         .append(
-                                role.toLowerCase()
+                                variableKey(role)
                         )
 
-                        .append("\n");
+                        .append(
+                                "}\" into \""
+                        )
+
+                        .append(
+                                targetLabel(role)
+                        )
+
+                        .append("\"\n");
             }
 
             if (
@@ -89,11 +107,11 @@ public class FlowFeatureGenerator {
                                 "    And user clicks "
                         )
 
+                        .append("\"")
                         .append(
-                                role.toLowerCase()
+                                targetLabel(role)
                         )
-
-                        .append("\n");
+                        .append("\"\n");
             }
         }
 
@@ -102,6 +120,57 @@ public class FlowFeatureGenerator {
         );
 
         return sb.toString();
+    }
+
+    private String tagFor(
+            DetectedFlow flow
+    ) {
+
+        String value =
+                flow == null
+                        ? "generated_flow"
+                        : flow.getFlowType();
+
+        String tag =
+                safe(value)
+                        .toLowerCase()
+                        .replaceAll(
+                                "[^a-z0-9]+",
+                                "_"
+                        )
+                        .replaceAll(
+                                "^_+|_+$",
+                                ""
+                        );
+
+        if (
+                tag.isBlank()
+        ) {
+
+            return "generated_flow";
+        }
+
+        if (
+                Character.isDigit(
+                        tag.charAt(0)
+                )
+        ) {
+
+            return "flow_"
+                    + tag;
+        }
+
+        return tag;
+    }
+
+    private String targetLabel(
+            String role
+    ) {
+
+        return safe(role)
+                .toLowerCase()
+                .replace("_", " ")
+                .trim();
     }
 
     // =====================================================
@@ -152,5 +221,72 @@ public class FlowFeatureGenerator {
         }
 
         return "User performs generated flow";
+    }
+
+    // =====================================================
+    // VARIABLE KEY
+    // =====================================================
+
+    private String variableKey(
+            String role
+    ) {
+
+        if (
+                role == null
+                        ||
+                        role.isBlank()
+        ) {
+
+            return "value";
+        }
+
+        String lower =
+                role.toLowerCase();
+
+        if (
+                lower.contains("user")
+                        ||
+                        lower.contains("login")
+        ) {
+
+            return "username";
+        }
+
+        if (
+                lower.contains("password")
+                        ||
+                        lower.contains("pass")
+        ) {
+
+            return "password";
+        }
+
+        if (
+                lower.contains("email")
+        ) {
+
+            return "email";
+        }
+
+        if (
+                lower.contains("search")
+        ) {
+
+            return "search";
+        }
+
+        return lower.replaceAll(
+                "[^a-z0-9]+",
+                ""
+        );
+    }
+
+    private String safe(
+            String value
+    ) {
+
+        return value == null
+                ? ""
+                : value;
     }
 }

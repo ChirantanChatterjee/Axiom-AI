@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 
@@ -16,7 +17,7 @@ public class AutomationWorkspaceService {
 
     private final Map<String, AutomationSession>
             sessions =
-            new HashMap<>();
+            new ConcurrentHashMap<>();
 
     // =====================================================
     // GET OR CREATE SESSION
@@ -36,7 +37,7 @@ public class AutomationWorkspaceService {
                 AutomationSession.builder()
 
                         .sessionId(
-                                UUID.randomUUID().toString()
+                                sessionIdFor(userId)
                         )
 
                         .userId(userId)
@@ -57,6 +58,27 @@ public class AutomationWorkspaceService {
         );
 
         return session;
+    }
+
+    private String sessionIdFor(
+            String userId
+    ) {
+
+        if (
+                userId == null
+                        ||
+                        userId.isBlank()
+        ) {
+
+            return UUID.randomUUID()
+                    .toString();
+        }
+
+        return userId.trim()
+                .replaceAll(
+                        "[^A-Za-z0-9._-]",
+                        "-"
+                );
     }
 
     // =====================================================
@@ -217,6 +239,37 @@ public class AutomationWorkspaceService {
         );
     }
 
+    public void putVariables(
+
+            String userId,
+
+            Map<String, String> variables
+
+    ) {
+
+        if (
+                variables == null
+                        ||
+                        variables.isEmpty()
+        ) {
+
+            return;
+        }
+
+        for (
+                Map.Entry<String, String> entry
+                : variables.entrySet()
+        ) {
+
+            putVariable(
+                    userId,
+                    entry.getKey(),
+                    entry.getValue(),
+                    isSensitive(entry.getKey())
+            );
+        }
+    }
+
     // =====================================================
     // GET VARIABLE
     // =====================================================
@@ -246,6 +299,96 @@ public class AutomationWorkspaceService {
         return variable.getValue();
     }
 
+    public Map<String, WorkspaceVariable> getVariables(
+            String userId
+    ) {
+
+        return getOrCreateSession(userId)
+                .getVariables();
+    }
+
+    public Map<String, String> getVariableValues(
+            String userId
+    ) {
+
+        Map<String, String> values =
+                new HashMap<>();
+
+        for (
+                WorkspaceVariable variable
+                : getVariables(userId).values()
+        ) {
+
+            values.put(
+                    variable.getKey()
+                            .toLowerCase(),
+                    variable.getValue()
+            );
+        }
+
+        return values;
+    }
+
+    // =====================================================
+    // FIND FLOW
+    // =====================================================
+
+    public DetectedFlow findFlow(
+
+            String userId,
+
+            String requestedName
+
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        if (
+                session.getDetectedFlows() == null
+                        ||
+                        session.getDetectedFlows()
+                                .isEmpty()
+        ) {
+
+            return null;
+        }
+
+        if (
+                requestedName != null
+                        &&
+                        !requestedName.isBlank()
+        ) {
+
+            String target =
+                    requestedName.toLowerCase();
+
+            for (
+                    DetectedFlow flow
+                    : session.getDetectedFlows()
+            ) {
+
+                String flowType =
+                        flow.getFlowType() == null
+                                ? ""
+                                : flow.getFlowType()
+                                .toLowerCase();
+
+                if (
+                        flowType.contains(target)
+                                ||
+                                target.contains(flowType)
+                ) {
+
+                    return flow;
+                }
+            }
+        }
+
+        return session.getDetectedFlows()
+                .get(0);
+    }
+
     // =====================================================
     // ARTIFACTS
     // =====================================================
@@ -266,6 +409,44 @@ public class AutomationWorkspaceService {
         session.setUpdatedAt(
                 LocalDateTime.now()
         );
+    }
+
+    public GeneratedArtifact getLatestArtifact(
+
+            String userId,
+
+            String type
+
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        List<GeneratedArtifact> artifacts =
+                session.getArtifacts();
+
+        for (
+                int i = artifacts.size() - 1;
+                i >= 0;
+                i--
+        ) {
+
+            GeneratedArtifact artifact =
+                    artifacts.get(i);
+
+            if (
+                    type == null
+                            ||
+                            type.equalsIgnoreCase(
+                                    artifact.getType()
+                            )
+            ) {
+
+                return artifact;
+            }
+        }
+
+        return null;
     }
 
     // =====================================================
@@ -322,5 +503,28 @@ public class AutomationWorkspaceService {
     ) {
 
         return getOrCreateSession(userId);
+    }
+
+    private boolean isSensitive(
+            String key
+    ) {
+
+        if (
+                key == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                key.toLowerCase();
+
+        return lower.contains("password")
+                ||
+                lower.contains("token")
+                ||
+                lower.contains("secret")
+                ||
+                lower.contains("otp");
     }
 }

@@ -26,7 +26,11 @@ public class AIChatController {
 
         return aiOrchestratorService
                 .processMessage(
-                        request.getMessage()
+                        request.getMessage(),
+                        request.getSessionId(),
+                        request.getWebsiteUrl(),
+                        request.getDomainName(),
+                        request.getFrameworkLocked()
                 );
     }
 

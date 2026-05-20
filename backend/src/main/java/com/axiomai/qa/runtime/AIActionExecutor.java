@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 
 public class AIActionExecutor {
 
+    private static final int MANUAL_AUTH_TIMEOUT_MS =
+            180_000;
+
     // =====================================================
     // OVERLAY RESOLVER
     // =====================================================
@@ -74,7 +77,19 @@ public class AIActionExecutor {
 
             if (isPasswordStep(step)) {
 
-                ensurePasswordStage(page);
+                boolean authCompleted =
+                        waitForPasswordStage(page);
+
+                if (
+                        authCompleted
+                ) {
+
+                    System.out.println(
+                            "[MANUAL AUTH] Password step skipped because Google sign-in was completed manually."
+                    );
+
+                    return;
+                }
             }
 
             Locator locator =
@@ -105,7 +120,19 @@ public class AIActionExecutor {
 
                 attemptNextButtonFlow(page);
 
-                page.waitForTimeout(3000);
+                boolean authCompleted =
+                        waitForPasswordStage(page);
+
+                if (
+                        authCompleted
+                ) {
+
+                    System.out.println(
+                            "[MANUAL AUTH] Password step skipped because Google sign-in was completed manually."
+                    );
+
+                    return;
+                }
 
                 locator =
                         resolveLocator(
@@ -180,6 +207,19 @@ public class AIActionExecutor {
 
             if (locator == null) {
 
+                if (
+                        isAuthSubmitStep(step)
+                                &&
+                                isGoogleAuthCompleted(page)
+                ) {
+
+                    System.out.println(
+                            "[MANUAL AUTH] Submit step skipped because Google sign-in is already complete."
+                    );
+
+                    return;
+                }
+
                 throw new RuntimeException(
                         "Unable to resolve locator for: "
                                 + step.getTarget()
@@ -247,31 +287,55 @@ public class AIActionExecutor {
     // ENSURE PASSWORD STAGE
     // =====================================================
 
-    private static void ensurePasswordStage(
+    private static boolean waitForPasswordStage(
             Page page
     ) {
 
         try {
 
-            Locator passwordField =
-                    page.locator(
-                            "input[type='password']"
+            for (
+                    int attempt = 0;
+                    attempt < 12;
+                    attempt++
+            ) {
+
+                if (
+                        hasVisiblePasswordField(page)
+                ) {
+
+                    System.out.println(
+                            "[PASSWORD STAGE] Already visible."
                     );
 
-            if (passwordField.count() > 0) {
+                    return false;
+                }
 
-                System.out.println(
-                        "[PASSWORD STAGE] Already visible."
-                );
+                if (
+                        isGoogleTryAgainChallenge(page)
+                ) {
 
-                return;
+                    return waitForManualGoogleAuth(page);
+                }
+
+                page.waitForTimeout(1000);
             }
 
             System.out.println(
-                    "[PASSWORD STAGE] Password field not visible."
+                    "[PASSWORD STAGE] Password field not visible after waiting."
             );
 
+            return false;
+
         } catch (Exception ignored) {
+
+            if (
+                    ignored instanceof RuntimeException runtimeException
+            ) {
+
+                throw runtimeException;
+            }
+
+            return false;
         }
     }
 
@@ -365,12 +429,25 @@ public class AIActionExecutor {
 
         ) {
 
-            Locator locator =
-                    SelectorFallbackEngine
-                            .findLocator(
-                                    page,
-                                    step
-                            );
+                Locator locator =
+                    null;
+
+            try {
+
+                locator =
+                        SelectorFallbackEngine
+                                .findLocator(
+                                        page,
+                                        step
+                                );
+
+            } catch (Exception e) {
+
+                System.out.println(
+                        "[AI SELECTOR] PRIMARY/FALLBACK UNAVAILABLE -> "
+                                + step.getTarget()
+                );
+            }
 
             if (locator != null) {
 
@@ -421,6 +498,23 @@ public class AIActionExecutor {
                 }
 
             } catch (Exception ignored) {
+            }
+
+            if (
+                    isGoogleTryAgainChallenge(page)
+            ) {
+
+                boolean authCompleted =
+                        waitForManualGoogleAuth(page);
+
+                if (
+                        authCompleted
+                ) {
+
+                    return null;
+                }
+
+                throw googleChallengeException();
             }
         }
 
@@ -514,5 +608,338 @@ public class AIActionExecutor {
 
         } catch (Exception ignored) {
         }
+    }
+
+    private static boolean hasVisiblePasswordField(
+            Page page
+    ) {
+
+        String[] selectors = {
+
+                "input[type='password']",
+
+                "[name='Passwd']",
+
+                "#password",
+
+                "input[autocomplete='current-password']"
+        };
+
+        for (
+                String selector
+                : selectors
+        ) {
+
+            try {
+
+                Locator locator =
+                        page.locator(selector);
+
+                if (
+                        locator.count() > 0
+                                &&
+                                locator.first()
+                                        .isVisible()
+                ) {
+
+                    return true;
+                }
+
+            } catch (Exception ignored) {
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isGoogleTryAgainChallenge(
+            Page page
+    ) {
+
+        try {
+
+            String url =
+                    page.url() == null
+                            ? ""
+                            : page.url()
+                            .toLowerCase();
+
+            if (
+                    !url.contains("accounts.google")
+            ) {
+
+                return false;
+            }
+
+            if (
+                    hasVisibleTryAgainControl(page)
+            ) {
+
+                return true;
+            }
+
+            String text =
+                    page.locator("body")
+                            .innerText(
+                                    new Locator.InnerTextOptions()
+                                            .setTimeout(1000)
+                            )
+                            .toLowerCase();
+
+            return text.contains("try again")
+                    &&
+                    (
+                            text.contains("couldn't sign you in")
+                                    ||
+                                    text.contains("couldn’t sign you in")
+                                    ||
+                                    text.contains("something went wrong")
+                                    ||
+                                    text.contains("this browser or app may not be secure")
+                    );
+
+        } catch (Exception ignored) {
+
+            return false;
+        }
+    }
+
+    private static boolean waitForManualGoogleAuth(
+            Page page
+    ) {
+
+        System.out.println(
+                "[MANUAL AUTH] Google is showing a Try again/security challenge. Complete the sign-in manually in the open browser. Automation will wait up to "
+                        + (MANUAL_AUTH_TIMEOUT_MS / 1000)
+                        + " seconds."
+        );
+
+        long deadline =
+                System.currentTimeMillis()
+                        + MANUAL_AUTH_TIMEOUT_MS;
+
+        while (
+                System.currentTimeMillis() < deadline
+        ) {
+
+            if (
+                    hasVisiblePasswordField(page)
+            ) {
+
+                System.out.println(
+                        "[MANUAL AUTH] Password field is visible again."
+                );
+
+                return false;
+            }
+
+            if (
+                    isGoogleAuthCompleted(page)
+            ) {
+
+                System.out.println(
+                        "[MANUAL AUTH] Google sign-in appears complete."
+                );
+
+                return true;
+            }
+
+            page.waitForTimeout(1000);
+        }
+
+        throw googleChallengeException();
+    }
+
+    private static RuntimeException googleChallengeException() {
+
+        return new RuntimeException(
+                "Google did not show the password field. A Try again/security challenge is visible after username submission. Complete the sign-in manually in the open browser or use a pre-authenticated session; the automation will not bypass this security challenge."
+        );
+    }
+
+    private static boolean isAuthSubmitStep(
+            FlowStep step
+    ) {
+
+        if (
+                step == null
+                        ||
+                        step.getTarget() == null
+        ) {
+
+            return false;
+        }
+
+        String target =
+                step.getTarget()
+                        .toLowerCase();
+
+        return target.contains("login")
+                ||
+                target.contains("submit")
+                ||
+                target.contains("next");
+    }
+
+    private static boolean isGoogleAuthCompleted(
+            Page page
+    ) {
+
+        try {
+
+            String url =
+                    page.url() == null
+                            ? ""
+                            : page.url()
+                            .toLowerCase();
+
+            if (
+                    url.contains("accounts.google")
+            ) {
+
+                return false;
+            }
+
+            if (
+                    url.contains("youtube.com")
+                            &&
+                            hasVisibleSignedInYouTubeMarker(page)
+            ) {
+
+                return true;
+            }
+
+            return url.contains("youtube.com")
+                    &&
+                    !hasVisibleSignInControl(page);
+
+        } catch (Exception ignored) {
+
+            return false;
+        }
+    }
+
+    private static boolean hasVisibleSignedInYouTubeMarker(
+            Page page
+    ) {
+
+        String[] selectors = {
+
+                "button[aria-label*='Account menu']",
+
+                "button[aria-label*='Google Account']",
+
+                "ytd-topbar-menu-button-renderer button#avatar-btn",
+
+                "#avatar-btn"
+        };
+
+        for (
+                String selector
+                : selectors
+        ) {
+
+            try {
+
+                Locator locator =
+                        page.locator(selector);
+
+                if (
+                        locator.count() > 0
+                                &&
+                                locator.first()
+                                        .isVisible()
+                ) {
+
+                    return true;
+                }
+
+            } catch (Exception ignored) {
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean hasVisibleSignInControl(
+            Page page
+    ) {
+
+        String[] selectors = {
+
+                "a[aria-label='Sign in']",
+
+                "a:has-text('Sign in')",
+
+                "paper-button:has-text('Sign in')"
+        };
+
+        for (
+                String selector
+                : selectors
+        ) {
+
+            try {
+
+                Locator locator =
+                        page.locator(selector);
+
+                if (
+                        locator.count() > 0
+                                &&
+                                locator.first()
+                                        .isVisible()
+                ) {
+
+                    return true;
+                }
+
+            } catch (Exception ignored) {
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean hasVisibleTryAgainControl(
+            Page page
+    ) {
+
+        String[] selectors = {
+
+                "button:has-text('Try again')",
+
+                "a:has-text('Try again')",
+
+                "[role='button']:has-text('Try again')",
+
+                "input[value='Try again']"
+        };
+
+        for (
+                String selector
+                : selectors
+        ) {
+
+            try {
+
+                Locator locator =
+                        page.locator(selector);
+
+                if (
+                        locator.count() > 0
+                                &&
+                                locator.first()
+                                        .isVisible()
+                ) {
+
+                    return true;
+                }
+
+            } catch (Exception ignored) {
+            }
+        }
+
+        return false;
     }
 }
