@@ -1,0 +1,159 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------< com.axiomai:backend >-------------------------
+[INFO] Building AIF Platform 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.3.5:run (default-cli) > test-compile @ backend >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ backend ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 202 source files with javac [debug parameters release 21] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ backend ---
+[INFO] skip non existing resourceDirectory C:\Users\27chi\IdeaProjects\Axiom-AI\backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 7 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] 
+[INFO] <<< spring-boot:3.3.5:run (default-cli) < test-compile @ backend <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.3.5:run (default-cli) @ backend ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.5)
+
+2026-05-19T01:51:33.630+01:00  INFO 9788 --- [aif-platform] [           main] com.axiomai.BackendApplication           : Starting BackendApplication using Java 25.0.2 with PID 9788 (C:\Users\27chi\IdeaProjects\Axiom-AI\backend\target\classes started by 27chi in C:\Users\27chi\IdeaProjects\Axiom-AI\backend)
+2026-05-19T01:51:33.633+01:00 DEBUG 9788 --- [aif-platform] [           main] com.axiomai.BackendApplication           : Running with Spring Boot v3.3.5, Spring v6.1.14
+2026-05-19T01:51:33.633+01:00  INFO 9788 --- [aif-platform] [           main] com.axiomai.BackendApplication           : No active profile set, falling back to 1 default profile: "default"
+2026-05-19T01:51:33.973+01:00  INFO 9788 --- [aif-platform] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-19T01:51:34.069+01:00  INFO 9788 --- [aif-platform] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 85 ms. Found 5 JPA repository interfaces.
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.apache.tomcat.jni.Library in an unnamed module (file:/C:/Users/27chi/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.31/tomcat-embed-core-10.1.31.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+2026-05-19T01:51:34.334+01:00  INFO 9788 --- [aif-platform] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-05-19T01:51:34.343+01:00  INFO 9788 --- [aif-platform] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-19T01:51:34.343+01:00  INFO 9788 --- [aif-platform] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-05-19T01:51:34.381+01:00  INFO 9788 --- [aif-platform] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-05-19T01:51:34.382+01:00  INFO 9788 --- [aif-platform] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 720 ms
+2026-05-19T01:51:34.458+01:00  INFO 9788 --- [aif-platform] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-05-19T01:51:34.483+01:00  INFO 9788 --- [aif-platform] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.5.3.Final
+2026-05-19T01:51:34.500+01:00  INFO 9788 --- [aif-platform] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-05-19T01:51:34.667+01:00  INFO 9788 --- [aif-platform] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-19T01:51:34.683+01:00  INFO 9788 --- [aif-platform] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-05-19T01:51:34.772+01:00  INFO 9788 --- [aif-platform] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@5e3d2765
+2026-05-19T01:51:34.773+01:00  INFO 9788 --- [aif-platform] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-05-19T01:51:35.264+01:00  INFO 9788 --- [aif-platform] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-19T01:51:35.291+01:00  INFO 9788 --- [aif-platform] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-19T01:51:35.562+01:00  WARN 9788 --- [aif-platform] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::allocateMemory has been called by io.netty.util.internal.PlatformDependent0$2 (file:/C:/Users/27chi/.m2/repository/io/netty/netty-common/4.1.114.Final/netty-common-4.1.114.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$2
+WARNING: sun.misc.Unsafe::allocateMemory will be removed in a future release
+2026-05-19T01:51:35.749+01:00  INFO 9788 --- [aif-platform] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2026-05-19T01:51:35.753+01:00  INFO 9788 --- [aif-platform] [           main] com.axiomai.BackendApplication           : Started BackendApplication in 2.319 seconds (process running for 2.502)
+2026-05-19T01:52:02.940+01:00  INFO 9788 --- [aif-platform] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-19T01:52:02.941+01:00  INFO 9788 --- [aif-platform] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-19T01:52:02.941+01:00  INFO 9788 --- [aif-platform] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
+ORCHESTRATOR INTENT = EXECUTE_GENERATED_TESTS
+ORCHESTRATOR INTENT = EXECUTE_GENERATED_TESTS
+OPENAI RESPONSE = {
+  "intent" : "EXECUTE_FLOW",
+  "flowId" : null,
+  "flowName" : null,
+  "frameworkName" : null,
+  "url" : null,
+  "featureName" : null,
+  "artifactName" : null,
+  "variables" : { },
+  "reportPath" : null,
+  "responseMessage" : null
+}
+GPT INTENT = EXECUTE_FLOW
+ORCHESTRATOR INTENT = EXECUTE_FLOW
+2026-05-19T01:55:44.243+01:00 DEBUG 9788 --- [aif-platform] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        fe1_0.id,
+        fe1_0.base_url,
+        fe1_0.created_at,
+        fe1_0.description,
+        fe1_0.domain_name,
+        fe1_0.flow_name,
+        fe1_0.project_id 
+    from
+        flows fe1_0 
+    where
+        upper(fe1_0.flow_name) like upper(?) escape '\' 
+    order by
+        fe1_0.id desc 
+    fetch
+        first ? rows only
+Hibernate: 
+    select
+        fe1_0.id,
+        fe1_0.base_url,
+        fe1_0.created_at,
+        fe1_0.description,
+        fe1_0.domain_name,
+        fe1_0.flow_name,
+        fe1_0.project_id 
+    from
+        flows fe1_0 
+    where
+        upper(fe1_0.flow_name) like upper(?) escape '\' 
+    order by
+        fe1_0.id desc 
+    fetch
+        first ? rows only
+2026-05-19T01:55:44.250+01:00 DEBUG 9788 --- [aif-platform] [nio-8080-exec-7] org.hibernate.SQL                        : 
+    select
+        fe1_0.id,
+        fe1_0.base_url,
+        fe1_0.created_at,
+        fe1_0.description,
+        fe1_0.domain_name,
+        fe1_0.flow_name,
+        fe1_0.project_id 
+    from
+        flows fe1_0 
+    where
+        upper(fe1_0.domain_name) like upper(?) escape '\' 
+    order by
+        fe1_0.id desc 
+    fetch
+        first ? rows only
+Hibernate: 
+    select
+        fe1_0.id,
+        fe1_0.base_url,
+        fe1_0.created_at,
+        fe1_0.description,
+        fe1_0.domain_name,
+        fe1_0.flow_name,
+        fe1_0.project_id 
+    from
+        flows fe1_0 
+    where
+        upper(fe1_0.domain_name) like upper(?) escape '\' 
+    order by
+        fe1_0.id desc 
+    fetch
+        first ? rows only
+2026-05-19T22:43:00.371+01:00  WARN 9788 --- [aif-platform] [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=20h46m25s627ms873µs800ns).
+2026-05-20T19:26:12.638+01:00  WARN 9788 --- [aif-platform] [l-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=19h6m10s962ms927µs100ns).

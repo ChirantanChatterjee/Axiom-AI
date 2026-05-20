@@ -1,0 +1,1204 @@
+package com.axiomai.qa.service;
+
+import com.axiomai.qa.generator.flow.FlowPageObjectGenerator;
+import com.axiomai.qa.generator.flow.FlowStepDefinitionGenerator;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.Year;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+@Service
+@RequiredArgsConstructor
+public class GeneratedTestExecutionService {
+
+    private static final long TEST_TIMEOUT_MINUTES =
+            10;
+
+    @Value("${aif.public-base-url:http://localhost:8080}")
+    private String publicBaseUrl;
+
+    private final GeneratedProjectWriterService
+            generatedProjectWriterService;
+
+    private final FlowPageObjectGenerator
+            flowPageObjectGenerator;
+
+    private final HookGeneratorService
+            hookGeneratorService;
+
+    private final RunnerGeneratorService
+            runnerGeneratorService;
+
+    private final PomGeneratorService
+            pomGeneratorService;
+
+    public GeneratedTestCatalog listTags(
+            String sessionId
+    ) {
+
+        Path frameworkRoot =
+                resolveFrameworkRoot(sessionId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "No generated framework found. Generate a framework or tests first."
+                                )
+                        );
+
+        List<GeneratedTestTag> tags =
+                parseTags(frameworkRoot);
+
+        return GeneratedTestCatalog.builder()
+                .frameworkRoot(
+                        frameworkRoot.toAbsolutePath()
+                                .normalize()
+                                .toString()
+                )
+                .tags(tags)
+                .message(
+                        buildTagMessage(tags)
+                )
+                .build();
+    }
+
+    public GeneratedTestRunResult runTests(
+
+            String sessionId,
+            String tagExpression,
+            Map<String, String> variables
+
+    ) {
+
+        Path frameworkRoot =
+                resolveFrameworkRoot(sessionId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "No generated framework found. Generate a framework or tests first."
+                                )
+                        );
+
+        String normalizedExpression =
+                normalizeTagExpression(tagExpression);
+
+        normalizeFeatureFiles(frameworkRoot);
+
+        List<String> missingVariables =
+                missingVariables(
+                        frameworkRoot,
+                        normalizedExpression,
+                        variables
+                );
+
+        if (
+                !missingVariables.isEmpty()
+        ) {
+
+            throw new RuntimeException(
+                    "Missing runtime data for generated tests: "
+                            + String.join(
+                            ", ",
+                            missingVariables
+                    )
+                            + ". Provide it in chat first, for example: username is standard_user and password is secret_sauce."
+            );
+        }
+
+        List<String> command =
+                new ArrayList<>();
+
+        command.add(
+                mavenCommand()
+        );
+
+        command.add("test");
+
+        if (
+                normalizedExpression != null
+                        &&
+                        !normalizedExpression.isBlank()
+        ) {
+
+            command.add(
+                    "-Dcucumber.filter.tags="
+                            + normalizedExpression
+            );
+        }
+
+        try {
+
+            refreshSupportFiles(frameworkRoot);
+
+            ProcessBuilder processBuilder =
+                    new ProcessBuilder(command);
+
+            processBuilder.directory(
+                    frameworkRoot.toFile()
+            );
+
+            processBuilder.redirectErrorStream(true);
+
+            applyVariables(
+                    processBuilder,
+                    variables
+            );
+
+            Process process =
+                    processBuilder.start();
+
+            CompletableFuture<String> outputFuture =
+                    CompletableFuture.supplyAsync(
+                            () -> readOutput(process)
+                    );
+
+            boolean completed =
+                    process.waitFor(
+                            TEST_TIMEOUT_MINUTES,
+                            TimeUnit.MINUTES
+                    );
+
+            if (
+                    !completed
+            ) {
+
+                process.destroyForcibly();
+
+                outputFuture.cancel(true);
+
+                throw new RuntimeException(
+                        "Generated test execution timed out after "
+                                + TEST_TIMEOUT_MINUTES
+                                + " minutes."
+                );
+            }
+
+            int exitCode =
+                    process.exitValue();
+
+            String output =
+                    outputFuture.get(
+                            5,
+                            TimeUnit.SECONDS
+                    );
+
+            String reportUrl =
+                    copyCucumberReport(frameworkRoot);
+
+            return GeneratedTestRunResult.builder()
+                    .success(exitCode == 0)
+                    .tagExpression(
+                            normalizedExpression == null
+                                    ? "ALL"
+                                    : normalizedExpression
+                    )
+                    .reportUrl(reportUrl)
+                    .exitCode(exitCode)
+                    .output(tail(output, 12000))
+                    .message(
+                            buildExecutionMessage(
+                                    exitCode,
+                                    normalizedExpression,
+                                    reportUrl
+                            )
+                    )
+                    .build();
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Generated test execution failed: "
+                            + e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    private Optional<Path> resolveFrameworkRoot(
+            String sessionId
+    ) {
+
+        Path sessionRoot =
+                generatedProjectWriterService
+                        .getFrameworkRoot(sessionId);
+
+        if (
+                isRunnableFramework(sessionRoot)
+        ) {
+
+            return Optional.of(sessionRoot);
+        }
+
+        if (
+                sessionId != null
+                        &&
+                        !sessionId.isBlank()
+        ) {
+
+            return Optional.empty();
+        }
+
+        Path generatedRoot =
+                Paths.get("generated-frameworks");
+
+        if (
+                !Files.exists(generatedRoot)
+        ) {
+
+            return Optional.empty();
+        }
+
+        try (
+                Stream<Path> paths =
+                        Files.list(generatedRoot)
+        ) {
+
+            return paths
+                    .map(path -> path.resolve("framework"))
+                    .filter(this::isRunnableFramework)
+                    .max(
+                            Comparator.comparingLong(
+                                    this::lastModified
+                            )
+                    );
+
+        } catch (IOException e) {
+
+            return Optional.empty();
+        }
+    }
+
+    private boolean isRunnableFramework(
+            Path root
+    ) {
+
+        return root != null
+                &&
+                Files.exists(
+                        root.resolve("pom.xml")
+                )
+                &&
+                hasFeatureFiles(root);
+    }
+
+    private void refreshSupportFiles(
+            Path frameworkRoot
+    ) throws IOException {
+
+        Path pageFolder =
+                frameworkRoot.resolve(
+                        "src/test/java/com/axiomai/generated/pages"
+                );
+
+        Path stepFolder =
+                frameworkRoot.resolve(
+                        "src/test/java/com/axiomai/generated/steps"
+                );
+
+        Path hooksFolder =
+                frameworkRoot.resolve(
+                        "src/test/java/com/axiomai/generated/hooks"
+                );
+
+        Path runnerFolder =
+                frameworkRoot.resolve(
+                        "src/test/java/com/axiomai/generated/runner"
+                );
+
+        Files.createDirectories(pageFolder);
+        Files.createDirectories(stepFolder);
+        Files.createDirectories(hooksFolder);
+        Files.createDirectories(runnerFolder);
+
+        Files.writeString(
+                pageFolder.resolve("GeneratedPage.java"),
+                flowPageObjectGenerator.generate(List.of())
+        );
+
+        Files.writeString(
+                stepFolder.resolve("GeneratedSteps.java"),
+                FlowStepDefinitionGenerator.generate(List.of())
+        );
+
+        Files.writeString(
+                hooksFolder.resolve("Hooks.java"),
+                hookGeneratorService.generateHooks()
+        );
+
+        Files.writeString(
+                runnerFolder.resolve("TestRunner.java"),
+                runnerGeneratorService.generateRunner()
+        );
+
+        Files.writeString(
+                frameworkRoot.resolve("pom.xml"),
+                pomGeneratorService.generatePom()
+        );
+    }
+
+    private boolean hasFeatureFiles(
+            Path root
+    ) {
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(
+                                root.resolve(
+                                        "src/test/resources/features"
+                                )
+                        )
+        ) {
+
+            return paths.anyMatch(
+                    path -> Files.isRegularFile(path)
+                            &&
+                            path.getFileName()
+                                    .toString()
+                                    .endsWith(".feature")
+            );
+
+        } catch (IOException e) {
+
+            return false;
+        }
+    }
+
+    private void normalizeFeatureFiles(
+            Path frameworkRoot
+    ) {
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        if (
+                !Files.exists(featureRoot)
+        ) {
+
+            return;
+        }
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            List<Path> featureFiles =
+                    paths.filter(Files::isRegularFile)
+                            .filter(path -> path.getFileName()
+                                    .toString()
+                                    .endsWith(".feature"))
+                            .toList();
+
+            for (
+                    Path featureFile
+                    : featureFiles
+            ) {
+
+                String content =
+                        Files.readString(featureFile);
+
+                String normalized =
+                        content.replaceAll(
+                                "(?i)\\bYYYY\\b",
+                                String.valueOf(
+                                        Year.now()
+                                                .getValue()
+                                )
+                        );
+
+                if (
+                        !content.equals(normalized)
+                ) {
+
+                    Files.writeString(
+                            featureFile,
+                            normalized
+                    );
+                }
+            }
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Unable to normalize generated feature files.",
+                    e
+            );
+        }
+    }
+
+    private long lastModified(
+            Path path
+    ) {
+
+        try {
+
+            return Files.getLastModifiedTime(path)
+                    .toMillis();
+
+        } catch (IOException e) {
+
+            return 0;
+        }
+    }
+
+    private List<GeneratedTestTag> parseTags(
+            Path frameworkRoot
+    ) {
+
+        Map<String, GeneratedTestTagBuilder> tags =
+                new LinkedHashMap<>();
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            List<Path> featureFiles =
+                    paths.filter(Files::isRegularFile)
+                            .filter(path -> path.getFileName()
+                                    .toString()
+                                    .endsWith(".feature"))
+                            .sorted()
+                            .toList();
+
+            for (
+                    Path featureFile
+                    : featureFiles
+            ) {
+
+                parseFeatureFile(
+                        featureFile,
+                        tags
+                );
+            }
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Unable to parse generated feature files.",
+                    e
+            );
+        }
+
+        return tags.values()
+                .stream()
+                .map(GeneratedTestTagBuilder::build)
+                .toList();
+    }
+
+    private void parseFeatureFile(
+
+            Path featureFile,
+            Map<String, GeneratedTestTagBuilder> tags
+
+    ) throws IOException {
+
+        List<String> lines =
+                Files.readAllLines(featureFile);
+
+        String featureName =
+                featureFile.getFileName()
+                        .toString();
+
+        List<String> pendingTags =
+                new ArrayList<>();
+
+        for (
+                String line
+                : lines
+        ) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("Feature:")
+            ) {
+
+                featureName =
+                        trimmed.substring(
+                                "Feature:".length()
+                        )
+                                .trim();
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTags.addAll(
+                        List.of(
+                                trimmed.split("\\s+")
+                        )
+                );
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Scenario:")
+                            ||
+                            trimmed.startsWith("Scenario Outline:")
+            ) {
+
+                String scenario =
+                        trimmed.substring(
+                                trimmed.indexOf(':') + 1
+                        )
+                                .trim();
+
+                for (
+                        String tag
+                        : pendingTags
+                ) {
+
+                    if (
+                            !tag.startsWith("@")
+                    ) {
+
+                        continue;
+                    }
+
+                    GeneratedTestTagBuilder builder =
+                            tags.computeIfAbsent(
+                                    tag,
+                                    GeneratedTestTagBuilder::new
+                            );
+
+                    builder.addScenario(
+                            scenario
+                    );
+
+                    builder.addFeature(
+                            featureName
+                    );
+                }
+
+                pendingTags.clear();
+            }
+        }
+    }
+
+    private String buildTagMessage(
+            List<GeneratedTestTag> tags
+    ) {
+
+        if (
+                tags.isEmpty()
+        ) {
+
+            return "I could not find any tags in the generated feature files yet. Generate tests first, then ask me for the tags again.";
+        }
+
+        StringBuilder message =
+                new StringBuilder();
+
+        message.append(
+                "Here are the tags available in the generated test framework:\n\n"
+        );
+
+        for (
+                GeneratedTestTag tag
+                : tags
+        ) {
+
+            message.append(tag.getTag())
+                    .append("\n")
+                    .append(tag.getDescription())
+                    .append("\n\n");
+        }
+
+        message.append(
+                "You can ask me to run one of them, for example: `run tests with tag "
+        );
+
+        message.append(
+                tags.get(0)
+                        .getTag()
+        );
+
+        message.append(
+                "`, or say `run all the generated tests`."
+        );
+
+        return message.toString();
+    }
+
+    private String buildExecutionMessage(
+
+            int exitCode,
+            String tagExpression,
+            String reportUrl
+
+    ) {
+
+        String target =
+                tagExpression == null
+                        ||
+                        tagExpression.isBlank()
+                        ? "all generated tests"
+                        : "tests matching `" + tagExpression + "`";
+
+        String status =
+                exitCode == 0
+                        ? "completed successfully"
+                        : "finished with failures";
+
+        String reportMessage =
+                reportUrl == null
+                        ? " No Cucumber HTML report was produced."
+                        : " You can open the generated Cucumber report from the link below.";
+
+        return "I ran "
+                + target
+                + ". The execution "
+                + status
+                + "."
+                + reportMessage;
+    }
+
+    private String normalizeTagExpression(
+            String tagExpression
+    ) {
+
+        if (
+                tagExpression == null
+                        ||
+                        tagExpression.isBlank()
+                        ||
+                        "ALL".equalsIgnoreCase(
+                                tagExpression.trim()
+                        )
+        ) {
+
+            return null;
+        }
+
+        return tagExpression.trim();
+    }
+
+    private List<String> missingVariables(
+
+            Path frameworkRoot,
+            String tagExpression,
+            Map<String, String> variables
+
+    ) {
+
+        List<String> required =
+                requiredVariables(
+                        frameworkRoot,
+                        tagExpression
+                );
+
+        if (
+                required.isEmpty()
+        ) {
+
+            return List.of();
+        }
+
+        Map<String, String> normalizedVariables =
+                new LinkedHashMap<>();
+
+        if (
+                variables != null
+        ) {
+
+            for (
+                    Map.Entry<String, String> entry
+                    : variables.entrySet()
+            ) {
+
+                if (
+                        entry.getKey() != null
+                ) {
+
+                    normalizedVariables.put(
+                            entry.getKey()
+                                    .toLowerCase(),
+                            entry.getValue()
+                    );
+                }
+            }
+        }
+
+        List<String> missing =
+                new ArrayList<>();
+
+        for (
+                String key
+                : required
+        ) {
+
+            String value =
+                    normalizedVariables.get(
+                            key.toLowerCase()
+                    );
+
+            if (
+                    value == null
+                            ||
+                            value.isBlank()
+            ) {
+
+                missing.add(key);
+            }
+        }
+
+        return missing;
+    }
+
+    private List<String> requiredVariables(
+
+            Path frameworkRoot,
+            String tagExpression
+
+    ) {
+
+        List<String> tagFilters =
+                extractTags(tagExpression);
+
+        List<String> required =
+                new ArrayList<>();
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        Pattern placeholder =
+                Pattern.compile(
+                        "\\$\\{([A-Za-z0-9_]+)}"
+                );
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            List<Path> featureFiles =
+                    paths.filter(Files::isRegularFile)
+                            .filter(path -> path.getFileName()
+                                    .toString()
+                                    .endsWith(".feature"))
+                            .toList();
+
+            for (
+                    Path featureFile
+                    : featureFiles
+            ) {
+
+                String content =
+                        Files.readString(featureFile);
+
+                if (
+                        !tagFilters.isEmpty()
+                                &&
+                                tagFilters.stream()
+                                        .noneMatch(content::contains)
+                ) {
+
+                    continue;
+                }
+
+                Matcher matcher =
+                        placeholder.matcher(content);
+
+                while (
+                        matcher.find()
+                ) {
+
+                    String key =
+                            matcher.group(1);
+
+                    if (
+                            !required.contains(key)
+                    ) {
+
+                        required.add(key);
+                    }
+                }
+            }
+
+        } catch (IOException ignored) {
+        }
+
+        return required;
+    }
+
+    private List<String> extractTags(
+            String tagExpression
+    ) {
+
+        if (
+                tagExpression == null
+                        ||
+                        tagExpression.isBlank()
+        ) {
+
+            return List.of();
+        }
+
+        List<String> tags =
+                new ArrayList<>();
+
+        Matcher matcher =
+                Pattern.compile(
+                        "@[A-Za-z0-9_\\-]+"
+                )
+                        .matcher(tagExpression);
+
+        while (
+                matcher.find()
+        ) {
+
+            tags.add(
+                    matcher.group()
+            );
+        }
+
+        return tags;
+    }
+
+    private String copyCucumberReport(
+            Path frameworkRoot
+    ) throws IOException {
+
+        Path cucumberReport =
+                frameworkRoot.resolve(
+                        "target/cucumber-report.html"
+                );
+
+        if (
+                !Files.exists(cucumberReport)
+        ) {
+
+            return null;
+        }
+
+        Files.createDirectories(
+                Paths.get("reports")
+        );
+
+        String fileName =
+                "generated-tests-"
+                        + LocalDateTime.now()
+                        .format(
+                                DateTimeFormatter.ofPattern(
+                                        "yyyyMMdd-HHmmss"
+                                )
+                        )
+                        + ".html";
+
+        Path copiedReport =
+                Paths.get("reports")
+                        .resolve(fileName);
+
+        Files.copy(
+                cucumberReport,
+                copiedReport,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        );
+
+        return publicBaseUrl
+                + "/api/reports/"
+                + fileName;
+    }
+
+    private void applyVariables(
+
+            ProcessBuilder processBuilder,
+            Map<String, String> variables
+
+    ) {
+
+        if (
+                variables == null
+                        ||
+                        variables.isEmpty()
+        ) {
+
+            return;
+        }
+
+        Map<String, String> environment =
+                processBuilder.environment();
+
+        for (
+                Map.Entry<String, String> entry
+                : variables.entrySet()
+        ) {
+
+            if (
+                    entry.getKey() == null
+                            ||
+                            entry.getValue() == null
+            ) {
+
+                continue;
+            }
+
+            environment.put(
+                    environmentKey(entry.getKey()),
+                    entry.getValue()
+            );
+        }
+    }
+
+    private String environmentKey(
+            String key
+    ) {
+
+        return key.toUpperCase()
+                .replaceAll(
+                        "[^A-Z0-9]+",
+                        "_"
+                );
+    }
+
+    private String readOutput(
+            Process process
+    ) {
+
+        StringBuilder output =
+                new StringBuilder();
+
+        try (
+                BufferedReader reader =
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        process.getInputStream()
+                                )
+                        )
+        ) {
+
+            String line;
+
+            while (
+                    (line = reader.readLine()) != null
+            ) {
+
+                output.append(line)
+                        .append(System.lineSeparator());
+            }
+
+        } catch (IOException e) {
+
+            output.append(
+                    "Unable to read generated test output: "
+                            + e.getMessage()
+            );
+        }
+
+        return output.toString();
+    }
+
+    private String tail(
+
+            String value,
+            int maxLength
+
+    ) {
+
+        if (
+                value == null
+                        ||
+                        value.length() <= maxLength
+        ) {
+
+            return value;
+        }
+
+        return value.substring(
+                value.length() - maxLength
+        );
+    }
+
+    private String mavenCommand() {
+
+        String os =
+                System.getProperty(
+                        "os.name",
+                        ""
+                )
+                        .toLowerCase();
+
+        return os.contains("win")
+                ? "mvn.cmd"
+                : "mvn";
+    }
+
+    private String descriptionFor(
+            GeneratedTestTagBuilder builder
+    ) {
+
+        String tag =
+                builder.tag;
+
+        if (
+                "@generated".equalsIgnoreCase(tag)
+        ) {
+
+            return "Runs every test that AIF generated into the framework.";
+        }
+
+        if (
+                "@ai_requirement".equalsIgnoreCase(tag)
+        ) {
+
+            return "Runs tests derived from plain-English requirements by the AI requirement agent.";
+        }
+
+        if (
+                tag.toLowerCase()
+                        .startsWith("@flow_")
+        ) {
+
+            return "Runs the detected application flow scenarios: "
+                    + String.join(
+                    ", ",
+                    builder.scenarios
+            )
+                    + ".";
+        }
+
+        return "Runs: "
+                + String.join(
+                ", ",
+                builder.scenarios
+        )
+                + ".";
+    }
+
+    private class GeneratedTestTagBuilder {
+
+        private final String tag;
+
+        private final List<String> scenarios =
+                new ArrayList<>();
+
+        private final List<String> features =
+                new ArrayList<>();
+
+        private GeneratedTestTagBuilder(
+                String tag
+        ) {
+
+            this.tag = tag;
+        }
+
+        private void addScenario(
+                String scenario
+        ) {
+
+            if (
+                    scenario != null
+                            &&
+                            !scenario.isBlank()
+                            &&
+                            !scenarios.contains(scenario)
+            ) {
+
+                scenarios.add(scenario);
+            }
+        }
+
+        private void addFeature(
+                String feature
+        ) {
+
+            if (
+                    feature != null
+                            &&
+                            !feature.isBlank()
+                            &&
+                            !features.contains(feature)
+            ) {
+
+                features.add(feature);
+            }
+        }
+
+        private GeneratedTestTag build() {
+
+            return GeneratedTestTag.builder()
+                    .tag(tag)
+                    .description(
+                            descriptionFor(this)
+                    )
+                    .scenarios(scenarios)
+                    .features(features)
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    public static class GeneratedTestCatalog {
+
+        private String frameworkRoot;
+
+        private List<GeneratedTestTag> tags;
+
+        private String message;
+    }
+
+    @Getter
+    @Builder
+    public static class GeneratedTestTag {
+
+        private String tag;
+
+        private String description;
+
+        private List<String> scenarios;
+
+        private List<String> features;
+    }
+
+    @Getter
+    @Builder
+    public static class GeneratedTestRunResult {
+
+        private boolean success;
+
+        private String tagExpression;
+
+        private String reportUrl;
+
+        private int exitCode;
+
+        private String output;
+
+        private String message;
+    }
+}
