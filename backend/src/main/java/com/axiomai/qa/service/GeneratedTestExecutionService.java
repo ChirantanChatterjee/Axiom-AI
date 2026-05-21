@@ -42,6 +42,9 @@ public class GeneratedTestExecutionService {
     private final GeneratedProjectWriterService
             generatedProjectWriterService;
 
+    private final GeneratedFrameworkPersistenceService
+            generatedFrameworkPersistenceService;
+
     private final FlowPageObjectGenerator
             flowPageObjectGenerator;
 
@@ -68,7 +71,7 @@ public class GeneratedTestExecutionService {
                 resolveFrameworkRoot(sessionId)
                         .orElseThrow(
                                 () -> new RuntimeException(
-                                        "No generated framework found. Generate a framework or tests first."
+                                        missingFrameworkMessage()
                                 )
                         );
 
@@ -100,7 +103,7 @@ public class GeneratedTestExecutionService {
                 resolveFrameworkRoot(sessionId)
                         .orElseThrow(
                                 () -> new RuntimeException(
-                                        "No generated framework found. Generate a framework or tests first."
+                                        missingFrameworkMessage()
                                 )
                         );
 
@@ -169,6 +172,9 @@ public class GeneratedTestExecutionService {
 
                 refreshSupportFiles(frameworkRoot);
             }
+
+            generatedFrameworkPersistenceService
+                    .persistFramework(sessionId);
 
             CommandResult testResult =
                     runCommand(
@@ -269,7 +275,7 @@ public class GeneratedTestExecutionService {
                 resolveFrameworkRoot(sessionId)
                         .orElseThrow(
                                 () -> new RuntimeException(
-                                        "No generated framework found. Generate a framework or tests first."
+                                        missingFrameworkMessage()
                                 )
                         );
 
@@ -293,6 +299,9 @@ public class GeneratedTestExecutionService {
 
                 refreshSupportFiles(frameworkRoot);
             }
+
+            generatedFrameworkPersistenceService
+                    .persistFramework(sessionId);
 
             return GeneratedTestRepairResult.builder()
                     .changed(
@@ -352,20 +361,33 @@ public class GeneratedTestExecutionService {
                         !sessionId.isBlank()
         ) {
 
-            Optional<Path> latestFramework =
-                    latestRunnableFramework();
-
             if (
-                    latestFramework.isPresent()
+                    generatedFrameworkPersistenceService
+                            .restoreFramework(sessionId)
+                            &&
+                            isRunnableFramework(sessionRoot)
             ) {
 
-                return latestFramework;
+                return Optional.of(sessionRoot);
             }
 
             return Optional.empty();
         }
 
         return latestRunnableFramework();
+    }
+
+    private String missingFrameworkMessage() {
+
+        if (
+                generatedFrameworkPersistenceService
+                        .isPersistenceConfigured()
+        ) {
+
+            return "No generated framework found for this chat. Generate a framework or tests first.";
+        }
+
+        return "No generated framework found for this chat. Generate a framework or tests first. If this happened after a Render restart, configure SUPABASE_SERVICE_ROLE_KEY and AIF_SUPABASE_STORAGE_BUCKET so AIF can restore generated frameworks from Supabase Storage.";
     }
 
     private Optional<Path> latestRunnableFramework() {

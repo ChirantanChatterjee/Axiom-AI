@@ -26,6 +26,8 @@ public class FrameworkModificationService {
 
     private final FrameworkLearningService frameworkLearningService;
 
+    private final GeneratedFrameworkPersistenceService generatedFrameworkPersistenceService;
+
     public UploadedFrameworkResult uploadModifiedFramework(
 
             String sessionId,
@@ -153,6 +155,9 @@ public class FrameworkModificationService {
                             before,
                             after
                     );
+
+            generatedFrameworkPersistenceService
+                    .persistFramework(sessionId);
 
             GeneratedTestExecutionService.GeneratedTestCatalog catalog =
                     generatedTestExecutionService.listTags(sessionId);

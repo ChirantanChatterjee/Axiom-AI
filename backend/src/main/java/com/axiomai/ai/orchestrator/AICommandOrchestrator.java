@@ -23,6 +23,7 @@ import com.axiomai.qa.models.PageNode;
 import com.axiomai.qa.models.SiteMapResult;
 import com.axiomai.qa.service.FlowPersistenceService;
 import com.axiomai.qa.service.FrameworkGeneratorService;
+import com.axiomai.qa.service.GeneratedFrameworkPersistenceService;
 import com.axiomai.qa.service.GeneratedTestExecutionService;
 import com.axiomai.qa.service.GeneratedProjectWriterService;
 import com.axiomai.qa.service.RequirementTestCaseGeneratorService;
@@ -62,6 +63,9 @@ public class AICommandOrchestrator {
 
     private final GeneratedProjectWriterService
             generatedProjectWriterService;
+
+    private final GeneratedFrameworkPersistenceService
+            generatedFrameworkPersistenceService;
 
     private final GeneratedTestExecutionService
             generatedTestExecutionService;
@@ -2091,6 +2095,12 @@ public class AICommandOrchestrator {
         String zipPath =
                 generatedProjectWriterService
                         .zipFramework(sessionId);
+
+        generatedFrameworkPersistenceService
+                .persistFrameworkArchive(
+                        sessionId,
+                        java.nio.file.Path.of(zipPath)
+                );
 
         GeneratedArtifact artifact =
                 GeneratedArtifact.builder()

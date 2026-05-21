@@ -12,8 +12,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,6 +142,201 @@ public class SupabaseStorageCleanupService {
                             + e.getMessage()
             );
         }
+    }
+
+    public boolean isConfigured() {
+
+        return !supabaseUrl.isBlank()
+                &&
+                !serviceRoleKey.isBlank()
+                &&
+                !bucket.isBlank();
+    }
+
+    public String sessionObjectPath(
+
+            String sessionId,
+
+            String fileName
+
+    ) {
+
+        return storagePrefix
+                + sanitizePathPart(sessionId)
+                + "/"
+                + sanitizePathPart(fileName);
+    }
+
+    public boolean uploadFile(
+
+            String objectPath,
+
+            Path file
+
+    ) throws Exception {
+
+        if (
+                !isConfigured()
+        ) {
+
+            return false;
+        }
+
+        if (
+                objectPath == null
+                        ||
+                        objectPath.isBlank()
+                        ||
+                        file == null
+                        ||
+                        !Files.exists(file)
+        ) {
+
+            return false;
+        }
+
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(
+                                URI.create(
+                                        supabaseUrl
+                                                + "/storage/v1/object/"
+                                                + encodePathSegment(bucket)
+                                                + "/"
+                                                + encodeObjectPath(objectPath)
+                                )
+                        )
+                        .timeout(
+                                Duration.ofSeconds(60)
+                        )
+                        .header(
+                                "apikey",
+                                serviceRoleKey
+                        )
+                        .header(
+                                "Authorization",
+                                "Bearer " + serviceRoleKey
+                        )
+                        .header(
+                                "Content-Type",
+                                "application/zip"
+                        )
+                        .header(
+                                "x-upsert",
+                                "true"
+                        )
+                        .POST(
+                                HttpRequest.BodyPublishers.ofFile(file)
+                        )
+                        .build();
+
+        HttpResponse<String> response =
+                httpClient.send(
+                        request,
+                        HttpResponse.BodyHandlers.ofString()
+                );
+
+        if (
+                response.statusCode() < 200
+                        ||
+                        response.statusCode() >= 300
+        ) {
+
+            throw new IllegalStateException(
+                    "Supabase upload request failed with status "
+                            + response.statusCode()
+            );
+        }
+
+        return true;
+    }
+
+    public boolean downloadFile(
+
+            String objectPath,
+
+            Path target
+
+    ) throws Exception {
+
+        if (
+                !isConfigured()
+        ) {
+
+            return false;
+        }
+
+        if (
+                objectPath == null
+                        ||
+                        objectPath.isBlank()
+                        ||
+                        target == null
+        ) {
+
+            return false;
+        }
+
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(
+                                URI.create(
+                                        supabaseUrl
+                                                + "/storage/v1/object/"
+                                                + encodePathSegment(bucket)
+                                                + "/"
+                                                + encodeObjectPath(objectPath)
+                                )
+                        )
+                        .timeout(
+                                Duration.ofSeconds(60)
+                        )
+                        .header(
+                                "apikey",
+                                serviceRoleKey
+                        )
+                        .header(
+                                "Authorization",
+                                "Bearer " + serviceRoleKey
+                        )
+                        .GET()
+                        .build();
+
+        HttpResponse<byte[]> response =
+                httpClient.send(
+                        request,
+                        HttpResponse.BodyHandlers.ofByteArray()
+                );
+
+        if (
+                response.statusCode() == 404
+        ) {
+
+            return false;
+        }
+
+        if (
+                response.statusCode() < 200
+                        ||
+                        response.statusCode() >= 300
+        ) {
+
+            throw new IllegalStateException(
+                    "Supabase download request failed with status "
+                            + response.statusCode()
+            );
+        }
+
+        Files.createDirectories(
+                target.getParent()
+        );
+
+        Files.write(
+                target,
+                response.body()
+        );
+
+        return true;
     }
 
     private void collectObjectPaths(
@@ -471,5 +669,20 @@ public class SupabaseStorageCleanupService {
                 value,
                 StandardCharsets.UTF_8
         );
+    }
+
+    private String encodeObjectPath(
+            String objectPath
+    ) {
+
+        return Arrays.stream(
+                        objectPath.split("/")
+                )
+                .filter(segment -> !segment.isBlank())
+                .map(this::encodePathSegment)
+                .reduce(
+                        (left, right) -> left + "/" + right
+                )
+                .orElse("");
     }
 }
