@@ -31,14 +31,12 @@ public class Hooks {
         playwright = Playwright.create();
 
         boolean headless =
-                "true".equalsIgnoreCase(
-                        System.getenv()
-                                .getOrDefault("AIF_HEADLESS", "false")
-                );
+                resolveHeadless();
 
         String browserChannel =
-                System.getenv()
-                        .getOrDefault("AIF_BROWSER_CHANNEL", "chrome");
+                normalize(
+                        System.getenv("AIF_BROWSER_CHANNEL")
+                );
 
         BrowserType.LaunchOptions launchOptions =
                 new BrowserType.LaunchOptions()
@@ -47,7 +45,9 @@ public class Hooks {
                         .setArgs(java.util.Arrays.asList(
                                 "--incognito",
                                 "--no-first-run",
-                                "--no-default-browser-check"
+                                "--no-default-browser-check",
+                                "--no-sandbox",
+                                "--disable-dev-shm-usage"
                         ));
 
         if (browserChannel != null && !browserChannel.isBlank()) {
@@ -55,8 +55,10 @@ public class Hooks {
         }
 
         browser =
-                playwright.chromium()
-                        .launch(launchOptions);
+                launchChromium(
+                        launchOptions,
+                        browserChannel
+                );
 
         context = browser.newContext(
                 new Browser.NewContextOptions()
@@ -64,6 +66,96 @@ public class Hooks {
         );
 
         page = context.newPage();
+    }
+
+    private Browser launchChromium(
+            BrowserType.LaunchOptions launchOptions,
+            String browserChannel
+    ) {
+
+        try {
+            return playwright.chromium()
+                    .launch(launchOptions);
+        } catch (PlaywrightException exception) {
+
+            if (browserChannel == null || !isMissingChannelFailure(exception)) {
+                throw exception;
+            }
+
+            return playwright.chromium()
+                    .launch(
+                            new BrowserType.LaunchOptions()
+                                    .setHeadless(resolveHeadless())
+                                    .setTimeout(15000)
+                                    .setArgs(java.util.Arrays.asList(
+                                            "--incognito",
+                                            "--no-first-run",
+                                            "--no-default-browser-check",
+                                            "--no-sandbox",
+                                            "--disable-dev-shm-usage"
+                                    ))
+                    );
+        }
+    }
+
+    private boolean isMissingChannelFailure(PlaywrightException exception) {
+
+        String message =
+                exception.getMessage() == null
+                        ? ""
+                        : exception.getMessage()
+                        .toLowerCase();
+
+        return message.contains("distribution")
+                &&
+                message.contains("is not found");
+    }
+
+    private boolean resolveHeadless() {
+
+        String configured =
+                normalize(
+                        System.getenv("AIF_HEADLESS")
+                );
+
+        if (configured != null) {
+            return Boolean.parseBoolean(configured);
+        }
+
+        String osName =
+                System.getProperty("os.name", "")
+                        .toLowerCase();
+
+        return osName.contains("linux")
+                &&
+                (
+                        normalize(System.getenv("DISPLAY")) == null
+                                ||
+                                isTruthy(System.getenv("RENDER"))
+                                ||
+                                isTruthy(System.getenv("CI"))
+                );
+    }
+
+    private boolean isTruthy(String value) {
+
+        String normalized =
+                normalize(value);
+
+        return normalized != null
+                &&
+                !"false".equalsIgnoreCase(normalized)
+                &&
+                !"0".equals(normalized);
+    }
+
+    private String normalize(String value) {
+
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     @AfterStep

@@ -170,8 +170,8 @@
 
                 <configuration>
 
-                    <source>21</source>
-                    <target>21</target>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
 
                     <annotationProcessorPaths>
 

@@ -3,6 +3,7 @@ package com.axiomai.qa.runtime;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.PlaywrightException;
 
 import java.util.List;
 
@@ -14,7 +15,9 @@ public final class PlaywrightBrowserFactory {
                     "--start-maximized",
                     "--start-fullscreen",
                     "--no-first-run",
-                    "--no-default-browser-check"
+                    "--no-default-browser-check",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage"
             );
 
     private PlaywrightBrowserFactory() {
@@ -25,14 +28,49 @@ public final class PlaywrightBrowserFactory {
     ) {
 
         boolean headless =
-                Boolean.parseBoolean(
-                        System.getenv()
-                                .getOrDefault("AIF_HEADLESS", "false")
-                );
+                resolveHeadless();
 
         String browserChannel =
-                System.getenv()
-                        .getOrDefault("AIF_BROWSER_CHANNEL", "chrome");
+                normalize(
+                        System.getenv("AIF_BROWSER_CHANNEL")
+                );
+
+        BrowserType.LaunchOptions launchOptions =
+                launchOptions(
+                        headless,
+                        browserChannel
+                );
+
+        try {
+
+            return playwright.chromium()
+                    .launch(launchOptions);
+
+        } catch (PlaywrightException exception) {
+
+            if (
+                    browserChannel == null
+                            ||
+                            !isMissingChannelFailure(exception)
+            ) {
+
+                throw exception;
+            }
+
+            return playwright.chromium()
+                    .launch(
+                            launchOptions(
+                                    headless,
+                                    null
+                            )
+                    );
+        }
+    }
+
+    static BrowserType.LaunchOptions launchOptions(
+            boolean headless,
+            String browserChannel
+    ) {
 
         BrowserType.LaunchOptions launchOptions =
                 new BrowserType.LaunchOptions()
@@ -42,14 +80,90 @@ public final class PlaywrightBrowserFactory {
 
         if (
                 browserChannel != null
-                        &&
-                        !browserChannel.isBlank()
         ) {
 
             launchOptions.setChannel(browserChannel);
         }
 
-        return playwright.chromium()
-                .launch(launchOptions);
+        return launchOptions;
+    }
+
+    static boolean resolveHeadless() {
+
+        String configured =
+                normalize(
+                        System.getenv("AIF_HEADLESS")
+                );
+
+        if (
+                configured != null
+        ) {
+
+            return Boolean.parseBoolean(configured);
+        }
+
+        return isHostedLinuxWithoutDisplay();
+    }
+
+    private static boolean isHostedLinuxWithoutDisplay() {
+
+        String osName =
+                System.getProperty("os.name", "")
+                        .toLowerCase();
+
+        return osName.contains("linux")
+                &&
+                (
+                        normalize(System.getenv("DISPLAY")) == null
+                                ||
+                                isTruthy(System.getenv("RENDER"))
+                                ||
+                                isTruthy(System.getenv("CI"))
+                );
+    }
+
+    private static boolean isTruthy(
+            String value
+    ) {
+
+        String normalized =
+                normalize(value);
+
+        return normalized != null
+                &&
+                !"false".equalsIgnoreCase(normalized)
+                &&
+                !"0".equals(normalized);
+    }
+
+    private static boolean isMissingChannelFailure(
+            PlaywrightException exception
+    ) {
+
+        String message =
+                exception.getMessage() == null
+                        ? ""
+                        : exception.getMessage()
+                        .toLowerCase();
+
+        return message.contains("distribution")
+                &&
+                message.contains("is not found");
+    }
+
+    private static String normalize(
+            String value
+    ) {
+
+        if (
+                value == null
+                        ||
+                        value.isBlank()
+        ) {
+
+            return null;
+        }
+
+        return value.trim();
     }
 }

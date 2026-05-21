@@ -69,6 +69,18 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                hooks.contains("resolveHeadless()")
+        );
+
+        assertTrue(
+                hooks.contains("--no-sandbox")
+        );
+
+        assertFalse(
+                hooks.contains("getOrDefault(\"AIF_BROWSER_CHANNEL\", \"chrome\")")
+        );
+
+        assertTrue(
                 hooks.contains("scenario.attach")
         );
 

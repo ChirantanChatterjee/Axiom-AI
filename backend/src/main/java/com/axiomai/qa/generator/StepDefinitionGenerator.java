@@ -54,14 +54,16 @@ public class StepDefinitionGenerator {
 
         sb.append("        playwright = Playwright.create();\n\n");
 
-        sb.append("        browser = playwright.chromium()\n")
-                .append("                .launch(\n")
-                .append("                        new BrowserType.LaunchOptions()\n")
-                .append("                                .setHeadless(Boolean.parseBoolean(System.getenv().getOrDefault(\"AIF_HEADLESS\", \"false\")))\n")
-                .append("                                .setChannel(System.getenv().getOrDefault(\"AIF_BROWSER_CHANNEL\", \"chrome\"))\n")
-                .append("                                .setTimeout(15000)\n")
-                .append("                                .setArgs(java.util.Arrays.asList(\"--incognito\", \"--no-first-run\", \"--no-default-browser-check\"))\n")
-                .append("                );\n\n");
+        sb.append("        BrowserType.LaunchOptions launchOptions =\n")
+                .append("                new BrowserType.LaunchOptions()\n")
+                .append("                        .setHeadless(resolveHeadless())\n")
+                .append("                        .setTimeout(15000)\n")
+                .append("                        .setArgs(java.util.Arrays.asList(\"--incognito\", \"--no-first-run\", \"--no-default-browser-check\", \"--no-sandbox\", \"--disable-dev-shm-usage\"));\n\n")
+                .append("        String browserChannel = normalize(System.getenv(\"AIF_BROWSER_CHANNEL\"));\n\n")
+                .append("        if (browserChannel != null) {\n")
+                .append("            launchOptions.setChannel(browserChannel);\n")
+                .append("        }\n\n")
+                .append("        browser = launchChromium(launchOptions, browserChannel);\n\n");
 
         sb.append("        browserContext = browser.newContext(\n")
                 .append("                new Browser.NewContextOptions()\n")
@@ -119,6 +121,57 @@ public class StepDefinitionGenerator {
         sb.append("        playwright.close();\n");
 
         sb.append("    }\n\n");
+
+        sb.append("    private Browser launchChromium(BrowserType.LaunchOptions launchOptions, String browserChannel) {\n\n")
+                .append("        try {\n")
+                .append("            return playwright.chromium().launch(launchOptions);\n")
+                .append("        } catch (PlaywrightException exception) {\n\n")
+                .append("            if (browserChannel == null || !isMissingChannelFailure(exception)) {\n")
+                .append("                throw exception;\n")
+                .append("            }\n\n")
+                .append("            return playwright.chromium()\n")
+                .append("                    .launch(\n")
+                .append("                            new BrowserType.LaunchOptions()\n")
+                .append("                                    .setHeadless(resolveHeadless())\n")
+                .append("                                    .setTimeout(15000)\n")
+                .append("                                    .setArgs(java.util.Arrays.asList(\"--incognito\", \"--no-first-run\", \"--no-default-browser-check\", \"--no-sandbox\", \"--disable-dev-shm-usage\"))\n")
+                .append("                    );\n")
+                .append("        }\n")
+                .append("    }\n\n")
+                .append("    private boolean isMissingChannelFailure(PlaywrightException exception) {\n\n")
+                .append("        String message = exception.getMessage() == null ? \"\" : exception.getMessage().toLowerCase();\n\n")
+                .append("        return message.contains(\"distribution\") && message.contains(\"is not found\");\n")
+                .append("    }\n\n")
+                .append("    private boolean resolveHeadless() {\n\n")
+                .append("        String configured = normalize(System.getenv(\"AIF_HEADLESS\"));\n\n")
+                .append("        if (configured != null) {\n")
+                .append("            return Boolean.parseBoolean(configured);\n")
+                .append("        }\n\n")
+                .append("        String osName = System.getProperty(\"os.name\", \"\").toLowerCase();\n\n")
+                .append("        return osName.contains(\"linux\")\n")
+                .append("                &&\n")
+                .append("                (\n")
+                .append("                        normalize(System.getenv(\"DISPLAY\")) == null\n")
+                .append("                                ||\n")
+                .append("                                isTruthy(System.getenv(\"RENDER\"))\n")
+                .append("                                ||\n")
+                .append("                                isTruthy(System.getenv(\"CI\"))\n")
+                .append("                );\n")
+                .append("    }\n\n")
+                .append("    private boolean isTruthy(String value) {\n\n")
+                .append("        String normalized = normalize(value);\n\n")
+                .append("        return normalized != null\n")
+                .append("                &&\n")
+                .append("                !\"false\".equalsIgnoreCase(normalized)\n")
+                .append("                &&\n")
+                .append("                !\"0\".equals(normalized);\n")
+                .append("    }\n\n")
+                .append("    private String normalize(String value) {\n\n")
+                .append("        if (value == null || value.isBlank()) {\n")
+                .append("            return null;\n")
+                .append("        }\n\n")
+                .append("        return value.trim();\n")
+                .append("    }\n\n");
 
         sb.append("}\n");
 

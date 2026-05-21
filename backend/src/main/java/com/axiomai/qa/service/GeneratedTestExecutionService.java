@@ -1283,14 +1283,21 @@ public class GeneratedTestExecutionService {
                 processBuilder.environment();
 
         environment.putIfAbsent(
-                "AIF_BROWSER_CHANNEL",
-                "chrome"
+                "AIF_HEADLESS",
+                defaultHeadless()
+                        ? "true"
+                        : "false"
         );
 
-        environment.putIfAbsent(
-                "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD",
-                "1"
-        );
+        if (
+                defaultHeadless()
+        ) {
+
+            environment.putIfAbsent(
+                    "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD",
+                    "1"
+            );
+        }
 
         if (
                 variables == null
@@ -1320,6 +1327,65 @@ public class GeneratedTestExecutionService {
                     entry.getValue()
             );
         }
+    }
+
+    private boolean defaultHeadless() {
+
+        String configured =
+                normalizeEnv(
+                        System.getenv("AIF_HEADLESS")
+                );
+
+        if (
+                configured != null
+        ) {
+
+            return Boolean.parseBoolean(configured);
+        }
+
+        String osName =
+                System.getProperty("os.name", "")
+                        .toLowerCase();
+
+        return osName.contains("linux")
+                &&
+                (
+                        normalizeEnv(System.getenv("DISPLAY")) == null
+                                ||
+                                isTruthy(System.getenv("RENDER"))
+                                ||
+                                isTruthy(System.getenv("CI"))
+                );
+    }
+
+    private boolean isTruthy(
+            String value
+    ) {
+
+        String normalized =
+                normalizeEnv(value);
+
+        return normalized != null
+                &&
+                !"false".equalsIgnoreCase(normalized)
+                &&
+                !"0".equals(normalized);
+    }
+
+    private String normalizeEnv(
+            String value
+    ) {
+
+        if (
+                value == null
+                        ||
+                        value.isBlank()
+        ) {
+
+            return null;
+        }
+
+        return value.trim();
     }
 
     private String environmentKey(
