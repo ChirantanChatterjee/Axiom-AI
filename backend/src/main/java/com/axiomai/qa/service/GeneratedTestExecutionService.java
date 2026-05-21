@@ -170,57 +170,61 @@ public class GeneratedTestExecutionService {
                 refreshSupportFiles(frameworkRoot);
             }
 
-            ProcessBuilder processBuilder =
-                    new ProcessBuilder(command);
-
-            processBuilder.directory(
-                    frameworkRoot.toFile()
-            );
-
-            processBuilder.redirectErrorStream(true);
-
-            applyVariables(
-                    processBuilder,
-                    variables
-            );
-
-            Process process =
-                    processBuilder.start();
-
-            CompletableFuture<String> outputFuture =
-                    CompletableFuture.supplyAsync(
-                            () -> readOutput(process)
+            CommandResult testResult =
+                    runCommand(
+                            command,
+                            frameworkRoot,
+                            variables,
+                            false
                     );
-
-            boolean completed =
-                    process.waitFor(
-                            TEST_TIMEOUT_MINUTES,
-                            TimeUnit.MINUTES
-                    );
-
-            if (
-                    !completed
-            ) {
-
-                process.destroyForcibly();
-
-                outputFuture.cancel(true);
-
-                throw new RuntimeException(
-                        "Generated test execution timed out after "
-                                + TEST_TIMEOUT_MINUTES
-                                + " minutes."
-                );
-            }
 
             int exitCode =
-                    process.exitValue();
+                    testResult.exitCode();
 
             String output =
-                    outputFuture.get(
-                            5,
-                            TimeUnit.SECONDS
-                    );
+                    testResult.output();
+
+            if (
+                    exitCode != 0
+                            &&
+                            isMissingPlaywrightBrowser(output)
+            ) {
+
+                CommandResult installResult =
+                        installPlaywrightBrowsers(frameworkRoot);
+
+                if (
+                        installResult.exitCode() == 0
+                ) {
+
+                    CommandResult retryResult =
+                            runCommand(
+                                    command,
+                                    frameworkRoot,
+                                    variables,
+                                    false
+                            );
+
+                    exitCode =
+                            retryResult.exitCode();
+
+                    output =
+                            combineOutputs(
+                                    output,
+                                    installResult.output(),
+                                    retryResult.output()
+                            );
+
+                } else {
+
+                    output =
+                            combineOutputs(
+                                    output,
+                                    installResult.output(),
+                                    null
+                            );
+                }
+            }
 
             String reportUrl =
                     publishCucumberReport(
@@ -1281,10 +1285,215 @@ public class GeneratedTestExecutionService {
                 .replace("\"", "&quot;");
     }
 
+    private CommandResult installPlaywrightBrowsers(
+            Path frameworkRoot
+    ) throws Exception {
+
+        List<String> command =
+                new ArrayList<>();
+
+        command.add(
+                mavenCommand()
+        );
+
+        command.add("-f");
+
+        command.add(
+                frameworkRoot.resolve("pom.xml")
+                        .toAbsolutePath()
+                        .normalize()
+                        .toString()
+        );
+
+        command.add("exec:java");
+
+        command.add(
+                "-Dexec.mainClass=com.microsoft.playwright.CLI"
+        );
+
+        command.add(
+                "-Dexec.args=install chromium"
+        );
+
+        return runCommand(
+                command,
+                frameworkRoot,
+                Map.of(),
+                true
+        );
+    }
+
+    private CommandResult runCommand(
+
+            List<String> command,
+
+            Path workingDirectory,
+
+            Map<String, String> variables,
+
+            boolean allowBrowserDownload
+
+    ) throws Exception {
+
+        ProcessBuilder processBuilder =
+                new ProcessBuilder(command);
+
+        processBuilder.directory(
+                workingDirectory.toFile()
+        );
+
+        processBuilder.redirectErrorStream(true);
+
+        applyVariables(
+                processBuilder,
+                variables,
+                allowBrowserDownload
+        );
+
+        Process process =
+                processBuilder.start();
+
+        CompletableFuture<String> outputFuture =
+                CompletableFuture.supplyAsync(
+                        () -> readOutput(process)
+                );
+
+        boolean completed =
+                process.waitFor(
+                        TEST_TIMEOUT_MINUTES,
+                        TimeUnit.MINUTES
+                );
+
+        if (
+                !completed
+        ) {
+
+            process.destroyForcibly();
+
+            outputFuture.cancel(true);
+
+            throw new RuntimeException(
+                    "Generated test execution timed out after "
+                            + TEST_TIMEOUT_MINUTES
+                            + " minutes."
+            );
+        }
+
+        return new CommandResult(
+                process.exitValue(),
+                outputFuture.get(
+                        5,
+                        TimeUnit.SECONDS
+                )
+        );
+    }
+
+    private boolean isMissingPlaywrightBrowser(
+            String output
+    ) {
+
+        if (
+                output == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                output.toLowerCase();
+
+        return lower.contains("playwright")
+                &&
+                (
+                        lower.contains("executable doesn't exist")
+                                ||
+                                lower.contains("please run the following command to download new browsers")
+                                ||
+                                lower.contains("looks like playwright was just installed or updated")
+                );
+    }
+
+    private String combineOutputs(
+
+            String firstRunOutput,
+
+            String installOutput,
+
+            String retryOutput
+
+    ) {
+
+        StringBuilder combined =
+                new StringBuilder();
+
+        combined.append(
+                firstRunOutput == null
+                        ? ""
+                        : firstRunOutput
+        );
+
+        combined.append(
+                System.lineSeparator()
+        );
+
+        combined.append(
+                "AIF detected a missing Playwright browser and ran `mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args=\"install chromium\"`."
+        );
+
+        combined.append(
+                System.lineSeparator()
+        );
+
+        if (
+                installOutput != null
+                        &&
+                        !installOutput.isBlank()
+        ) {
+
+            combined.append(installOutput);
+        }
+
+        if (
+                retryOutput != null
+        ) {
+
+            combined.append(
+                    System.lineSeparator()
+            );
+
+            combined.append(
+                    "AIF retried the generated test execution after browser installation."
+            );
+
+            combined.append(
+                    System.lineSeparator()
+            );
+
+            combined.append(retryOutput);
+        }
+
+        return combined.toString();
+    }
+
     private void applyVariables(
 
             ProcessBuilder processBuilder,
             Map<String, String> variables
+
+    ) {
+
+        applyVariables(
+                processBuilder,
+                variables,
+                false
+        );
+    }
+
+    private void applyVariables(
+
+            ProcessBuilder processBuilder,
+            Map<String, String> variables,
+            boolean allowBrowserDownload
 
     ) {
 
@@ -1299,6 +1508,14 @@ public class GeneratedTestExecutionService {
         );
 
         if (
+                allowBrowserDownload
+        ) {
+
+            environment.remove(
+                    "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"
+            );
+
+        } else if (
                 defaultHeadless()
         ) {
 
@@ -1336,6 +1553,12 @@ public class GeneratedTestExecutionService {
                     entry.getValue()
             );
         }
+    }
+
+    private record CommandResult(
+            int exitCode,
+            String output
+    ) {
     }
 
     private boolean defaultHeadless() {
