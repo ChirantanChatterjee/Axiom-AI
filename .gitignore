@@ -36,3 +36,11 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Node Modules ###
+node_modules/
+frontend/node_modules/
+backend/reports/
+reports/
+.env
+.env.*
