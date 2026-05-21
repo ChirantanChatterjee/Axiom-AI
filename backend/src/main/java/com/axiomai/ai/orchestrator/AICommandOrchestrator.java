@@ -185,8 +185,6 @@ public class AICommandOrchestrator {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
-
             AIResponse missingRuntimeDataResponse =
                     missingRuntimeDataResponse(e);
 
@@ -196,6 +194,8 @@ public class AICommandOrchestrator {
 
                 return missingRuntimeDataResponse;
             }
+
+            e.printStackTrace();
 
             return AIResponse.builder()
 

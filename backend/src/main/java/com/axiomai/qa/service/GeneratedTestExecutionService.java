@@ -137,6 +137,15 @@ public class GeneratedTestExecutionService {
                 mavenCommand()
         );
 
+        command.add("-f");
+
+        command.add(
+                frameworkRoot.resolve("pom.xml")
+                        .toAbsolutePath()
+                        .normalize()
+                        .toString()
+        );
+
         command.add("test");
 
         if (
@@ -1465,6 +1474,22 @@ public class GeneratedTestExecutionService {
                         ""
                 )
                         .toLowerCase();
+
+        Path wrapper =
+                Paths.get(
+                        os.contains("win")
+                                ? "mvnw.cmd"
+                                : "mvnw"
+                )
+                        .toAbsolutePath()
+                        .normalize();
+
+        if (
+                Files.exists(wrapper)
+        ) {
+
+            return wrapper.toString();
+        }
 
         return os.contains("win")
                 ? "mvn.cmd"
