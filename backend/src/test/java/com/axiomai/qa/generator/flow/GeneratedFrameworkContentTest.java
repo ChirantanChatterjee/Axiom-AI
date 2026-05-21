@@ -79,6 +79,50 @@ class GeneratedFrameworkContentTest {
         assertTrue(
                 page.contains("inputSemanticSelectors")
         );
+
+        assertTrue(
+                page.contains("resolveProductActionButton")
+        );
+
+        assertTrue(
+                page.contains("actionPrefix + \"-sauce-labs-\"")
+        );
+
+        assertTrue(
+                page.contains("lower.startsWith(\"add \")")
+        );
+
+        assertTrue(
+                page.contains("resolveSubmitButton")
+        );
+
+        assertTrue(
+                page.contains("input[name='payee.name']")
+        );
+
+        assertTrue(
+                page.contains("confirmFieldIfNeeded(target, value)")
+        );
+
+        assertTrue(
+                page.contains("waitForExpectedText(expectedText)")
+        );
+
+        assertTrue(
+                page.contains("recordAssertionFailure(expectedText, body)")
+        );
+
+        assertTrue(
+                page.contains("matchesHtmlValidation(expectedText)")
+        );
+
+        assertTrue(
+                page.contains("expected.contains(\"amount validation\")")
+        );
+
+        assertTrue(
+                page.contains("lower.startsWith(\"send \")")
+        );
     }
 
     @Test

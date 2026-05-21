@@ -161,6 +161,9 @@ public class AICommandOrchestrator {
                                 userId
                         );
 
+                case "REPAIR_GENERATED_TESTS" ->
+                        repairGeneratedTests(userId);
+
                 case "SHOW_REPORT" ->
                         showReport(userId);
 
@@ -184,6 +187,16 @@ public class AICommandOrchestrator {
 
             e.printStackTrace();
 
+            AIResponse missingRuntimeDataResponse =
+                    missingRuntimeDataResponse(e);
+
+            if (
+                    missingRuntimeDataResponse != null
+            ) {
+
+                return missingRuntimeDataResponse;
+            }
+
             return AIResponse.builder()
 
                     .success(false)
@@ -196,6 +209,163 @@ public class AICommandOrchestrator {
 
                     .build();
         }
+    }
+
+    private AIResponse missingRuntimeDataResponse(
+            Exception exception
+    ) {
+
+        String message =
+                exception.getMessage();
+
+        if (
+                message == null
+                        ||
+                        !message.startsWith(
+                                "Missing runtime data for generated tests:"
+                        )
+        ) {
+
+            return null;
+        }
+
+        String rawVariables =
+                message.substring(
+                        "Missing runtime data for generated tests:"
+                                .length()
+                );
+
+        int guidanceStart =
+                rawVariables.indexOf(".");
+
+        if (
+                guidanceStart >= 0
+        ) {
+
+            rawVariables =
+                    rawVariables.substring(
+                            0,
+                            guidanceStart
+                    );
+        }
+
+        List<String> missingVariables =
+                new ArrayList<>();
+
+        for (
+                String variable
+                : rawVariables.split(",")
+        ) {
+
+            String cleaned =
+                    variable.trim();
+
+            if (
+                    !cleaned.isBlank()
+            ) {
+
+                missingVariables.add(cleaned);
+            }
+        }
+
+        Map<String, Object> data =
+                new LinkedHashMap<>();
+
+        data.put(
+                "missingVariables",
+                missingVariables
+        );
+
+        data.put(
+                "example",
+                exampleVariableReply(missingVariables)
+        );
+
+        return AIResponse.builder()
+                .success(false)
+                .type("missing-variables")
+                .message(
+                        "I need a few runtime values before I can execute those generated tests. "
+                                + "Please provide: "
+                                + String.join(
+                                ", ",
+                                missingVariables
+                        )
+                                + "."
+                )
+                .data(data)
+                .build();
+    }
+
+    private String exampleVariableReply(
+            List<String> missingVariables
+    ) {
+
+        if (
+                missingVariables == null
+                        ||
+                        missingVariables.isEmpty()
+        ) {
+
+            return "";
+        }
+
+        StringBuilder example =
+                new StringBuilder();
+
+        for (
+                String variable
+                : missingVariables
+        ) {
+
+            if (
+                    !example.isEmpty()
+            ) {
+
+                example.append(", ");
+            }
+
+            example.append(variable)
+                    .append(" is ")
+                    .append(exampleValueFor(variable));
+        }
+
+        return example.toString();
+    }
+
+    private String exampleValueFor(
+            String variable
+    ) {
+
+        String lower =
+                variable == null
+                        ? ""
+                        : variable.toLowerCase();
+
+        if (
+                lower.contains("first")
+        ) {
+
+            return "John";
+        }
+
+        if (
+                lower.contains("last")
+        ) {
+
+            return "Smith";
+        }
+
+        if (
+                lower.contains("postal")
+                        ||
+                        lower.contains("zip")
+        ) {
+
+            return "12345";
+        }
+
+        return "value";
     }
 
     private String userId(
@@ -616,7 +786,8 @@ public class AICommandOrchestrator {
                                         flow.getPageUrl(),
                                         ""
                                 ),
-                                flows
+                                flows,
+                                userId
                         );
 
         AutomationSession workspace =
@@ -1048,6 +1219,35 @@ public class AICommandOrchestrator {
                 .data(
                         result
                 )
+
+                .build();
+    }
+
+    private AIResponse repairGeneratedTests(
+            String userId
+    ) {
+
+        AutomationSession workspace =
+                automationWorkspaceService
+                        .getSession(userId);
+
+        GeneratedTestExecutionService.GeneratedTestRepairResult result =
+                generatedTestExecutionService
+                        .repairLatestFailure(
+                                workspace.getSessionId()
+                        );
+
+        return AIResponse.builder()
+
+                .success(true)
+
+                .message(
+                        result.getMessage()
+                )
+
+                .type("generated-test-repair")
+
+                .data(result)
 
                 .build();
     }

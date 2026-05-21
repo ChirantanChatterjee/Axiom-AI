@@ -219,7 +219,7 @@ public class RuntimeReportManager {
                         }
                         img {
                             display: block;
-                            width: 100%;
+                            width: 100%%;
                             margin-top: 12px;
                             border: 1px solid #d9e0ea;
                             border-radius: 6px;

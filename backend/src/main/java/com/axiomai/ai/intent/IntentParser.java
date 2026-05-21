@@ -49,6 +49,19 @@ public class IntentParser {
         }
 
         if (
+                containsGeneratedTestRepairRequest(message)
+        ) {
+
+            return AICommand.builder()
+
+                    .intent("REPAIR_GENERATED_TESTS")
+
+                    .message(message)
+
+                    .build();
+        }
+
+        if (
                 containsGeneratedTestExecutionRequest(message)
         ) {
 
@@ -600,6 +613,58 @@ public class IntentParser {
         return expression.isEmpty()
                 ? "ALL"
                 : expression.toString();
+    }
+
+    private boolean containsGeneratedTestRepairRequest(
+            String message
+    ) {
+
+        String lower =
+                message.toLowerCase();
+
+        return (
+                lower.contains("failed")
+                        ||
+                        lower.contains("failure")
+                        ||
+                        lower.contains("error")
+                        ||
+                        lower.contains("last test")
+                        ||
+                        lower.contains("look at it again")
+                        ||
+                        lower.contains("check it again")
+        )
+                &&
+                (
+                        lower.contains("fix")
+                                ||
+                                lower.contains("repair")
+                                ||
+                                lower.contains("rectify")
+                                ||
+                                lower.contains("look at")
+                                ||
+                                lower.contains("check")
+                )
+                &&
+                (
+                        lower.contains("last test")
+                                ||
+                                lower.contains("generated test")
+                                ||
+                                lower.contains("test failed")
+                                ||
+                                lower.contains("failed test")
+                                ||
+                                lower.contains("feature")
+                                ||
+                                lower.contains("generated")
+                                ||
+                                lower.contains("look at it again")
+                                ||
+                                lower.contains("check it again")
+                );
     }
 
     // =====================================================

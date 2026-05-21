@@ -54,6 +54,12 @@ public class GeneratedTestExecutionService {
     private final PomGeneratorService
             pomGeneratorService;
 
+    private final FrameworkLearningService
+            frameworkLearningService;
+
+    private final GeneratedFeatureRepairService
+            generatedFeatureRepairService;
+
     public GeneratedTestCatalog listTags(
             String sessionId
     ) {
@@ -147,7 +153,13 @@ public class GeneratedTestExecutionService {
 
         try {
 
-            refreshSupportFiles(frameworkRoot);
+            if (
+                    !frameworkLearningService
+                            .hasUserUploadedFramework(sessionId)
+            ) {
+
+                refreshSupportFiles(frameworkRoot);
+            }
 
             ProcessBuilder processBuilder =
                     new ProcessBuilder(command);
@@ -227,6 +239,76 @@ public class GeneratedTestExecutionService {
 
             throw new RuntimeException(
                     "Generated test execution failed: "
+                            + e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    public GeneratedTestRepairResult repairLatestFailure(
+            String sessionId
+    ) {
+
+        Path frameworkRoot =
+                resolveFrameworkRoot(sessionId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "No generated framework found. Generate a framework or tests first."
+                                )
+                        );
+
+        try {
+
+            GeneratedFeatureRepairService.RepairResult repair =
+                    generatedFeatureRepairService.repair(frameworkRoot);
+
+            boolean learned =
+                    frameworkLearningService
+                            .recordRuntimeRepairLearning(
+                                    sessionId,
+                                    repair.getFailureSummary(),
+                                    repair.getChanges()
+                            );
+
+            if (
+                    !frameworkLearningService
+                            .hasUserUploadedFramework(sessionId)
+            ) {
+
+                refreshSupportFiles(frameworkRoot);
+            }
+
+            return GeneratedTestRepairResult.builder()
+                    .changed(
+                            repair.isChanged()
+                    )
+                    .frameworkRoot(
+                            frameworkRoot.toAbsolutePath()
+                                    .normalize()
+                                    .toString()
+                    )
+                    .changedFiles(
+                            repair.getChangedFiles()
+                    )
+                    .changes(
+                            repair.getChanges()
+                    )
+                    .failureSummary(
+                            repair.getFailureSummary()
+                    )
+                    .learned(learned)
+                    .message(
+                            buildRepairMessage(
+                                    repair,
+                                    learned
+                            )
+                    )
+                    .build();
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Generated test repair failed: "
                             + e.getMessage(),
                     e
             );
@@ -647,6 +729,65 @@ public class GeneratedTestExecutionService {
 
         message.append(
                 "`, or say `run all the generated tests`."
+        );
+
+        return message.toString();
+    }
+
+    private String buildRepairMessage(
+            GeneratedFeatureRepairService.RepairResult repair,
+            boolean learned
+    ) {
+
+        StringBuilder message =
+                new StringBuilder();
+
+        message.append(
+                "I inspected the latest generated test failure. "
+        );
+
+        message.append(
+                repair.getFailureSummary()
+        );
+
+        if (
+                !repair.isChanged()
+        ) {
+
+            if (
+                    learned
+            ) {
+
+                message.append(
+                        "\n\nI recognized this failure signature and recorded it as session learning. I did not change generated feature files for this run. The generated support files were refreshed with the latest waits and diagnostics, so rerun the same tag to verify the repaired support behavior."
+                );
+
+            } else {
+
+                message.append(
+                        "\n\nI did not find a safe automatic feature-file repair for this failure. The generated support files were refreshed, so rerun the test if the failure was caused by stale page objects or step definitions."
+                );
+            }
+
+            return message.toString();
+        }
+
+        message.append(
+                "\n\nI updated the generated framework with these repairs:\n"
+        );
+
+        for (
+                String change
+                : repair.getChanges()
+        ) {
+
+            message.append("- ")
+                    .append(change)
+                    .append("\n");
+        }
+
+        message.append(
+                "\nYou can rerun the same tag or run all generated tests now."
         );
 
         return message.toString();
@@ -1198,6 +1339,25 @@ public class GeneratedTestExecutionService {
         private int exitCode;
 
         private String output;
+
+        private String message;
+    }
+
+    @Getter
+    @Builder
+    public static class GeneratedTestRepairResult {
+
+        private boolean changed;
+
+        private String frameworkRoot;
+
+        private List<String> changedFiles;
+
+        private List<String> changes;
+
+        private String failureSummary;
+
+        private boolean learned;
 
         private String message;
     }

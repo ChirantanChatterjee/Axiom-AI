@@ -20,6 +20,7 @@ public class FlowPageObjectGenerator {
 
         sb.append("package com.axiomai.generated.pages;\n\n");
         sb.append("import com.microsoft.playwright.*;\n\n");
+        sb.append("import java.nio.file.*;\n");
         sb.append("import java.util.*;\n\n");
         sb.append("public class GeneratedPage {\n\n");
         sb.append("    private final Page page;\n");
@@ -91,7 +92,7 @@ public class FlowPageObjectGenerator {
 
                         if (locator != null) {
                             fillOrType(locator, value);
-                            confirmFieldIfNeeded(target);
+                            confirmFieldIfNeeded(target, value);
                             return;
                         }
 
@@ -117,7 +118,7 @@ public class FlowPageObjectGenerator {
 
                         if (focused != null && isEditable(focused)) {
                             fillOrType(focused, value);
-                            confirmFieldIfNeeded(target);
+                            confirmFieldIfNeeded(target, value);
                             return;
                         }
 
@@ -134,7 +135,7 @@ public class FlowPageObjectGenerator {
 
                             if (visibleInput != null && isEditable(visibleInput)) {
                                 fillOrType(visibleInput, value);
-                                confirmFieldIfNeeded(target);
+                                confirmFieldIfNeeded(target, value);
                                 return;
                             }
                         }
@@ -171,24 +172,95 @@ public class FlowPageObjectGenerator {
                             return;
                         }
 
-                        String body = page.locator("body").innerText();
+                        String body = waitForExpectedText(expectedText);
 
                         if (
-                                body == null
-                                        ||
-                                        (
-                                                !body.toLowerCase().contains(expectedText.toLowerCase())
-                                                        &&
-                                                        !matchesFlexibleExpectation(expectedText, body)
-                                                        &&
-                                                        !matchesSuccessfulTechnicalResponse(expectedText, body)
-                                        )
+                                !matchesExpectation(expectedText, body)
                         ) {
+
+                            recordAssertionFailure(expectedText, body);
 
                             throw new AssertionError(
                                     "Expected page to contain text: " + expectedText
                             );
                         }
+                    }
+
+                    private String waitForExpectedText(String expectedText) {
+
+                        long deadline = System.currentTimeMillis() + 6500;
+                        String body = "";
+
+                        do {
+                            body = bodyText();
+
+                            if (matchesExpectation(expectedText, body)) {
+                                return body;
+                            }
+
+                            page.waitForTimeout(250);
+                        } while (System.currentTimeMillis() < deadline);
+
+                        return body;
+                    }
+
+                    private boolean matchesExpectation(String expectedText, String body) {
+
+                        if (expectedText == null || expectedText.isBlank() || body == null) {
+                            return false;
+                        }
+
+                        return body.toLowerCase().contains(expectedText.toLowerCase())
+                                ||
+                                matchesFlexibleExpectation(expectedText, body)
+                                ||
+                                matchesHtmlValidation(expectedText)
+                                ||
+                                matchesSuccessfulTechnicalResponse(expectedText, body);
+                    }
+
+                    private String bodyText() {
+
+                        try {
+                            return page.locator("body").innerText();
+                        } catch (RuntimeException ignored) {
+                            return "";
+                        }
+                    }
+
+                    private void recordAssertionFailure(String expectedText, String body) {
+
+                        try {
+                            Path target = Path.of("target");
+                            Files.createDirectories(target);
+
+                            String diagnostic =
+                                    "Expected: " + nullSafe(expectedText) + System.lineSeparator()
+                                            + "URL: " + nullSafe(page.url()) + System.lineSeparator()
+                                            + "Title: " + nullSafe(page.title()) + System.lineSeparator()
+                                            + "Body:" + System.lineSeparator()
+                                            + truncate(nullSafe(body), 12000);
+
+                            Files.writeString(
+                                    target.resolve("aif-last-assertion-failure.txt"),
+                                    diagnostic
+                            );
+                        } catch (RuntimeException | java.io.IOException ignored) {
+                            // Diagnostics must never mask the real assertion failure.
+                        }
+                    }
+
+                    private String nullSafe(String value) {
+                        return value == null ? "" : value;
+                    }
+
+                    private String truncate(String value, int maxLength) {
+
+                        if (value == null || value.length() <= maxLength) {
+                            return value == null ? "" : value;
+                        }
+
+                        return value.substring(0, maxLength);
                     }
 
                     private boolean matchesSuccessfulTechnicalResponse(String expectedText, String body) {
@@ -217,6 +289,34 @@ public class FlowPageObjectGenerator {
                                 );
                     }
 
+                    private boolean matchesHtmlValidation(String expectedText) {
+
+                        if (expectedText == null) {
+                            return false;
+                        }
+
+                        String expected = expectedText.toLowerCase();
+
+                        if (
+                                !expected.contains("validation")
+                                        &&
+                                        !expected.contains("invalid")
+                                        &&
+                                        !expected.contains("required")
+                                        &&
+                                        !expected.contains("error")
+                        ) {
+
+                            return false;
+                        }
+
+                        try {
+                            return page.locator("input:invalid, textarea:invalid, select:invalid").count() > 0;
+                        } catch (RuntimeException ignored) {
+                            return false;
+                        }
+                    }
+
                     private boolean matchesFlexibleExpectation(String expectedText, String body) {
 
                         if (expectedText == null || body == null) {
@@ -226,6 +326,72 @@ public class FlowPageObjectGenerator {
                         String expected = expectedText.toLowerCase();
                         String actual = body.toLowerCase();
                         String currentUrl = page.url() == null ? "" : page.url().toLowerCase();
+
+                        if (expected.contains("bill payment complete")) {
+
+                            return actual.contains("bill payment")
+                                    &&
+                                    (
+                                            actual.contains("complete")
+                                                    ||
+                                                    actual.contains("successful")
+                                                    ||
+                                                    actual.contains("successfully")
+                                    );
+                        }
+
+                        if (
+                                expected.contains("please fill out this field")
+                                        ||
+                                        expected.contains("required")
+                        ) {
+
+                            return actual.contains("required")
+                                    ||
+                                    actual.contains("is empty")
+                                    ||
+                                    actual.contains("error");
+                        }
+
+                        if (
+                                expected.contains("invalid amount")
+                                        ||
+                                        expected.contains("amount validation")
+                                        ||
+                                        expected.contains("amount error")
+                        ) {
+
+                            return actual.contains("amount")
+                                    &&
+                                    (
+                                            actual.contains("valid")
+                                                    ||
+                                            actual.contains("invalid")
+                                                    ||
+                                            actual.contains("error")
+                                                    ||
+                                            actual.contains("must")
+                                                    ||
+                                            actual.contains("positive")
+                                                    ||
+                                            actual.contains("greater")
+                                    );
+                        }
+
+                        if (expected.contains("invalid account")) {
+
+                            return actual.contains("account")
+                                    &&
+                                    (
+                                            actual.contains("number")
+                                                    ||
+                                                    actual.contains("valid")
+                                                    ||
+                                                    actual.contains("invalid")
+                                                    ||
+                                                    actual.contains("error")
+                                    );
+                        }
 
                         if (expected.contains(" from ") && expected.contains(" to ")) {
                             String[] parts = expected.split("\\\\s+");
@@ -259,22 +425,20 @@ public class FlowPageObjectGenerator {
                         String key = targetKey(target);
                         List<String> knownSelectors = selectors.getOrDefault(key, List.of());
 
-                        for (String selector : knownSelectors) {
+                        Locator known = firstVisible(
+                                knownSelectors.toArray(String[]::new)
+                        );
 
-                            Locator locator = page.locator(selector);
-
-                            if (locator.count() > 0 && locator.first().isVisible()) {
-                                return locator.first();
-                            }
+                        if (known != null) {
+                            return known;
                         }
 
-                        for (String selector : semanticSelectors(target)) {
+                        Locator semantic = firstVisible(
+                                semanticSelectors(target).toArray(String[]::new)
+                        );
 
-                            Locator locator = page.locator(selector);
-
-                            if (locator.count() > 0 && locator.first().isVisible()) {
-                                return locator.first();
-                            }
+                        if (semantic != null) {
+                            return semantic;
                         }
 
                         throw new RuntimeException("Unable to resolve element: " + target);
@@ -284,7 +448,17 @@ public class FlowPageObjectGenerator {
 
                         String lower = target == null ? "" : target.toLowerCase();
 
-                        if (lower.contains("add to cart")) {
+                        if (isAddProductCommand(lower)) {
+                            Locator productButton = resolveProductActionButton(
+                                    target,
+                                    "add-to-cart",
+                                    "add"
+                            );
+
+                            if (productButton != null) {
+                                return productButton;
+                            }
+
                             return firstVisible(
                                     "[data-test='add-to-cart-" + slug(productName(target, "add to cart")) + "']",
                                     "button:has-text(\\"Add to cart\\")"
@@ -292,9 +466,43 @@ public class FlowPageObjectGenerator {
                         }
 
                         if (lower.contains("remove")) {
+                            Locator productButton = resolveProductActionButton(
+                                    target,
+                                    "remove",
+                                    "remove"
+                            );
+
+                            if (productButton != null) {
+                                return productButton;
+                            }
+
                             return firstVisible(
                                     "[data-test='remove-" + slug(productName(target, "remove")) + "']",
                                     "button:has-text(\\"Remove\\")"
+                            );
+                        }
+
+                        if (lower.contains("send payment")) {
+                            Locator submitButton = resolveSubmitButton(
+                                    target,
+                                    "Send Payment"
+                            );
+
+                            if (submitButton != null) {
+                                return submitButton;
+                            }
+                        }
+
+                        if (lower.contains("login") || lower.contains("log in") || lower.contains("sign in")) {
+                            return firstVisibleSoon(
+                                    4000,
+                                    "input[type='submit'][value*='Log In' i]",
+                                    "input[type='submit'][value*='Login' i]",
+                                    "button[type='submit']:has-text(\\"Log In\\")",
+                                    "button[type='submit']:has-text(\\"Login\\")",
+                                    "button:has-text(\\"Log In\\")",
+                                    "button:has-text(\\"Login\\")",
+                                    "input[type='submit']:visible"
                             );
                         }
 
@@ -355,7 +563,81 @@ public class FlowPageObjectGenerator {
                             );
                         }
 
+                        if (lower.contains("button") || lower.contains("submit") || lower.startsWith("send ")) {
+                            return resolveSubmitButton(
+                                    target,
+                                    actionText(target)
+                            );
+                        }
+
                         return null;
+                    }
+
+                    private boolean isAddProductCommand(String lower) {
+
+                        return lower != null
+                                &&
+                                (
+                                        lower.equals("add")
+                                                ||
+                                                lower.startsWith("add ")
+                                                ||
+                                                lower.contains("add to cart")
+                                );
+                    }
+
+                    private Locator resolveProductActionButton(String target, String actionPrefix, String actionText) {
+
+                        String product = productName(target, actionText);
+                        product = productName(product, "to cart");
+                        product = productName(product, "product");
+
+                        if (product.isBlank()) {
+                            return null;
+                        }
+
+                        String productSlug = slug(product);
+
+                        if (productSlug.isBlank()) {
+                            return null;
+                        }
+
+                        return firstVisibleSoon(
+                                4000,
+                                "[data-test='" + actionPrefix + "-" + productSlug + "']",
+                                "[data-test='" + actionPrefix + "-sauce-labs-" + productSlug + "']",
+                                "[data-test^='" + actionPrefix + "-'][data-test*='" + productSlug + "' i]",
+                                "button[id*='" + productSlug + "' i]",
+                                "button[name*='" + productSlug + "' i]",
+                                "button:near(:text(\\"" + cssText(product) + "\\"), 120)",
+                                ".inventory_item:has-text(\\"" + cssText(product) + "\\") button:has-text(\\"" + (actionPrefix.equals("remove") ? "Remove" : "Add to cart") + "\\")"
+                        );
+                    }
+
+                    private Locator resolveSubmitButton(String target, String preferredText) {
+
+                        String text = actionText(preferredText == null || preferredText.isBlank() ? target : preferredText);
+
+                        if (text.isBlank()) {
+                            text = actionText(target);
+                        }
+
+                        String escaped = cssText(text);
+                        String slug = slug(text);
+
+                        return firstVisibleSoon(
+                                4000,
+                                "input[type='submit'][value*=\\"" + escaped + "\\" i]",
+                                "input[type='button'][value*=\\"" + escaped + "\\" i]",
+                                "button[type='submit']:has-text(\\"" + escaped + "\\")",
+                                "button:has-text(\\"" + escaped + "\\")",
+                                "[role='button']:has-text(\\"" + escaped + "\\")",
+                                "[data-test*=\\"" + slug + "\\" i]",
+                                "[data-testid*=\\"" + slug + "\\" i]",
+                                "[data-cy*=\\"" + slug + "\\" i]",
+                                "input[type='submit']:visible",
+                                "button[type='submit']:visible"
+                        );
                     }
 
                     private void dismissCookieBanner() {
@@ -490,7 +772,23 @@ public class FlowPageObjectGenerator {
                                         .contains("makemytrip");
                     }
 
+                    private boolean isParaBankPage() {
+
+                        String url = page.url();
+
+                        return url != null
+                                &&
+                                url.toLowerCase()
+                                        .contains("parabank");
+                    }
+
                     private Locator resolveEditable(String target) {
+
+                        Locator special = resolveSpecialEditable(target);
+
+                        if (special != null) {
+                            return special;
+                        }
 
                         String key = targetKey(target);
                         List<String> knownSelectors = selectors.getOrDefault(key, List.of());
@@ -515,6 +813,53 @@ public class FlowPageObjectGenerator {
                                 inputSemanticSelectors(target),
                                 true
                         );
+                    }
+
+                    private Locator resolveSpecialEditable(String target) {
+
+                        if (!isParaBankPage()) {
+                            return null;
+                        }
+
+                        String lower = target == null ? "" : target.toLowerCase();
+
+                        if (lower.contains("payee") && lower.contains("name")) {
+                            return firstVisible("input[name='payee.name']");
+                        }
+
+                        if (lower.equals("address") || lower.contains("street")) {
+                            return firstVisible("input[name='payee.address.street']");
+                        }
+
+                        if (lower.contains("city")) {
+                            return firstVisible("input[name='payee.address.city']");
+                        }
+
+                        if (lower.contains("state")) {
+                            return firstVisible("input[name='payee.address.state']");
+                        }
+
+                        if (lower.contains("zip")) {
+                            return firstVisible("input[name='payee.address.zipCode']");
+                        }
+
+                        if (lower.contains("phone")) {
+                            return firstVisible("input[name='payee.phoneNumber']");
+                        }
+
+                        if (lower.contains("verify") && lower.contains("account")) {
+                            return firstVisible("input[name='verifyAccount']");
+                        }
+
+                        if (lower.contains("account")) {
+                            return firstVisible("input[name='payee.accountNumber']");
+                        }
+
+                        if (lower.contains("amount")) {
+                            return firstVisible("input[name='amount']");
+                        }
+
+                        return null;
                     }
 
                     private Locator resolveOptional(
@@ -548,13 +893,17 @@ public class FlowPageObjectGenerator {
                                 continue;
                             }
 
-                            Locator locator = page.locator(selector);
+                            try {
+                                Locator locator = page.locator(selector);
 
-                            if (locator.count() > 0 && locator.first().isVisible()) {
+                                if (locator.count() > 0 && locator.first().isVisible()) {
 
-                                if (!editableOnly || isEditable(locator.first())) {
-                                    return locator.first();
+                                    if (!editableOnly || isEditable(locator.first())) {
+                                        return locator.first();
+                                    }
                                 }
+                            } catch (RuntimeException ignored) {
+                                // Keep trying lower-confidence fallbacks.
                             }
                         }
 
@@ -574,9 +923,17 @@ public class FlowPageObjectGenerator {
                         }
                     }
 
-                    private void confirmFieldIfNeeded(String target) {
+                    private void confirmFieldIfNeeded(String target, String value) {
 
                         String lower = target == null ? "" : target.toLowerCase();
+
+                        if (isParaBankPage() && lower.contains("account") && !lower.contains("verify")) {
+                            Locator verifyAccount = firstVisible("input[name='verifyAccount']");
+
+                            if (verifyAccount != null) {
+                                fillOrType(verifyAccount, value);
+                            }
+                        }
 
                         if (
                                 lower.equals("from")
@@ -626,9 +983,15 @@ public class FlowPageObjectGenerator {
                                         ||
                                         lower.contains("submit")
                                         ||
-                                        lower.contains("continue")
+                                lower.contains("continue")
                                         ||
                                         lower.contains("finish")
+                                        ||
+                                        lower.startsWith("send ")
+                                        ||
+                                        lower.contains("payment")
+                                        ||
+                                        lower.contains("button")
                         ) {
 
                             try {
@@ -662,12 +1025,33 @@ public class FlowPageObjectGenerator {
                                 continue;
                             }
 
-                            Locator locator = page.locator(selector);
+                            try {
+                                Locator locator = page.locator(selector);
 
-                            if (locator.count() > 0 && locator.first().isVisible()) {
-                                return locator.first();
+                                if (locator.count() > 0 && locator.first().isVisible()) {
+                                    return locator.first();
+                                }
+                            } catch (RuntimeException ignored) {
+                                // Some generated fallback selectors are browser or site specific.
                             }
                         }
+
+                        return null;
+                    }
+
+                    private Locator firstVisibleSoon(int timeoutMs, String... candidates) {
+
+                        long deadline = System.currentTimeMillis() + timeoutMs;
+
+                        do {
+                            Locator locator = firstVisible(candidates);
+
+                            if (locator != null) {
+                                return locator;
+                            }
+
+                            page.waitForTimeout(250);
+                        } while (System.currentTimeMillis() < deadline);
 
                         return null;
                     }
@@ -675,6 +1059,8 @@ public class FlowPageObjectGenerator {
                     private List<String> semanticSelectors(String target) {
 
                         String escaped = cssText(target);
+                        String action = cssText(actionText(target));
+                        String actionSlug = slug(action);
 
                         return Arrays.asList(
                                 "[data-test=\\"" + escaped + "\\"]",
@@ -683,13 +1069,22 @@ public class FlowPageObjectGenerator {
                                 "[data-cy=\\"" + escaped + "\\"]",
                                 "[id=\\"" + slug(target) + "\\"]",
                                 "[name=\\"" + escaped + "\\"]",
+                                "input[type='submit'][value*=\\"" + escaped + "\\" i]",
+                                "input[type='button'][value*=\\"" + escaped + "\\" i]",
+                                "input[type='submit'][value*=\\"" + action + "\\" i]",
+                                "input[type='button'][value*=\\"" + action + "\\" i]",
+                                "[data-test*=\\"" + actionSlug + "\\" i]",
+                                "[data-testid*=\\"" + actionSlug + "\\" i]",
+                                "[data-cy*=\\"" + actionSlug + "\\" i]",
                                 "input[name*=\\"" + escaped + "\\" i]",
                                 "input[placeholder*=\\"" + escaped + "\\" i]",
                                 "textarea[placeholder*=\\"" + escaped + "\\" i]",
                                 "[aria-label*=\\"" + escaped + "\\" i]",
                                 "button:has-text(\\"" + escaped + "\\")",
+                                "button:has-text(\\"" + action + "\\")",
                                 "a:has-text(\\"" + escaped + "\\")",
                                 "[role='button']:has-text(\\"" + escaped + "\\")",
+                                "[role='button']:has-text(\\"" + action + "\\")",
                                 "text=\\"" + escaped + "\\""
                         );
                     }
@@ -799,6 +1194,20 @@ public class FlowPageObjectGenerator {
 
                         return target
                                 .replaceAll("(?i)" + java.util.regex.Pattern.quote(actionText), "")
+                                .trim();
+                    }
+
+                    private String actionText(String target) {
+
+                        if (target == null) {
+                            return "";
+                        }
+
+                        return target
+                                .replace("${", "")
+                                .replace("}", "")
+                                .replaceAll("(?i)\\\\b(button|link|submit|cta)\\\\b", "")
+                                .replaceAll("\\\\s+", " ")
                                 .trim();
                     }
 

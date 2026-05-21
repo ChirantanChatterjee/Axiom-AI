@@ -18,12 +18,15 @@ public class RequirementTestCaseGeneratorService {
 
     private final FrameworkGeneratorService frameworkGeneratorService;
 
+    private final FrameworkLearningService frameworkLearningService;
+
     public GeneratedFramework generate(
 
             String requirement,
             String featureName,
             String url,
-            List<DetectedFlow> flows
+            List<DetectedFlow> flows,
+            String sessionId
 
     ) {
 
@@ -34,7 +37,8 @@ public class RequirementTestCaseGeneratorService {
                 generateFeatureFile(
                         requirement,
                         featureName,
-                        url
+                        url,
+                        sessionId
                 );
 
         baseFramework.setFeatureFile(feature);
@@ -46,15 +50,24 @@ public class RequirementTestCaseGeneratorService {
 
             String requirement,
             String featureName,
-            String url
+            String url,
+            String sessionId
 
     ) {
+
+        String launchUrl =
+                normalizeLaunchUrlForFeature(
+                        requirement,
+                        featureName,
+                        url
+                );
 
         String aiGenerated =
                 generateWithAi(
                         requirement,
                         featureName,
-                        url
+                        launchUrl,
+                        sessionId
                 );
 
         if (
@@ -67,7 +80,7 @@ public class RequirementTestCaseGeneratorService {
         return fallbackFeature(
                 requirement,
                 featureName,
-                url
+                launchUrl
         );
     }
 
@@ -75,9 +88,13 @@ public class RequirementTestCaseGeneratorService {
 
             String requirement,
             String featureName,
-            String url
+            String url,
+            String sessionId
 
     ) {
+
+        String learningSummary =
+                frameworkLearningService.learningSummary(sessionId);
 
         String prompt =
                 """
@@ -99,10 +116,18 @@ public class RequirementTestCaseGeneratorService {
                   Then user should see "<expected text>"
                   Then flow should complete successfully
                 - Use runtime placeholders for test data when appropriate: ${username}, ${password}, ${email}, ${search}, ${product}, ${quantity}.
+                - For payment forms, use runtime placeholders when appropriate: ${payee}, ${address}, ${city}, ${state}, ${zip}, ${phone}, ${account}, ${amount}.
                 - Keep targets semantic and short, for example "username", "password", "login button", "search", "add to cart".
+                - If a requested feature is behind login, include login steps before the feature steps.
+                - For ParaBank bill pay, launch the ParaBank home page, log in, click "Bill Pay", fill "verify account" with ${account}, and click "send payment button".
+                - For ParaBank successful bill pay, assert an app-observable payment success state instead of relying only on a brittle exact heading.
+                - Generate meaningful positive, negative, required-field, and boundary scenarios when the requirement implies them.
+                - For negative validation scenarios, do not guess brittle exact validation copy. Assert an observable validation outcome such as "amount validation error", "required field error", or another exact message only when the page is known to show it.
                 - Today's date is %s. Convert partial dates into explicit dates and never output YYYY placeholders.
                 - The launch URL is: %s
                 - The requested feature name is: %s
+                - Session learning from user uploads and runtime repair outcomes:
+                %s
 
                 Requirement:
                 %s
@@ -110,6 +135,9 @@ public class RequirementTestCaseGeneratorService {
                         LocalDate.now(),
                         safe(url),
                         safe(featureName),
+                        safe(learningSummary).isBlank()
+                                ? "No user-uploaded framework modifications have been observed yet."
+                                : safe(learningSummary),
                         safe(requirement)
                 );
 
@@ -117,6 +145,34 @@ public class RequirementTestCaseGeneratorService {
                 openAIService.ask(prompt);
 
         return extractFeature(response);
+    }
+
+    private String normalizeLaunchUrlForFeature(
+            String requirement,
+            String featureName,
+            String url
+    ) {
+
+        String safeUrl =
+                safe(url);
+
+        String requestedFeature =
+                (safe(requirement) + " " + safe(featureName))
+                        .toLowerCase();
+
+        if (
+                safeUrl.toLowerCase()
+                        .contains("parabank")
+                        &&
+                        requestedFeature.contains("bill")
+                        &&
+                        requestedFeature.contains("pay")
+        ) {
+
+            return "https://parabank.parasoft.com/parabank/index.htm";
+        }
+
+        return url;
     }
 
     private String normalizeGeneratedFeature(

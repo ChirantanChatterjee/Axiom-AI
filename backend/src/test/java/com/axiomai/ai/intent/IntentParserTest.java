@@ -147,6 +147,26 @@ class IntentParserTest {
         );
     }
 
+    @Test
+    void detectsGeneratedTestRepairRequestBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "The last test failed, can you look at it again and fix it?"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+    }
+
     private static class StubOpenAIIntentService
             extends OpenAIIntentService {
 
