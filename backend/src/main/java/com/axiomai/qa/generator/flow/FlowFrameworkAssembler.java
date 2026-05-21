@@ -1,7 +1,7 @@
 package com.axiomai.qa.generator.flow;
 
 import com.axiomai.qa.flow.DetectedFlow;
-
+import com.axiomai.qa.models.GeneratedFlowFramework;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -26,8 +26,10 @@ public class FlowFrameworkAssembler {
     // MAIN ASSEMBLER
     // =====================================================
 
-    public void assemble(
+    public GeneratedFlowFramework assemble(
+
             List<DetectedFlow> flows
+
     ) {
 
         String feature =
@@ -42,12 +44,17 @@ public class FlowFrameworkAssembler {
         String assertions =
                 flowAssertionGenerator.generateAssertion();
 
-        System.out.println(feature);
+        GeneratedFlowFramework framework =
+                new GeneratedFlowFramework();
 
-        System.out.println(pageObject);
+        framework.setFeatureFile(feature);
 
-        System.out.println(steps);
+        framework.setPageObject(pageObject);
 
-        System.out.println(assertions);
+        framework.setStepDefinitions(steps);
+
+        framework.setAssertions(assertions);
+
+        return framework;
     }
 }

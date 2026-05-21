@@ -85,6 +85,24 @@ public class PomGeneratorService {
 
     </dependencies>
 
+    <build>
+
+        <plugins>
+
+            <plugin>
+
+                <groupId>org.apache.maven.plugins</groupId>
+
+                <artifactId>maven-surefire-plugin</artifactId>
+
+                <version>3.2.5</version>
+
+            </plugin>
+
+        </plugins>
+
+    </build>
+
 </project>
 """;
     }

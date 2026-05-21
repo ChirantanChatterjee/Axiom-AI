@@ -1,167 +1,97 @@
 package com.axiomai.qa.generator.flow;
 
 import com.axiomai.qa.flow.DetectedFlow;
-import com.axiomai.qa.flow.FlowStep;
-
 import org.springframework.stereotype.Component;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Component
 public class FlowStepDefinitionGenerator {
 
-    public String generate(
+    public static String generate(
             List<DetectedFlow> flows
     ) {
 
-        StringBuilder sb =
-                new StringBuilder();
+        return """
+                package com.axiomai.generated.steps;
 
-        sb.append("package com.axiomai.generated.steps;\n\n");
+                import com.axiomai.generated.hooks.Hooks;
+                import com.axiomai.generated.pages.GeneratedPage;
+                import io.cucumber.java.en.*;
 
-        sb.append("import io.cucumber.java.en.*;\n");
-        sb.append("import com.microsoft.playwright.*;\n");
-        sb.append("import com.axiomai.generated.pages.GeneratedPage;\n\n");
+                public class GeneratedSteps {
 
-        sb.append("public class GeneratedSteps {\n\n");
+                    private GeneratedPage generatedPage() {
 
-        sb.append("    private static Playwright playwright;\n");
-        sb.append("    private static Browser browser;\n");
-        sb.append("    private static Page page;\n\n");
+                        return new GeneratedPage(Hooks.page);
+                    }
 
-        sb.append("    private GeneratedPage generatedPage;\n\n");
+                    @Given("user launches {string}")
+                    public void userLaunches(String url) {
 
-        // =================================================
-        // GIVEN
-        // =================================================
+                        generatedPage().launch(resolveValue(url));
+                    }
 
-        sb.append("    @Given(\"user launches {string}\")\n");
+                    @When("user enters {string} into {string}")
+                    public void userEntersInto(String value, String target) {
 
-        sb.append("    public void userLaunches(String url) {\n\n");
+                        generatedPage().enter(
+                                resolveValue(target),
+                                resolveValue(value)
+                        );
+                    }
 
-        sb.append("        playwright = Playwright.create();\n\n");
+                    @When("user clicks {string}")
+                    public void userClicks(String target) {
 
-        sb.append("        browser = playwright.chromium()\n");
-        sb.append("                .launch(\n");
-        sb.append("                        new BrowserType.LaunchOptions()\n");
-        sb.append("                                .setHeadless(false)\n");
-        sb.append("                );\n\n");
+                        generatedPage().click(
+                                resolveValue(target)
+                        );
+                    }
 
-        sb.append("        page = browser.newPage();\n\n");
+                    @Then("user should see {string}")
+                    public void userShouldSee(String expectedText) {
 
-        sb.append("        page.navigate(url);\n\n");
+                        generatedPage().shouldSee(
+                                resolveValue(expectedText)
+                        );
+                    }
 
-        sb.append("        generatedPage = new GeneratedPage(page);\n");
+                    @Then("flow should complete successfully")
+                    public void flowCompleted() {
 
-        sb.append("    }\n\n");
+                        System.out.println("Flow completed successfully");
+                    }
 
-        // =================================================
-        // UNIQUE STEPS
-        // =================================================
+                    private String resolveValue(String value) {
 
-        Set<String> uniqueMethods =
-                new HashSet<>();
+                        if (
+                                value == null
+                                        ||
+                                        !value.startsWith("${")
+                                        ||
+                                        !value.endsWith("}")
+                        ) {
 
-        for (DetectedFlow flow : flows) {
+                            return value;
+                        }
 
-            for (FlowStep step : flow.getSteps()) {
+                        String key = value.substring(2, value.length() - 1);
+                        String systemValue = System.getProperty(key);
 
-                String methodName =
-                        step.getAction()
-                                +
-                                "_"
-                                +
-                                step.getTarget();
+                        if (systemValue != null && !systemValue.isBlank()) {
+                            return systemValue;
+                        }
 
-                if (uniqueMethods.contains(methodName)) {
-                    continue;
+                        String envValue = System.getenv(key.toUpperCase());
+
+                        if (envValue != null && !envValue.isBlank()) {
+                            return envValue;
+                        }
+
+                        return value;
+                    }
                 }
-
-                uniqueMethods.add(methodName);
-
-                generateStep(
-                        sb,
-                        step
-                );
-            }
-        }
-
-        // =================================================
-        // ASSERTION
-        // =================================================
-
-        sb.append("    @Then(\"flow should complete successfully\")\n");
-
-        sb.append("    public void flowCompleted() {\n\n");
-
-        sb.append("        System.out.println(\"Flow completed successfully\");\n\n");
-
-        sb.append("        browser.close();\n");
-        sb.append("        playwright.close();\n");
-
-        sb.append("    }\n\n");
-
-        sb.append("}\n");
-
-        return sb.toString();
-    }
-
-    // =====================================================
-    // GENERATE STEP
-    // =====================================================
-
-    private void generateStep(
-            StringBuilder sb,
-            FlowStep step
-    ) {
-
-        String action =
-                step.getAction();
-
-        String target =
-                step.getTarget();
-
-        String methodName =
-                action.toLowerCase()
-                        +
-                        "_"
-                        +
-                        target.toLowerCase();
-
-        if ("TYPE".equalsIgnoreCase(action)) {
-
-            sb.append("    @When(\"user enters {string} into ")
-                    .append(target.toLowerCase())
-                    .append("\")\n");
-
-            sb.append("    public void ")
-                    .append(methodName)
-                    .append("(String value) {\n\n");
-
-            sb.append("        generatedPage.")
-                    .append(methodName)
-                    .append("(value);\n");
-
-            sb.append("    }\n\n");
-        }
-
-        if ("CLICK".equalsIgnoreCase(action)) {
-
-            sb.append("    @When(\"user clicks ")
-                    .append(target.toLowerCase())
-                    .append("\")\n");
-
-            sb.append("    public void ")
-                    .append(methodName)
-                    .append("() {\n\n");
-
-            sb.append("        generatedPage.")
-                    .append(methodName)
-                    .append("();\n");
-
-            sb.append("    }\n\n");
-        }
+                """;
     }
 }

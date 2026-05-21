@@ -1,5 +1,6 @@
 package com.axiomai.qa.runtime;
 
+import com.axiomai.runtime.wait.SmartWaitEngine;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 
@@ -19,44 +20,68 @@ public class SmartLocatorResolver {
     ) {
 
         if (
+
                 selectors == null
                         ||
                         selectors.isEmpty()
+
         ) {
 
             throw new RuntimeException(
                     "No selectors provided"
             );
+
         }
 
         for (String selector : selectors) {
 
             try {
 
+                System.out.println(
+                        "TRYING LOCATOR: "
+                                + selector
+                );
+
                 Locator locator =
                         page.locator(selector);
+
+                boolean ready =
+                        SmartWaitEngine
+                                .waitForElementReady(
+                                        locator
+                                );
+
+                if (!ready) {
+
+                    System.out.println(
+                            "ELEMENT NOT READY: "
+                                    + selector
+                    );
+
+                    continue;
+
+                }
 
                 int count =
                         locator.count();
 
+                // =========================================
+                // SINGLE ELEMENT FOUND
+                // =========================================
+
                 if (count == 1) {
 
-                    if (
-                            SmartWaitEngine
-                                    .waitForElement(locator)
-                    ) {
+                    System.out.println(
+                            "LOCATOR RESOLVED: "
+                                    + selector
+                    );
 
-                        System.out.println(
-                                "LOCATOR RESOLVED: "
-                                        + selector
-                        );
+                    return locator;
 
-                        return locator;
-                    }
                 }
 
                 // =========================================
-                // MULTIPLE ELEMENTS
+                // MULTIPLE ELEMENTS FOUND
                 // =========================================
 
                 if (count > 1) {
@@ -64,19 +89,29 @@ public class SmartLocatorResolver {
                     Locator first =
                             locator.first();
 
-                    if (
+                    boolean firstReady =
                             SmartWaitEngine
-                                    .waitForElement(first)
-                    ) {
+                                    .waitForElementReady(
+                                            first
+                                    );
+
+                    if (firstReady) {
 
                         System.out.println(
-                                "MULTIPLE LOCATORS FOUND, USING FIRST: "
+                                "MULTIPLE ELEMENTS FOUND, USING FIRST: "
                                         + selector
                         );
 
                         return first;
+
                     }
+
                 }
+
+                System.out.println(
+                        "NO MATCH FOUND FOR: "
+                                + selector
+                );
 
             } catch (Exception e) {
 
@@ -84,11 +119,20 @@ public class SmartLocatorResolver {
                         "LOCATOR FAILED: "
                                 + selector
                 );
+
+                System.out.println(
+                        "ERROR: "
+                                + e.getMessage()
+                );
+
             }
+
         }
 
         throw new RuntimeException(
-                "No valid locator found"
+                "No valid locator found after trying all selectors"
         );
+
     }
+
 }

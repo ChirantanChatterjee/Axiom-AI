@@ -1,7 +1,9 @@
 package com.axiomai.qa.service;
 
-import com.axiomai.qa.models.*;
-
+import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.qa.flow.FlowDetectionEngine;
+import com.axiomai.qa.models.PageNode;
+import com.axiomai.qa.models.SiteMapResult;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -10,198 +12,96 @@ import java.util.List;
 @Service
 public class FlowDetectionService {
 
+    // =====================================================
+    // DETECT FLOWS
+    // =====================================================
+
     public List<DetectedFlow> detectFlows(
             SiteMapResult siteMap
     ) {
 
-        List<DetectedFlow> flows =
+        List<DetectedFlow> detectedFlows =
                 new ArrayList<>();
+
+        if (
+                siteMap == null
+                        ||
+                        siteMap.getPages() == null
+        ) {
+
+            return detectedFlows;
+        }
+
+        // =================================================
+        // PROCESS EACH PAGE
+        // =================================================
 
         for (PageNode page : siteMap.getPages()) {
 
-            DetectedFlow loginFlow =
-                    detectLoginFlow(page);
+            try {
 
-            if (loginFlow != null) {
+                List<DetectedFlow> pageFlows =
 
-                flows.add(loginFlow);
-            }
+                        FlowDetectionEngine
+                                .detectFlows(
 
-            DetectedFlow searchFlow =
-                    detectSearchFlow(page);
+                                        page.getUrl(),
+                                        page.getElements()
+                                );
 
-            if (searchFlow != null) {
+                if (
+                        pageFlows != null
+                                &&
+                                !pageFlows.isEmpty()
+                ) {
 
-                flows.add(searchFlow);
-            }
-        }
+                    detectedFlows.addAll(
+                            pageFlows
+                    );
+                }
 
-        return flows;
-    }
+            } catch (Exception e) {
 
-    // =====================================================
-    // LOGIN FLOW
-    // =====================================================
-
-    private DetectedFlow detectLoginFlow(
-            PageNode page
-    ) {
-
-        PageElement usernameField = null;
-
-        PageElement passwordField = null;
-
-        PageElement loginButton = null;
-
-        for (PageElement element : page.getElements()) {
-
-            String role =
-                    element.getBusinessRole();
-
-            if (
-                    role == null
-            ) {
-                continue;
-            }
-
-            if (
-                    role.equals("AUTH_FIELD")
-            ) {
-
-                usernameField = element;
-            }
-
-            if (
-                    role.equals("PASSWORD_FIELD")
-            ) {
-
-                passwordField = element;
-            }
-
-            if (
-                    role.equals("LOGIN_BUTTON")
-            ) {
-
-                loginButton = element;
-            }
-        }
-
-        if (
-                usernameField != null
-                        &&
-                        passwordField != null
-                        &&
-                        loginButton != null
-        ) {
-
-            List<FlowStep> steps =
-                    new ArrayList<>();
-
-            steps.add(
-                    new FlowStep(
-                            "TYPE",
-                            "USERNAME",
-                            usernameField.getCssSelector()
-                    )
-            );
-
-            steps.add(
-                    new FlowStep(
-                            "TYPE",
-                            "PASSWORD",
-                            passwordField.getCssSelector()
-                    )
-            );
-
-            steps.add(
-                    new FlowStep(
-                            "CLICK",
-                            "LOGIN_BUTTON",
-                            loginButton.getCssSelector()
-                    )
-            );
-
-            return new DetectedFlow(
-                    FlowType.LOGIN,
-                    page.getUrl(),
-                    steps
-            );
-        }
-
-        return null;
-    }
-
-    // =====================================================
-    // SEARCH FLOW
-    // =====================================================
-
-    private DetectedFlow detectSearchFlow(
-            PageNode page
-    ) {
-
-        PageElement searchField = null;
-
-        PageElement searchButton = null;
-
-        for (PageElement element : page.getElements()) {
-
-            String role =
-                    element.getBusinessRole();
-
-            if (
-                    role == null
-            ) {
-                continue;
-            }
-
-            if (
-                    role.equals("SEARCH_FIELD")
-            ) {
-
-                searchField = element;
-            }
-
-            if (
-                    role.equals("SEARCH_BUTTON")
-            ) {
-
-                searchButton = element;
-            }
-        }
-
-        if (
-                searchField != null
-        ) {
-
-            List<FlowStep> steps =
-                    new ArrayList<>();
-
-            steps.add(
-                    new FlowStep(
-                            "TYPE",
-                            "SEARCH_TEXT",
-                            searchField.getCssSelector()
-                    )
-            );
-
-            if (searchButton != null) {
-
-                steps.add(
-                        new FlowStep(
-                                "CLICK",
-                                "SEARCH_BUTTON",
-                                searchButton.getCssSelector()
-                        )
+                System.out.println(
+                        "FLOW DETECTION FAILED FOR PAGE = "
+                                + page.getUrl()
                 );
-            }
 
-            return new DetectedFlow(
-                    FlowType.SEARCH,
-                    page.getUrl(),
-                    steps
-            );
+                e.printStackTrace();
+            }
         }
 
-        return null;
+        return detectedFlows;
+    }
+
+    // =====================================================
+    // DEBUG FLOWS
+    // =====================================================
+
+    public void printFlows(
+            List<DetectedFlow> flows
+    ) {
+
+        for (DetectedFlow flow : flows) {
+
+            System.out.println(
+                    "FLOW TYPE = "
+                            + flow.getFlowType()
+            );
+
+            System.out.println(
+                    "PAGE URL = "
+                            + flow.getPageUrl()
+            );
+
+            System.out.println(
+                    "TOTAL STEPS = "
+                            + flow.getSteps().size()
+            );
+
+            System.out.println(
+                    "=================================="
+            );
+        }
     }
 }

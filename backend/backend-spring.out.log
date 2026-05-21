@@ -1,0 +1,168 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------< com.axiomai:backend >-------------------------
+[INFO] Building AIF Platform 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.3.5:run (default-cli) > test-compile @ backend >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ backend ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 218 source files with javac [debug parameters release 21] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ backend ---
+[INFO] skip non existing resourceDirectory C:\Users\27chi\IdeaProjects\Axiom-AI\backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 8 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] 
+[INFO] <<< spring-boot:3.3.5:run (default-cli) < test-compile @ backend <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.3.5:run (default-cli) @ backend ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.5)
+
+2026-05-20T20:29:30.293+01:00  INFO 25732 --- [aif-platform] [           main] com.axiomai.BackendApplication           : Starting BackendApplication using Java 25.0.2 with PID 25732 (C:\Users\27chi\IdeaProjects\Axiom-AI\backend\target\classes started by 27chi in C:\Users\27chi\IdeaProjects\Axiom-AI\backend)
+2026-05-20T20:29:30.295+01:00 DEBUG 25732 --- [aif-platform] [           main] com.axiomai.BackendApplication           : Running with Spring Boot v3.3.5, Spring v6.1.14
+2026-05-20T20:29:30.296+01:00  INFO 25732 --- [aif-platform] [           main] com.axiomai.BackendApplication           : No active profile set, falling back to 1 default profile: "default"
+2026-05-20T20:29:30.644+01:00  INFO 25732 --- [aif-platform] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-20T20:29:30.741+01:00  INFO 25732 --- [aif-platform] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 85 ms. Found 7 JPA repository interfaces.
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.apache.tomcat.jni.Library in an unnamed module (file:/C:/Users/27chi/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.31/tomcat-embed-core-10.1.31.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+2026-05-20T20:29:31.003+01:00  INFO 25732 --- [aif-platform] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-05-20T20:29:31.012+01:00  INFO 25732 --- [aif-platform] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-20T20:29:31.012+01:00  INFO 25732 --- [aif-platform] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-05-20T20:29:31.049+01:00  INFO 25732 --- [aif-platform] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-05-20T20:29:31.051+01:00  INFO 25732 --- [aif-platform] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 728 ms
+2026-05-20T20:29:31.128+01:00  INFO 25732 --- [aif-platform] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-05-20T20:29:31.152+01:00  INFO 25732 --- [aif-platform] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.5.3.Final
+2026-05-20T20:29:31.169+01:00  INFO 25732 --- [aif-platform] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-05-20T20:29:31.323+01:00  INFO 25732 --- [aif-platform] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-20T20:29:31.339+01:00  INFO 25732 --- [aif-platform] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-05-20T20:29:31.425+01:00  INFO 25732 --- [aif-platform] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@67941d
+2026-05-20T20:29:31.426+01:00  INFO 25732 --- [aif-platform] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-05-20T20:29:31.930+01:00  INFO 25732 --- [aif-platform] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-20T20:29:31.971+01:00  INFO 25732 --- [aif-platform] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-20T20:29:32.264+01:00  WARN 25732 --- [aif-platform] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::allocateMemory has been called by io.netty.util.internal.PlatformDependent0$2 (file:/C:/Users/27chi/.m2/repository/io/netty/netty-common/4.1.114.Final/netty-common-4.1.114.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$2
+WARNING: sun.misc.Unsafe::allocateMemory will be removed in a future release
+2026-05-20T20:29:32.447+01:00  INFO 25732 --- [aif-platform] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2026-05-20T20:29:32.451+01:00  INFO 25732 --- [aif-platform] [           main] com.axiomai.BackendApplication           : Started BackendApplication in 2.344 seconds (process running for 2.518)
+2026-05-20T20:56:52.597+01:00  INFO 25732 --- [aif-platform] [nio-8080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-20T20:56:52.599+01:00  INFO 25732 --- [aif-platform] [nio-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-20T20:56:52.600+01:00  INFO 25732 --- [aif-platform] [nio-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-05-20T20:56:52.751+01:00 DEBUG 25732 --- [aif-platform] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    select
+        aue1_0.id,
+        aue1_0.avatar_url,
+        aue1_0.created_at,
+        aue1_0.display_name,
+        aue1_0.email,
+        aue1_0.last_login_at,
+        aue1_0.password_hash,
+        aue1_0.provider,
+        aue1_0.provider_user_id,
+        aue1_0.role 
+    from
+        aif_users aue1_0 
+    where
+        upper(aue1_0.email)=upper(?)
+Hibernate: 
+    select
+        aue1_0.id,
+        aue1_0.avatar_url,
+        aue1_0.created_at,
+        aue1_0.display_name,
+        aue1_0.email,
+        aue1_0.last_login_at,
+        aue1_0.password_hash,
+        aue1_0.provider,
+        aue1_0.provider_user_id,
+        aue1_0.role 
+    from
+        aif_users aue1_0 
+    where
+        upper(aue1_0.email)=upper(?)
+2026-05-20T20:57:18.851+01:00 DEBUG 25732 --- [aif-platform] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    select
+        aue1_0.id 
+    from
+        aif_users aue1_0 
+    where
+        upper(aue1_0.email)=upper(?) 
+    fetch
+        first ? rows only
+Hibernate: 
+    select
+        aue1_0.id 
+    from
+        aif_users aue1_0 
+    where
+        upper(aue1_0.email)=upper(?) 
+    fetch
+        first ? rows only
+2026-05-20T20:57:19.366+01:00 DEBUG 25732 --- [aif-platform] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    insert 
+    into
+        aif_users
+        (avatar_url, created_at, display_name, email, last_login_at, password_hash, provider, provider_user_id, role) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?) 
+    returning id
+Hibernate: 
+    insert 
+    into
+        aif_users
+        (avatar_url, created_at, display_name, email, last_login_at, password_hash, provider, provider_user_id, role) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?) 
+    returning id
+2026-05-20T20:57:19.377+01:00 DEBUG 25732 --- [aif-platform] [nio-8080-exec-3] org.hibernate.SQL                        : 
+    insert 
+    into
+        aif_auth_sessions
+        (created_at, expires_at, token, user_id) 
+    values
+        (?, ?, ?, ?) 
+    returning id
+Hibernate: 
+    insert 
+    into
+        aif_auth_sessions
+        (created_at, expires_at, token, user_id) 
+    values
+        (?, ?, ?, ?) 
+    returning id
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  02:11 h
+[INFO] Finished at: 2026-05-20T22:40:33+01:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.3.5:run (default-cli) on project backend: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

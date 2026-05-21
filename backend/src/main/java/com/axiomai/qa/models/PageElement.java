@@ -154,7 +154,21 @@ public class PageElement {
     }
 
     public void setCssSelector(String cssSelector) {
+
         this.cssSelector = cssSelector;
+
+        // =============================================
+        // AUTO POPULATE BEST SELECTOR
+        // =============================================
+
+        if (
+                this.bestSelector == null
+                        ||
+                        this.bestSelector.isBlank()
+        ) {
+
+            this.bestSelector = cssSelector;
+        }
     }
 
     public String getXpath() {
@@ -229,8 +243,87 @@ public class PageElement {
         this.recommendedAction = recommendedAction;
     }
 
+    // =====================================================
+    // SMART SELECTOR RESOLUTION
+    // =====================================================
+
     public String getBestSelector() {
-        return bestSelector;
+
+        // =============================================
+        // PRIORITY 1
+        // AI GENERATED BEST SELECTOR
+        // =============================================
+
+        if (
+                bestSelector != null
+                        &&
+                        !bestSelector.isBlank()
+        ) {
+
+            return bestSelector;
+        }
+
+        // =============================================
+        // PRIORITY 2
+        // CSS SELECTOR
+        // =============================================
+
+        if (
+                cssSelector != null
+                        &&
+                        !cssSelector.isBlank()
+        ) {
+
+            return cssSelector;
+        }
+
+        // =============================================
+        // PRIORITY 3
+        // XPATH
+        // =============================================
+
+        if (
+                xpath != null
+                        &&
+                        !xpath.isBlank()
+        ) {
+
+            return xpath;
+        }
+
+        // =============================================
+        // PRIORITY 4
+        // ID ATTRIBUTE
+        // =============================================
+
+        if (
+                id != null
+                        &&
+                        !id.isBlank()
+        ) {
+
+            return "#" + id;
+        }
+
+        // =============================================
+        // PRIORITY 5
+        // NAME ATTRIBUTE
+        // =============================================
+
+        if (
+                name != null
+                        &&
+                        !name.isBlank()
+        ) {
+
+            return "[name='" + name + "']";
+        }
+
+        // =============================================
+        // NOTHING FOUND
+        // =============================================
+
+        return null;
     }
 
     public void setBestSelector(String bestSelector) {

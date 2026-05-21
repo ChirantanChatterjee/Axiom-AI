@@ -30,20 +30,68 @@ public class Hooks {
 
         playwright = Playwright.create();
 
+        boolean headless =
+                "true".equalsIgnoreCase(
+                        System.getenv()
+                                .getOrDefault("AIF_HEADLESS", "false")
+                );
+
+        String browserChannel =
+                System.getenv()
+                        .getOrDefault("AIF_BROWSER_CHANNEL", "chrome");
+
+        BrowserType.LaunchOptions launchOptions =
+                new BrowserType.LaunchOptions()
+                        .setHeadless(headless)
+                        .setTimeout(15000)
+                        .setArgs(java.util.Arrays.asList(
+                                "--incognito",
+                                "--no-first-run",
+                                "--no-default-browser-check"
+                        ));
+
+        if (browserChannel != null && !browserChannel.isBlank()) {
+            launchOptions.setChannel(browserChannel);
+        }
+
         browser =
                 playwright.chromium()
-                        .launch(
-                                new BrowserType.LaunchOptions()
-                                        .setHeadless(false)
-                        );
+                        .launch(launchOptions);
 
-        context = browser.newContext();
+        context = browser.newContext(
+                new Browser.NewContextOptions()
+                        .setViewportSize(1440, 1000)
+        );
 
         page = context.newPage();
     }
 
+    @AfterStep
+    public void captureStepScreenshot(Scenario scenario) {
+
+        if (page == null) {
+            return;
+        }
+
+        byte[] screenshot =
+                page.screenshot(
+                        new Page.ScreenshotOptions()
+                                .setFullPage(true)
+                );
+
+        scenario.attach(
+                screenshot,
+                "image/png",
+                "step-screenshot"
+        );
+    }
+
     @After
     public void tearDown() {
+
+        if (context != null) {
+            context.close();
+        }
 
         if (browser != null) {
             browser.close();

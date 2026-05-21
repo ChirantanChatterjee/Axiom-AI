@@ -3,14 +3,10 @@ package com.axiomai.qa.service;
 import com.axiomai.qa.ai.SelectorCandidate;
 import com.axiomai.qa.ai.SelectorRanker;
 import com.axiomai.qa.ai.SelectorStrategyEngine;
-
 import com.axiomai.qa.models.PageElement;
 import com.axiomai.qa.models.PageScanResult;
-
 import com.axiomai.qa.util.ElementClassifier;
-
 import com.microsoft.playwright.*;
-
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

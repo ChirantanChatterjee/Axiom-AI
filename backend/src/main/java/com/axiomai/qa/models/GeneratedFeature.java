@@ -2,47 +2,53 @@ package com.axiomai.qa.models;
 
 public class GeneratedFeature {
 
+    // =====================================================
+    // FEATURE INFO
+    // =====================================================
+
     private String featureName;
 
-    private String scenarioName;
+    private String featureContent;
 
-    private String gherkin;
+    // =====================================================
+    // CONSTRUCTORS
+    // =====================================================
 
     public GeneratedFeature() {
     }
 
     public GeneratedFeature(
             String featureName,
-            String scenarioName,
-            String gherkin
+            String featureContent
     ) {
 
         this.featureName = featureName;
-        this.scenarioName = scenarioName;
-        this.gherkin = gherkin;
+        this.featureContent = featureContent;
     }
+
+    // =====================================================
+    // GETTERS / SETTERS
+    // =====================================================
 
     public String getFeatureName() {
         return featureName;
     }
 
-    public void setFeatureName(String featureName) {
+    public void setFeatureName(
+            String featureName
+    ) {
+
         this.featureName = featureName;
     }
 
-    public String getScenarioName() {
-        return scenarioName;
+    public String getFeatureContent() {
+        return featureContent;
     }
 
-    public void setScenarioName(String scenarioName) {
-        this.scenarioName = scenarioName;
-    }
+    public void setFeatureContent(
+            String featureContent
+    ) {
 
-    public String getGherkin() {
-        return gherkin;
-    }
-
-    public void setGherkin(String gherkin) {
-        this.gherkin = gherkin;
+        this.featureContent = featureContent;
     }
 }

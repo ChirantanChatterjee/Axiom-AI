@@ -1,18 +1,26 @@
 package com.axiomai.qa.service;
 
-import com.axiomai.qa.models.*;
+import com.axiomai.qa.models.PageElement;
+import com.axiomai.qa.models.PageLink;
+import com.axiomai.qa.models.PageNode;
+import com.axiomai.qa.models.SiteMapResult;
+import com.axiomai.qa.runtime.PlaywrightBrowserFactory;
 import com.axiomai.qa.util.ElementClassifier;
-
 import com.microsoft.playwright.*;
-
+import com.microsoft.playwright.options.WaitUntilState;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
 import java.util.*;
 
 @Service
 public class WebsiteCrawlerService {
 
-    private static final int MAX_PAGES = 10;
+    private static final int MAX_PAGES = 3;
+
+    // =====================================================
+    // MAIN CRAWLER
+    // =====================================================
 
     public SiteMapResult crawl(String rootUrl) {
 
@@ -28,68 +36,147 @@ public class WebsiteCrawlerService {
         queue.add(rootUrl);
 
         try (
+
                 Playwright playwright =
                         Playwright.create()
+
         ) {
 
             Browser browser =
-                    playwright.chromium()
-                            .launch(
-                                    new BrowserType
-                                            .LaunchOptions()
-                                            .setHeadless(true)
-                            );
+
+                    PlaywrightBrowserFactory
+                            .launchVisibleChromium(playwright);
 
             while (
+
                     !queue.isEmpty()
                             &&
                             pages.size() < MAX_PAGES
+
             ) {
 
                 String currentUrl =
                         queue.poll();
 
                 if (
+
                         currentUrl == null
                                 ||
                                 visited.contains(currentUrl)
+
                 ) {
+
                     continue;
                 }
 
                 visited.add(currentUrl);
 
                 System.out.println(
-                        "CRAWLING = " + currentUrl
+                        "\n================================================="
+                );
+
+                System.out.println(
+                        "CRAWLING = "
+                                + currentUrl
+                );
+
+                System.out.println(
+                        "=================================================\n"
                 );
 
                 try {
 
+                    BrowserContext browserContext =
+                            browser.newContext(
+                                    new Browser.NewContextOptions()
+                                            .setViewportSize(null)
+                            );
+
                     Page page =
-                            browser.newPage();
+                            browserContext.newPage();
 
-                    page.navigate(currentUrl);
+                    // =============================================
+                    // NAVIGATE
+                    // =============================================
 
-                    page.waitForLoadState();
+                    page.navigate(
+
+                            currentUrl,
+
+                            new Page.NavigateOptions()
+
+                                    .setWaitUntil(
+                                            WaitUntilState.NETWORKIDLE
+                                    )
+                    );
+
+                    page.waitForTimeout(3000);
+
+                    System.out.println(
+                            "PAGE LOADED = "
+                                    + currentUrl
+                    );
+
+                    // =============================================
+                    // TITLE
+                    // =============================================
 
                     String title =
                             page.title();
 
+                    System.out.println(
+                            "TITLE = "
+                                    + title
+                    );
+
+                    // =============================================
+                    // ELEMENT EXTRACTION
+                    // =============================================
+
                     List<PageElement> elements =
                             scanElements(page);
 
+                    System.out.println(
+                            "TOTAL ELEMENTS EXTRACTED = "
+                                    + elements.size()
+                    );
+
+                    // =============================================
+                    // LINKS
+                    // =============================================
+
                     List<PageLink> links =
-                            extractLinks(page, currentUrl);
+                            extractLinks(
+                                    page,
+                                    currentUrl
+                            );
+
+                    System.out.println(
+                            "TOTAL LINKS FOUND = "
+                                    + links.size()
+                    );
+
+                    // =============================================
+                    // PAGE NODE
+                    // =============================================
 
                     PageNode node =
                             new PageNode(
+
                                     currentUrl,
+
                                     title,
+
                                     elements,
+
                                     links
                             );
 
                     pages.add(node);
+
+                    // =============================================
+                    // QUEUE NEW LINKS
+                    // =============================================
 
                     for (PageLink link : links) {
 
@@ -97,23 +184,99 @@ public class WebsiteCrawlerService {
                                 link.getHref();
 
                         if (
-                                href != null
-                                        &&
-                                        href.startsWith("http")
-                                        &&
-                                        !visited.contains(href)
+
+                                href == null
+                                        ||
+                                        href.isBlank()
+
                         ) {
 
-                            queue.add(href);
+                            continue;
                         }
+
+                        if (
+                                !href.startsWith("http")
+                        ) {
+
+                            continue;
+                        }
+
+                        if (
+                                visited.contains(href)
+                        ) {
+
+                            continue;
+                        }
+
+                        // =========================================
+                        // SAME DOMAIN ONLY
+                        // =========================================
+
+                        if (
+                                !isAllowedCrawlTarget(
+                                        rootUrl,
+                                        href
+                                )
+                        ) {
+
+                            continue;
+                        }
+
+                        // =========================================
+                        // SKIP NOISY LINKS
+                        // =========================================
+
+                        String lower =
+                                href.toLowerCase();
+
+                        if (
+
+                                lower.contains("privacy")
+                                        ||
+                                        lower.contains("terms")
+                                        ||
+                                        lower.contains("docs")
+                                        ||
+                                        lower.contains("support")
+                                        ||
+                                        lower.contains("features")
+                                        ||
+                                        lower.contains("enterprise")
+                                        ||
+                                        lower.contains("pricing")
+                                        ||
+                                        lower.contains("copilot")
+                                        ||
+                                        lower.contains("marketplace")
+                                        ||
+                                        lower.contains("about")
+                                        ||
+                                        lower.contains("blog")
+                                        ||
+                                        lower.contains("careers")
+
+                        ) {
+
+                            continue;
+                        }
+
+                        System.out.println(
+                                "QUEUE ADD = "
+                                        + href
+                        );
+
+                        queue.add(href);
                     }
 
                     page.close();
 
+                    browserContext.close();
+
                 } catch (Exception e) {
 
                     System.out.println(
-                            "FAILED PAGE = " + currentUrl
+                            "FAILED PAGE = "
+                                    + currentUrl
                     );
 
                     e.printStackTrace();
@@ -137,7 +300,9 @@ public class WebsiteCrawlerService {
     // SCAN ELEMENTS
     // =====================================================
 
-    private List<PageElement> scanElements(Page page) {
+    private List<PageElement> scanElements(
+            Page page
+    ) {
 
         List<PageElement> elements =
                 new ArrayList<>();
@@ -145,93 +310,242 @@ public class WebsiteCrawlerService {
         Set<String> uniqueSelectors =
                 new HashSet<>();
 
-        List<ElementHandle> handles =
-                page.querySelectorAll(
-                        "input, button, textarea, select, a"
-                );
+        try {
 
-        for (ElementHandle handle : handles) {
+            List<ElementHandle> handles =
 
-            try {
+                    page.querySelectorAll(
+                            "input, button, textarea, select, a"
+                    );
 
-                String tag =
-                        safeEval(handle, "el => el.tagName");
+            System.out.println(
+                    "RAW ELEMENTS FOUND = "
+                            + handles.size()
+            );
 
-                String text =
-                        safeEval(handle, "el => el.innerText");
+            for (ElementHandle handle : handles) {
 
-                String id =
-                        safeAttr(handle, "id");
+                try {
 
-                String name =
-                        safeAttr(handle, "name");
+                    // =========================================
+                    // RAW DATA
+                    // =========================================
 
-                String type =
-                        safeAttr(handle, "type");
+                    String tag =
+                            safeEval(
+                                    handle,
+                                    "el => el.tagName"
+                            );
 
-                String placeholder =
-                        safeAttr(handle, "placeholder");
+                    String text =
+                            safeEval(
+                                    handle,
+                                    "el => el.innerText"
+                            );
 
-                boolean visible =
-                        handle.isVisible();
+                    String id =
+                            safeAttr(
+                                    handle,
+                                    "id"
+                            );
 
-                String cssSelector =
-                        buildCssSelector(
-                                tag,
-                                id,
-                                name
-                        );
+                    String name =
+                            safeAttr(
+                                    handle,
+                                    "name"
+                            );
 
-                String xpath =
-                        buildXpath(
-                                tag,
-                                id,
-                                name
-                        );
+                    String type =
+                            safeAttr(
+                                    handle,
+                                    "type"
+                            );
 
-                // =========================================
-                // REMOVE DUPLICATES
-                // =========================================
+                    String placeholder =
+                            safeAttr(
+                                    handle,
+                                    "placeholder"
+                            );
 
-                if (
-                        uniqueSelectors.contains(cssSelector)
-                ) {
+                    String ariaLabel =
+                            safeAttr(
+                                    handle,
+                                    "aria-label"
+                            );
 
-                    continue;
+                    String dataTestId =
+                            safeAttr(
+                                    handle,
+                                    "data-testid"
+                            );
+
+                    String dataTest =
+                            safeAttr(
+                                    handle,
+                                    "data-test"
+                            );
+
+                    String dataCy =
+                            safeAttr(
+                                    handle,
+                                    "data-cy"
+                            );
+
+                    boolean visible =
+                            handle.isVisible();
+
+                    // =========================================
+                    // SKIP INVISIBLE
+                    // =========================================
+
+                    if (!visible) {
+
+                        continue;
+                    }
+
+                    // =========================================
+                    // SELECTORS
+                    // =========================================
+
+                    String cssSelector =
+
+                            buildCssSelector(
+
+                                    tag,
+                                    id,
+                                    name,
+                                    type,
+                                    text,
+                                    ariaLabel,
+                                    dataTestId,
+                                    dataTest,
+                                    dataCy
+                            );
+
+                    String xpath =
+
+                            buildXpath(
+
+                                    tag,
+                                    id,
+                                    name,
+                                    ariaLabel,
+                                    text
+                            );
+
+                    // =========================================
+                    // REMOVE DUPLICATES
+                    // =========================================
+
+                    if (
+
+                            uniqueSelectors.contains(
+                                    cssSelector
+                            )
+
+                    ) {
+
+                        continue;
+                    }
+
+                    uniqueSelectors.add(cssSelector);
+
+                    // =========================================
+                    // PAGE ELEMENT
+                    // =========================================
+
+                    PageElement element =
+                            new PageElement(
+
+                                    tag,
+
+                                    text,
+
+                                    id,
+
+                                    name,
+
+                                    type,
+
+                                    placeholder,
+
+                                    cssSelector,
+
+                                    xpath,
+
+                                    visible,
+
+                                    false,
+
+                                    false,
+
+                                    0,
+
+                                    "",
+
+                                    ""
+                            );
+
+                    element.setAriaLabel(ariaLabel);
+                    element.setDataTestId(
+                            firstNonBlank(
+                                    dataTestId,
+                                    dataTest,
+                                    dataCy
+                            )
+                    );
+
+                    // =========================================
+                    // AI CLASSIFICATION
+                    // =========================================
+
+                    ElementClassifier
+                            .classify(element);
+
+                    // =========================================
+                    // DEBUG
+                    // =========================================
+
+                    System.out.println(
+
+                            "ELEMENT -> "
+
+                                    + "TAG="
+                                    + tag
+
+                                    + " | TEXT="
+                                    + text
+
+                                    + " | TYPE="
+                                    + type
+
+                                    + " | NAME="
+                                    + name
+
+                                    + " | PLACEHOLDER="
+                                    + placeholder
+
+                                    + " | ARIA="
+                                    + ariaLabel
+
+                                    + " | ROLE="
+                                    + element.getBusinessRole()
+
+                                    + " | SELECTOR="
+                                    + cssSelector
+                    );
+
+                    elements.add(element);
+
+                } catch (Exception e) {
+
+                    e.printStackTrace();
                 }
-
-                uniqueSelectors.add(cssSelector);
-
-                PageElement element =
-                        new PageElement(
-                                tag,
-                                text,
-                                id,
-                                name,
-                                type,
-                                placeholder,
-                                cssSelector,
-                                xpath,
-                                visible,
-                                false,
-                                false,
-                                0,
-                                "",
-                                ""
-                        );
-
-                // =========================================
-                // AI CLASSIFICATION
-                // =========================================
-
-                ElementClassifier.classify(element);
-
-                elements.add(element);
-
-            } catch (Exception e) {
-
-                e.printStackTrace();
             }
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
         }
 
         return elements;
@@ -242,54 +556,78 @@ public class WebsiteCrawlerService {
     // =====================================================
 
     private List<PageLink> extractLinks(
+
             Page page,
             String sourceUrl
+
     ) {
 
         List<PageLink> links =
                 new ArrayList<>();
 
-        List<ElementHandle> anchors =
-                page.querySelectorAll("a");
+        try {
 
-        for (ElementHandle anchor : anchors) {
+            List<ElementHandle> anchors =
+                    page.querySelectorAll("a");
 
-            try {
+            for (ElementHandle anchor : anchors) {
 
-                String text =
-                        safeEval(anchor, "el => el.innerText");
+                try {
 
-                String href =
-                        anchor.getAttribute("href");
+                    String text =
+                            safeEval(
+                                    anchor,
+                                    "el => el.innerText"
+                            );
 
-                if (
-                        href == null
-                                ||
-                                href.isBlank()
-                ) {
+                    String href =
+                            anchor.getAttribute("href");
 
-                    continue;
+                    if (
+
+                            href == null
+                                    ||
+                                    href.isBlank()
+
+                    ) {
+
+                        continue;
+                    }
+
+                    // =========================================
+                    // RELATIVE URL
+                    // =========================================
+
+                    if (href.startsWith("/")) {
+
+                        href =
+                                resolveUrl(
+                                        sourceUrl,
+                                        href
+                                );
+                    }
+
+                    PageLink link =
+                            new PageLink(
+
+                                    text,
+
+                                    href,
+
+                                    sourceUrl
+                            );
+
+                    links.add(link);
+
+                } catch (Exception e) {
+
+                    e.printStackTrace();
                 }
-
-                if (href.startsWith("/")) {
-
-                    href =
-                            sourceUrl + href;
-                }
-
-                PageLink link =
-                        new PageLink(
-                                text,
-                                href,
-                                sourceUrl
-                        );
-
-                links.add(link);
-
-            } catch (Exception e) {
-
-                e.printStackTrace();
             }
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
         }
 
         return links;
@@ -300,31 +638,102 @@ public class WebsiteCrawlerService {
     // =====================================================
 
     private String buildCssSelector(
+
             String tag,
             String id,
-            String name
+            String name,
+            String type,
+            String text,
+            String ariaLabel,
+            String dataTestId,
+            String dataTest,
+            String dataCy
+
     ) {
 
-        tag = tag.toLowerCase();
+        tag = safe(tag).toLowerCase();
 
         if (
-                id != null
-                        &&
-                        !id.isBlank()
+                !safe(dataTestId).isBlank()
         ) {
 
-            return tag + "#" + id;
+            return "[data-testid='"
+                    + cssAttr(dataTestId)
+                    + "']";
         }
 
         if (
-                name != null
+                !safe(dataTest).isBlank()
+        ) {
+
+            return "[data-test='"
+                    + cssAttr(dataTest)
+                    + "']";
+        }
+
+        if (
+                !safe(dataCy).isBlank()
+        ) {
+
+            return "[data-cy='"
+                    + cssAttr(dataCy)
+                    + "']";
+        }
+
+        if (
+                !safe(ariaLabel).isBlank()
+        ) {
+
+            return tag
+                    + "[aria-label='"
+                    + cssAttr(ariaLabel)
+                    + "']";
+        }
+
+        if (
+
+                !safe(id).isBlank()
                         &&
-                        !name.isBlank()
+                        !isGenericId(id)
+
+        ) {
+
+            return "#" + id;
+        }
+
+        if (
+
+                !safe(name).isBlank()
+
         ) {
 
             return tag
                     + "[name='"
                     + name
+                    + "']";
+        }
+
+        if (
+                isTextSelectableTag(tag)
+                        &&
+                        !selectorText(text).isBlank()
+        ) {
+
+            return tag
+                    + ":has-text(\""
+                    + cssText(selectorText(text))
+                    + "\")";
+        }
+
+        if (
+
+                !safe(type).isBlank()
+
+        ) {
+
+            return tag
+                    + "[type='"
+                    + type
                     + "']";
         }
 
@@ -336,17 +745,23 @@ public class WebsiteCrawlerService {
     // =====================================================
 
     private String buildXpath(
+
             String tag,
             String id,
-            String name
+            String name,
+            String ariaLabel,
+            String text
+
     ) {
 
-        tag = tag.toLowerCase();
+        tag = safe(tag).toLowerCase();
 
         if (
-                id != null
+
+                !safe(id).isBlank()
                         &&
-                        !id.isBlank()
+                        !isGenericId(id)
+
         ) {
 
             return "//"
@@ -357,15 +772,39 @@ public class WebsiteCrawlerService {
         }
 
         if (
-                name != null
-                        &&
-                        !name.isBlank()
+
+                !safe(name).isBlank()
+
         ) {
 
             return "//"
                     + tag
                     + "[@name='"
                     + name
+                    + "']";
+        }
+
+        if (
+                !safe(ariaLabel).isBlank()
+        ) {
+
+            return "//"
+                    + tag
+                    + "[@aria-label='"
+                    + xpathAttr(ariaLabel)
+                    + "']";
+        }
+
+        if (
+                isTextSelectableTag(tag)
+                        &&
+                        !selectorText(text).isBlank()
+        ) {
+
+            return "//"
+                    + tag
+                    + "[normalize-space()='"
+                    + xpathAttr(selectorText(text))
                     + "']";
         }
 
@@ -377,8 +816,10 @@ public class WebsiteCrawlerService {
     // =====================================================
 
     private String safeAttr(
+
             ElementHandle handle,
             String attr
+
     ) {
 
         try {
@@ -388,7 +829,7 @@ public class WebsiteCrawlerService {
 
             return val == null
                     ? ""
-                    : val;
+                    : val.trim();
 
         } catch (Exception e) {
 
@@ -401,8 +842,10 @@ public class WebsiteCrawlerService {
     // =====================================================
 
     private String safeEval(
+
             ElementHandle handle,
             String script
+
     ) {
 
         try {
@@ -412,11 +855,219 @@ public class WebsiteCrawlerService {
 
             return val == null
                     ? ""
-                    : val.toString();
+                    : val.toString().trim();
 
         } catch (Exception e) {
 
             return "";
         }
+    }
+
+    // =====================================================
+    // EXTRACT DOMAIN
+    // =====================================================
+
+    private String extractDomain(
+            String url
+    ) {
+
+        try {
+
+            URI uri =
+                    URI.create(url);
+
+            if (
+                    uri.getHost() != null
+            ) {
+
+                return uri.getHost()
+                        .replaceFirst(
+                                "^www\\.",
+                                ""
+                        );
+            }
+
+            String cleaned = url
+
+                    .replace("https://", "")
+                    .replace("http://", "")
+                    .replace("www.", "");
+
+            return cleaned.split("/")[0];
+
+        } catch (Exception e) {
+
+            return "unknown-domain";
+        }
+    }
+
+    private boolean isAllowedCrawlTarget(
+
+            String rootUrl,
+
+            String href
+
+    ) {
+
+        String rootDomain =
+                extractDomain(rootUrl);
+
+        String hrefDomain =
+                extractDomain(href);
+
+        if (
+                rootDomain.equals(hrefDomain)
+                        ||
+                        hrefDomain.endsWith(
+                                "." + rootDomain
+                        )
+        ) {
+
+            return true;
+        }
+
+        return rootDomain.equals("youtube.com")
+                &&
+                (
+                        hrefDomain.equals("accounts.google.com")
+                                ||
+                                hrefDomain.equals("consent.youtube.com")
+                );
+    }
+
+    private String resolveUrl(
+
+            String sourceUrl,
+
+            String href
+
+    ) {
+
+        try {
+
+            return URI.create(sourceUrl)
+                    .resolve(href)
+                    .toString();
+
+        } catch (Exception e) {
+
+            return sourceUrl + href;
+        }
+    }
+
+    private boolean isGenericId(
+            String id
+    ) {
+
+        String normalized =
+                safe(id).toLowerCase();
+
+        return normalized.equals("button")
+                ||
+                normalized.equals("endpoint")
+                ||
+                normalized.equals("text")
+                ||
+                normalized.equals("content")
+                ||
+                normalized.equals("contents")
+                ||
+                normalized.equals("icon")
+                ||
+                normalized.equals("label")
+                ||
+                normalized.equals("container");
+    }
+
+    private boolean isTextSelectableTag(
+            String tag
+    ) {
+
+        return "button".equals(tag)
+                ||
+                "a".equals(tag);
+    }
+
+    private String selectorText(
+            String text
+    ) {
+
+        String cleaned =
+                safe(text)
+                        .replaceAll(
+                                "\\s+",
+                                " "
+                        )
+                        .trim();
+
+        if (
+                cleaned.length() > 80
+        ) {
+
+            return cleaned.substring(0, 80);
+        }
+
+        return cleaned;
+    }
+
+    private String cssAttr(
+            String value
+    ) {
+
+        return safe(value)
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
+    }
+
+    private String cssText(
+            String value
+    ) {
+
+        return safe(value)
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+    }
+
+    private String xpathAttr(
+            String value
+    ) {
+
+        return safe(value)
+                .replace("'", "&apos;");
+    }
+
+    private String firstNonBlank(
+            String... values
+    ) {
+
+        for (
+                String value
+                : values
+        ) {
+
+            if (
+                    value != null
+                            &&
+                            !value.isBlank()
+            ) {
+
+                return value;
+            }
+        }
+
+        return "";
+    }
+
+    // =====================================================
+    // SAFE
+    // =====================================================
+
+    private String safe(
+            String value
+    ) {
+
+        return value == null
+                ? ""
+                : value.trim();
     }
 }

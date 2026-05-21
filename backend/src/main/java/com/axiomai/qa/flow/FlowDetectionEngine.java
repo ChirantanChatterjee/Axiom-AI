@@ -1,5 +1,6 @@
 package com.axiomai.qa.flow;
 
+import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.models.PageElement;
 
 import java.util.ArrayList;
@@ -17,6 +18,11 @@ public class FlowDetectionEngine {
             List<PageElement> elements
 
     ) {
+
+        System.out.println(
+                "ELEMENT COUNT = "
+                        + elements.size()
+        );
 
         List<DetectedFlow> flows =
                 new ArrayList<>();
@@ -86,6 +92,8 @@ public class FlowDetectionEngine {
 
         PageElement loginButton = null;
 
+        PageElement nextButton = null;
+
         for (PageElement element : elements) {
 
             String role =
@@ -107,6 +115,11 @@ public class FlowDetectionEngine {
 
                 loginButton = element;
             }
+
+            if (role.equals("NEXT_BUTTON")) {
+
+                nextButton = element;
+            }
         }
 
         if (
@@ -115,103 +128,84 @@ public class FlowDetectionEngine {
                         &&
                         passwordField != null
                         &&
-                        loginButton != null
+                        (
+                                loginButton != null
+                                        ||
+                                        nextButton != null
+                        )
 
         ) {
 
             List<FlowStep> steps =
                     new ArrayList<>();
 
-            // =============================================
-            // USERNAME STEP
-            // =============================================
-
-            FlowStep usernameStep =
-                    new FlowStep();
-
-            usernameStep.setAction("TYPE");
-
-            usernameStep.setTarget("USERNAME");
-
-            usernameStep.setSelector(
-                    authField.getBestSelector()
+            steps.add(
+                    typeStep(
+                            "USERNAME",
+                            authField
+                    )
             );
 
-            usernameStep.setFallbackSelectors(
-                    authField.getFallbackSelectors()
+            steps.add(
+                    typeStep(
+                            "PASSWORD",
+                            passwordField
+                    )
             );
 
-            usernameStep.setBusinessRole(
-                    authField.getBusinessRole()
+            steps.add(
+                    clickStep(
+                            "LOGIN_BUTTON",
+                            loginButton != null
+                                    ? loginButton
+                                    : nextButton
+                    )
             );
-
-            usernameStep.setConfidenceScore(
-                    authField.getImportanceScore()
-            );
-
-            steps.add(usernameStep);
-
-            // =============================================
-            // PASSWORD STEP
-            // =============================================
-
-            FlowStep passwordStep =
-                    new FlowStep();
-
-            passwordStep.setAction("TYPE");
-
-            passwordStep.setTarget("PASSWORD");
-
-            passwordStep.setSelector(
-                    passwordField.getBestSelector()
-            );
-
-            passwordStep.setFallbackSelectors(
-                    passwordField.getFallbackSelectors()
-            );
-
-            passwordStep.setBusinessRole(
-                    passwordField.getBusinessRole()
-            );
-
-            passwordStep.setConfidenceScore(
-                    passwordField.getImportanceScore()
-            );
-
-            steps.add(passwordStep);
-
-            // =============================================
-            // LOGIN BUTTON STEP
-            // =============================================
-
-            FlowStep loginStep =
-                    new FlowStep();
-
-            loginStep.setAction("CLICK");
-
-            loginStep.setTarget("LOGIN_BUTTON");
-
-            loginStep.setSelector(
-                    loginButton.getBestSelector()
-            );
-
-            loginStep.setFallbackSelectors(
-                    loginButton.getFallbackSelectors()
-            );
-
-            loginStep.setBusinessRole(
-                    loginButton.getBusinessRole()
-            );
-
-            loginStep.setConfidenceScore(
-                    loginButton.getImportanceScore()
-            );
-
-            steps.add(loginStep);
 
             return new DetectedFlow(
 
-                    FlowType.LOGIN,
+                    "LOGIN",
+                    url,
+                    steps
+            );
+        }
+
+        if (
+
+                authField != null
+                        &&
+                        nextButton != null
+
+        ) {
+
+            List<FlowStep> steps =
+                    new ArrayList<>();
+
+            steps.add(
+                    typeStep(
+                            "USERNAME",
+                            authField
+                    )
+            );
+
+            steps.add(
+                    clickStep(
+                            "NEXT_BUTTON",
+                            nextButton
+                    )
+            );
+
+            steps.add(
+                    syntheticPasswordStep()
+            );
+
+            steps.add(
+                    syntheticGoogleSubmitStep()
+            );
+
+            return new DetectedFlow(
+
+                    "LOGIN",
                     url,
                     steps
             );
@@ -247,7 +241,14 @@ public class FlowDetectionEngine {
                 searchField = element;
             }
 
-            if (role.equals("SEARCH_BUTTON")) {
+            if (
+                    role.equals("SEARCH_BUTTON")
+                            &&
+                            isBetterSearchButton(
+                                    element,
+                                    searchButton
+                            )
+            ) {
 
                 searchButton = element;
             }
@@ -256,75 +257,34 @@ public class FlowDetectionEngine {
         if (
 
                 searchField != null
-                        &&
-                        searchButton != null
 
         ) {
 
             List<FlowStep> steps =
                     new ArrayList<>();
 
-            // =============================================
-            // SEARCH INPUT STEP
-            // =============================================
-
-            FlowStep searchInputStep =
-                    new FlowStep();
-
-            searchInputStep.setAction("TYPE");
-
-            searchInputStep.setTarget("SEARCH_TEXT");
-
-            searchInputStep.setSelector(
-                    searchField.getBestSelector()
+            steps.add(
+                    typeStep(
+                            "SEARCH_TEXT",
+                            searchField
+                    )
             );
 
-            searchInputStep.setFallbackSelectors(
-                    searchField.getFallbackSelectors()
-            );
+            if (
+                    searchButton != null
+            ) {
 
-            searchInputStep.setBusinessRole(
-                    searchField.getBusinessRole()
-            );
-
-            searchInputStep.setConfidenceScore(
-                    searchField.getImportanceScore()
-            );
-
-            steps.add(searchInputStep);
-
-            // =============================================
-            // SEARCH BUTTON STEP
-            // =============================================
-
-            FlowStep searchButtonStep =
-                    new FlowStep();
-
-            searchButtonStep.setAction("CLICK");
-
-            searchButtonStep.setTarget("SEARCH_BUTTON");
-
-            searchButtonStep.setSelector(
-                    searchButton.getBestSelector()
-            );
-
-            searchButtonStep.setFallbackSelectors(
-                    searchButton.getFallbackSelectors()
-            );
-
-            searchButtonStep.setBusinessRole(
-                    searchButton.getBusinessRole()
-            );
-
-            searchButtonStep.setConfidenceScore(
-                    searchButton.getImportanceScore()
-            );
-
-            steps.add(searchButtonStep);
+                steps.add(
+                        clickStep(
+                                "SEARCH_BUTTON",
+                                searchButton
+                        )
+                );
+            }
 
             return new DetectedFlow(
 
-                    FlowType.SEARCH,
+                    "SEARCH",
                     url,
                     steps
             );
@@ -459,13 +419,214 @@ public class FlowDetectionEngine {
 
             return new DetectedFlow(
 
-                    FlowType.FORM_SUBMISSION,
+                    "FORM_SUBMISSION",
                     url,
                     steps
             );
         }
 
         return null;
+    }
+
+    // =====================================================
+    // STEP BUILDERS
+    // =====================================================
+
+    private static FlowStep typeStep(
+
+            String target,
+            PageElement element
+
+    ) {
+
+        FlowStep step =
+                new FlowStep();
+
+        step.setAction("TYPE");
+
+        step.setTarget(target);
+
+        applyElementMetadata(
+                step,
+                element
+        );
+
+        return step;
+    }
+
+    private static FlowStep clickStep(
+
+            String target,
+            PageElement element
+
+    ) {
+
+        FlowStep step =
+                new FlowStep();
+
+        step.setAction("CLICK");
+
+        step.setTarget(target);
+
+        applyElementMetadata(
+                step,
+                element
+        );
+
+        return step;
+    }
+
+    private static FlowStep syntheticPasswordStep() {
+
+        FlowStep step =
+                new FlowStep();
+
+        step.setAction("TYPE");
+
+        step.setTarget("PASSWORD");
+
+        step.setSelector(
+                "input[type='password']"
+        );
+
+        step.setFallbackSelectors(
+                List.of(
+                        "[name='Passwd']",
+                        "#password",
+                        "input[autocomplete='current-password']"
+                )
+        );
+
+        step.setBusinessRole(
+                "PASSWORD_FIELD"
+        );
+
+        step.setConfidenceScore(80);
+
+        step.setSemanticDescription(
+                "Password field on the second authentication step"
+        );
+
+        return step;
+    }
+
+    private static FlowStep syntheticGoogleSubmitStep() {
+
+        FlowStep step =
+                new FlowStep();
+
+        step.setAction("CLICK");
+
+        step.setTarget("LOGIN_BUTTON");
+
+        step.setSelector(
+                "#passwordNext"
+        );
+
+        step.setFallbackSelectors(
+                List.of(
+                        "button:has-text(\"Next\")",
+                        "[role='button']:has-text(\"Next\")",
+                        "button:has-text(\"Continue\")",
+                        "[role='button']:has-text(\"Continue\")"
+                )
+        );
+
+        step.setBusinessRole(
+                "LOGIN_BUTTON"
+        );
+
+        step.setConfidenceScore(80);
+
+        step.setSemanticDescription(
+                "Submit the second authentication step"
+        );
+
+        return step;
+    }
+
+    private static void applyElementMetadata(
+
+            FlowStep step,
+            PageElement element
+
+    ) {
+
+        step.setSelector(
+                element.getBestSelector()
+        );
+
+        step.setFallbackSelectors(
+                element.getFallbackSelectors()
+        );
+
+        step.setBusinessRole(
+                element.getBusinessRole()
+        );
+
+        step.setConfidenceScore(
+                element.getImportanceScore()
+        );
+    }
+
+    private static boolean isBetterSearchButton(
+
+            PageElement candidate,
+
+            PageElement current
+
+    ) {
+
+        return searchButtonScore(candidate)
+                >
+                searchButtonScore(current);
+    }
+
+    private static int searchButtonScore(
+            PageElement element
+    ) {
+
+        if (
+                element == null
+        ) {
+
+            return -1;
+        }
+
+        String label =
+                (
+                        safe(element.getText())
+                                + " "
+                                + safe(element.getAriaLabel())
+                                + " "
+                                + safe(element.getName())
+                ).trim()
+                        .toLowerCase();
+
+        if (
+                label.equals("search")
+        ) {
+
+            return 3;
+        }
+
+        if (
+                label.contains("search")
+                        &&
+                        !label.contains("voice")
+        ) {
+
+            return 2;
+        }
+
+        if (
+                label.contains("search")
+        ) {
+
+            return 1;
+        }
+
+        return 0;
     }
 
     // =====================================================
