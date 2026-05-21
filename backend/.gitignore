@@ -27,3 +27,7 @@ application-secret.properties
 ### reports ####
 reports/
 backend/reports/
+
+### Node Modules ###
+node_modules/
+frontend/node_modules/
