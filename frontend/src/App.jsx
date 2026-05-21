@@ -41,7 +41,7 @@ const ACTIVE_CHAT_PREFIX =
 
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ||
-    "http://localhost:8080";
+    "https://aif-fpj8.onrender.com";
 
 const welcomeMessage = {
   sender: "ai",
