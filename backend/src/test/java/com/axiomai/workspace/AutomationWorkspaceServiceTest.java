@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class AutomationWorkspaceServiceTest {
@@ -57,6 +58,27 @@ class AutomationWorkspaceServiceTest {
 
         assertNull(
                 service.getSession("chat-three")
+                        .getWebsiteUrl()
+        );
+    }
+
+    @Test
+    void removeSessionClearsChatScopedWorkspaceMemory() {
+
+        AutomationWorkspaceService service =
+                new AutomationWorkspaceService();
+
+        service.setWebsite(
+                "chat-one",
+                "https://saucedemo.com"
+        );
+
+        assertNotNull(
+                service.removeSession("chat-one")
+        );
+
+        assertNull(
+                service.getSession("chat-one")
                         .getWebsiteUrl()
         );
     }

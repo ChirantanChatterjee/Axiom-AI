@@ -1513,6 +1513,9 @@ function App() {
   const [loadingChatId, setLoadingChatId] =
     useState(null);
 
+  const [deletingChatIds, setDeletingChatIds] =
+    useState([]);
+
   const [uploadingFramework, setUploadingFramework] =
     useState(false);
 
@@ -1610,6 +1613,7 @@ function App() {
         setAuthUser(authenticatedUser);
         setChats(nextState.chats);
         setActiveChatId(nextState.activeChatId);
+        setDeletingChatIds([]);
         setInput("");
         setSocialProvider("");
         setView("chat");
@@ -1794,9 +1798,7 @@ function App() {
     setView("chat");
   };
 
-  const deleteChat = (event, chatId) => {
-    event.stopPropagation();
-
+  const removeChatLocally = (chatId) => {
     setChats(prev => {
       const remaining =
         prev.filter(chat => chat.id !== chatId);
@@ -1812,12 +1814,60 @@ function App() {
         ];
       }
 
-      if (activeChatId === chatId) {
-        setActiveChatId(remaining[0].id);
-      }
+      setActiveChatId(current =>
+        current === chatId
+          ? remaining[0].id
+          : current
+      );
 
       return remaining;
     });
+  };
+
+  const deleteChat = async (event, chatId) => {
+    event.stopPropagation();
+
+    if (deletingChatIds.includes(chatId)) {
+      return;
+    }
+
+    setDeletingChatIds(prev =>
+      prev.includes(chatId)
+        ? prev
+        : [
+            ...prev,
+            chatId
+          ]
+    );
+
+    try {
+      await axios.delete(
+        `${API_BASE_URL}/api/workspace/sessions/${encodeURIComponent(chatId)}`,
+        {
+          headers: {
+            "X-AIF-Session": authUser?.sessionToken || ""
+          }
+        }
+      );
+
+      removeChatLocally(chatId);
+    } catch (error) {
+      appendMessage(
+        chatId,
+        {
+          sender: "ai",
+          text:
+            error.response?.data?.message ||
+            error.response?.data?.error ||
+            "Unable to delete this chat workspace. Try again.",
+          type: "error"
+        }
+      );
+    } finally {
+      setDeletingChatIds(prev =>
+        prev.filter(id => id !== chatId)
+      );
+    }
   };
 
   const applyResponseToChatMetadata = (chatId, responseType, data) => {
@@ -1936,6 +1986,7 @@ function App() {
       setAuthUser(authenticatedUser);
       setChats(nextState.chats);
       setActiveChatId(nextState.activeChatId);
+      setDeletingChatIds([]);
       setInput("");
       setView("chat");
       setAuthForm({
@@ -1965,6 +2016,7 @@ function App() {
     setAuthUser(null);
     setChats([]);
     setActiveChatId(null);
+    setDeletingChatIds([]);
     setInput("");
     setView("chat");
   };
@@ -2290,54 +2342,64 @@ function App() {
 
           <div className="chat-history-list">
             {
-              chats.map(chat => (
-                <div
-                  key={chat.id}
-                  className={
-                    chat.id === activeChatId
-                      ? "chat-history-item active"
-                      : "chat-history-item"
-                  }
-                >
-                  <button
-                    type="button"
-                    className="chat-select-button"
-                    onClick={() => {
-                      setActiveChatId(chat.id);
-                      setView("chat");
-                    }}
-                  >
-                    <FiMessageSquare />
+              chats.map(chat => {
+                const isDeletingChat =
+                  deletingChatIds.includes(chat.id);
 
-                    <span className="chat-list-text">
-                      <strong>{chat.title}</strong>
-                      <span>
-                        {
-                          chat.domainName ||
-                          chat.websiteUrl ||
-                          "No framework yet"
-                        }
-                      </span>
-                    </span>
-
-                    {
-                      chat.frameworkLocked && (
-                        <FiLock className="chat-lock-icon" />
-                      )
+                return (
+                  <div
+                    key={chat.id}
+                    className={
+                      chat.id === activeChatId
+                        ? "chat-history-item active"
+                        : "chat-history-item"
                     }
-                  </button>
-
-                  <button
-                    type="button"
-                    className="delete-chat-button"
-                    onClick={(event) => deleteChat(event, chat.id)}
-                    aria-label="Delete chat"
-                    title="Delete chat"
                   >
-                    <FiTrash2 />
-                  </button>
-                </div>
-              ))
+                    <button
+                      type="button"
+                      className="chat-select-button"
+                      onClick={() => {
+                        setActiveChatId(chat.id);
+                        setView("chat");
+                      }}
+                    >
+                      <FiMessageSquare />
+
+                      <span className="chat-list-text">
+                        <strong>{chat.title}</strong>
+                        <span>
+                          {
+                            chat.domainName ||
+                            chat.websiteUrl ||
+                            "No framework yet"
+                          }
+                        </span>
+                      </span>
+
+                      {
+                        chat.frameworkLocked && (
+                          <FiLock className="chat-lock-icon" />
+                        )
+                      }
+                    </button>
+
+                    <button
+                      type="button"
+                      className="delete-chat-button"
+                      onClick={(event) => deleteChat(event, chat.id)}
+                      aria-label="Delete chat"
+                      title={
+                        isDeletingChat
+                          ? "Deleting chat workspace"
+                          : "Delete chat"
+                      }
+                      disabled={isDeletingChat}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
+                );
+              })
             }
           </div>
         </div>

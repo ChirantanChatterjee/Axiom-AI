@@ -687,6 +687,11 @@ textarea:disabled {
   background: #fff0ee;
 }
 
+.delete-chat-button:disabled {
+  cursor: wait;
+  opacity: 0.52;
+}
+
 .session-summary {
   flex-shrink: 0;
   padding-top: 14px;

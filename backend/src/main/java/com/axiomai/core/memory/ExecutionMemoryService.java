@@ -220,4 +220,20 @@ public class ExecutionMemoryService {
 
         return getOrCreateSession(userId);
     }
+
+    public ExecutionSession removeSession(
+            String userId
+    ) {
+
+        if (
+                userId == null
+                        ||
+                        userId.isBlank()
+        ) {
+
+            return null;
+        }
+
+        return sessions.remove(userId);
+    }
 }

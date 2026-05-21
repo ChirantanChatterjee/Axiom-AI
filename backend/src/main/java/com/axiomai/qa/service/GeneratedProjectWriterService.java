@@ -331,6 +331,66 @@ public class GeneratedProjectWriterService {
                 .resolve("framework");
     }
 
+    public int deleteWorkspace(
+            String sessionId
+    ) {
+
+        Path workspaceRoot =
+                getWorkspaceRoot(sessionId)
+                        .toAbsolutePath()
+                        .normalize();
+
+        Path generatedRoot =
+                Paths.get("generated-frameworks")
+                        .toAbsolutePath()
+                        .normalize();
+
+        if (
+                !workspaceRoot.startsWith(generatedRoot)
+                        ||
+                        workspaceRoot.equals(generatedRoot)
+                        ||
+                        !Files.exists(workspaceRoot)
+        ) {
+
+            return 0;
+        }
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(workspaceRoot)
+        ) {
+
+            java.util.List<Path> targets =
+                    paths.sorted(
+                                    Comparator.reverseOrder()
+                            )
+                            .toList();
+
+            int deleted =
+                    0;
+
+            for (
+                    Path target
+                    : targets
+            ) {
+
+                Files.deleteIfExists(target);
+                deleted++;
+            }
+
+            return deleted;
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Unable to delete generated workspace for chat "
+                            + sessionId,
+                    e
+            );
+        }
+    }
+
     private String sanitizeFeatureName(
             String featureName
     ) {

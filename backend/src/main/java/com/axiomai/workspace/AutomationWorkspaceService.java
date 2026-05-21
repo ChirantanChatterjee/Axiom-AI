@@ -523,6 +523,22 @@ public class AutomationWorkspaceService {
         return getOrCreateSession(userId);
     }
 
+    public AutomationSession removeSession(
+            String userId
+    ) {
+
+        if (
+                userId == null
+                        ||
+                        userId.isBlank()
+        ) {
+
+            return null;
+        }
+
+        return sessions.remove(userId);
+    }
+
     private boolean isSensitive(
             String key
     ) {
