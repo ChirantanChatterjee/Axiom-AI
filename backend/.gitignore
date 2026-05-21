@@ -1,38 +1,25 @@
 HELP.md
 target/
+generated-frameworks/
+
+.env
+.env.*
+
+application-local.properties
+application-secret.properties
+
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-*.properties
-!src/main/resources/application-dev.properties
-backend-dev.*.log
-generated-frameworks/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
+### IntelliJ ###
 .idea
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
 ### VS Code ###
 .vscode/
+
+### Mac ###
+.DS_Store
