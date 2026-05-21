@@ -23,3 +23,7 @@ application-secret.properties
 
 ### Mac ###
 .DS_Store
+
+### reports ####
+reports/
+backend/reports/
