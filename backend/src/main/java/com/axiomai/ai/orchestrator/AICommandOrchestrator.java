@@ -731,6 +731,19 @@ public class AICommandOrchestrator {
             String userId
     ) {
 
+        AIResponse sessionGuard =
+                guardFeatureSession(
+                        command,
+                        userId
+                );
+
+        if (
+                sessionGuard != null
+        ) {
+
+            return sessionGuard;
+        }
+
         List<DetectedFlow> flows =
                 ensureWorkspaceFlows(
                         command,
@@ -845,13 +858,26 @@ public class AICommandOrchestrator {
         data.put("artifact", artifact);
         data.put("downloadUrl", artifact.getDownloadUrl());
         data.put("variables", automationWorkspaceService.getVariableValues(userId));
+        data.put("testCases", featureFramework.getTestCases());
+        data.put(
+                "testCaseCount",
+                featureFramework.getTestCases() == null
+                        ? 0
+                        : featureFramework.getTestCases()
+                        .size()
+        );
 
         return AIResponse.builder()
 
                 .success(true)
 
                 .message(
-                        "Feature generated and linked to the current workspace."
+                        featureFramework.getTestCases() != null
+                                &&
+                                !featureFramework.getTestCases()
+                                        .isEmpty()
+                                ? "Requirement tests generated as a test-case matrix and linked to the current workspace."
+                                : "Feature generated and linked to the current workspace."
                 )
 
                 .type("feature")
@@ -862,6 +888,90 @@ public class AICommandOrchestrator {
 
                 .data(data)
 
+                .build();
+    }
+
+    private AIResponse guardFeatureSession(
+
+            AICommand command,
+
+            String userId
+
+    ) {
+
+        AutomationSession workspace =
+                automationWorkspaceService
+                        .getSession(userId);
+
+        if (
+                !hasFrameworkContext(workspace)
+                        ||
+                        isBlank(command.getUrl())
+        ) {
+
+            return null;
+        }
+
+        String currentWebsite =
+                workspace.getWebsiteUrl();
+
+        if (
+                isBlank(currentWebsite)
+        ) {
+
+            return null;
+        }
+
+        String currentDomain =
+                extractDomain(currentWebsite);
+
+        String requestedDomain =
+                extractDomain(command.getUrl());
+
+        if (
+                sameText(
+                        currentDomain,
+                        requestedDomain
+                )
+        ) {
+
+            return null;
+        }
+
+        Map<String, Object> data =
+                new LinkedHashMap<>();
+
+        data.put(
+                "currentWebsite",
+                currentWebsite
+        );
+
+        data.put(
+                "requestedWebsite",
+                command.getUrl()
+        );
+
+        data.put(
+                "currentDomain",
+                currentDomain
+        );
+
+        data.put(
+                "requestedDomain",
+                requestedDomain
+        );
+
+        return AIResponse.builder()
+                .success(false)
+                .message(
+                        "This chat is already attached to "
+                                + currentDomain
+                                + ". To generate tests for "
+                                + requestedDomain
+                                + ", create a new chat from the left sidebar so each chat keeps one website and one framework context."
+                )
+                .type("session_guard")
+                .data(data)
                 .build();
     }
 

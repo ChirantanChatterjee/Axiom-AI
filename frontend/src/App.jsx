@@ -228,7 +228,9 @@ const compactResponseData = (type, data) => {
       featureName: data.featureName,
       frameworkPath: data.frameworkPath,
       downloadUrl: data.downloadUrl,
-      variables: data.variables
+      variables: data.variables,
+      testCaseCount: data.testCaseCount,
+      testCases: data.testCases
     };
   }
 
@@ -788,6 +790,15 @@ function HelpView({
           </p>
           <code>New chat {">"} Generate framework for another website</code>
         </section>
+
+        <section className="help-section">
+          <h3>Requirement Analysis and Test Creation</h3>
+          <p>
+            When user wants to create tests from requirements.
+          </p>
+          <code>can you create tests from the below requirements? {"-->"}Paste your requirement/requirements</code>
+        </section>
+
       </div>
     </div>
   );
@@ -1158,6 +1169,44 @@ function StructuredMessage({
               <span>Framework:</span>
               <strong>{msg.data.frameworkPath}</strong>
             </div>
+
+            {
+              msg.data.testCaseCount > 0 && (
+                <div className="db-row">
+                  <span>Test cases:</span>
+                  <strong>{msg.data.testCaseCount}</strong>
+                </div>
+              )
+            }
+
+            {
+              msg.data.testCases?.length > 0 && (
+                <div className="testcase-list">
+                  <div className="testcase-row testcase-header">
+                    <strong>TC ID</strong>
+                    <span>Story</span>
+                    <p>Scenario</p>
+                    <p>Test Data</p>
+                    <p>Expected</p>
+                  </div>
+
+                  {
+                    msg.data.testCases.map((testCase) => (
+                      <div
+                        key={testCase.tcId}
+                        className="testcase-row"
+                      >
+                        <strong>{testCase.tcId}</strong>
+                        <span>{testCase.userStory}</span>
+                        <p>{testCase.scenario}</p>
+                        <p>{testCase.testData}</p>
+                        <p>{testCase.expectedResult}</p>
+                      </div>
+                    ))
+                  }
+                </div>
+              )
+            }
           </div>
         )
       }

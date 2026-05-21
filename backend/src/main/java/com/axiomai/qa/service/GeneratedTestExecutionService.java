@@ -214,7 +214,10 @@ public class GeneratedTestExecutionService {
                     );
 
             String reportUrl =
-                    copyCucumberReport(frameworkRoot);
+                    publishCucumberReport(
+                            frameworkRoot,
+                            output
+                    );
 
             return GeneratedTestRunResult.builder()
                     .success(exitCode == 0)
@@ -336,8 +339,23 @@ public class GeneratedTestExecutionService {
                         !sessionId.isBlank()
         ) {
 
+            Optional<Path> latestFramework =
+                    latestRunnableFramework();
+
+            if (
+                    latestFramework.isPresent()
+            ) {
+
+                return latestFramework;
+            }
+
             return Optional.empty();
         }
+
+        return latestRunnableFramework();
+    }
+
+    private Optional<Path> latestRunnableFramework() {
 
         Path generatedRoot =
                 Paths.get("generated-frameworks");
@@ -755,6 +773,32 @@ public class GeneratedTestExecutionService {
         ) {
 
             if (
+                    isRuntimeDataFailure(
+                            repair.getFailureSummary()
+                    )
+            ) {
+
+                message.append(
+                        "\n\nNo generated feature-file change is needed for this failure. Update the current workspace test data with valid credentials, for example: `username is john and password is demo`, then rerun `@bill_pay`."
+                );
+
+                return message.toString();
+            }
+
+            if (
+                    isBrowserRuntimeFailure(
+                            repair.getFailureSummary()
+                    )
+            ) {
+
+                message.append(
+                        "\n\nNo generated feature-file change is needed for this failure. I refreshed the generated support files so future runs use installed Chrome and skip Playwright browser downloads. Rerun the same tag to verify."
+                );
+
+                return message.toString();
+            }
+
+            if (
                     learned
             ) {
 
@@ -791,6 +835,48 @@ public class GeneratedTestExecutionService {
         );
 
         return message.toString();
+    }
+
+    private boolean isRuntimeDataFailure(
+            String summary
+    ) {
+
+        if (
+                summary == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                summary.toLowerCase();
+
+        return lower.contains("runtime test-data")
+                ||
+                lower.contains("missing runtime data")
+                ||
+                lower.contains("credentials");
+    }
+
+    private boolean isBrowserRuntimeFailure(
+            String summary
+    ) {
+
+        if (
+                summary == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                summary.toLowerCase();
+
+        return lower.contains("playwright browser")
+                ||
+                lower.contains("browser-runtime")
+                ||
+                lower.contains("browser downloads");
     }
 
     private String buildExecutionMessage(
@@ -1030,21 +1116,18 @@ public class GeneratedTestExecutionService {
         return tags;
     }
 
-    private String copyCucumberReport(
-            Path frameworkRoot
+    private String publishCucumberReport(
+
+            Path frameworkRoot,
+
+            String output
+
     ) throws IOException {
 
         Path cucumberReport =
                 frameworkRoot.resolve(
                         "target/cucumber-report.html"
                 );
-
-        if (
-                !Files.exists(cucumberReport)
-        ) {
-
-            return null;
-        }
 
         Files.createDirectories(
                 Paths.get("reports")
@@ -1064,15 +1147,129 @@ public class GeneratedTestExecutionService {
                 Paths.get("reports")
                         .resolve(fileName);
 
-        Files.copy(
-                cucumberReport,
-                copiedReport,
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING
-        );
+        if (
+                isCompleteCucumberReport(cucumberReport)
+        ) {
+
+            Files.copy(
+                    cucumberReport,
+                    copiedReport,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            );
+
+        } else {
+
+            Files.writeString(
+                    copiedReport,
+                    fallbackReportHtml(
+                            frameworkRoot,
+                            output
+                    )
+            );
+        }
 
         return publicBaseUrl
                 + "/api/reports/"
                 + fileName;
+    }
+
+    private boolean isCompleteCucumberReport(
+            Path cucumberReport
+    ) {
+
+        if (
+                !Files.exists(cucumberReport)
+        ) {
+
+            return false;
+        }
+
+        try {
+
+            String content =
+                    Files.readString(cucumberReport);
+
+            return content.contains("testRunFinished")
+                    ||
+                    content.contains("\"testRunFinished\"");
+
+        } catch (IOException e) {
+
+            return false;
+        }
+    }
+
+    private String fallbackReportHtml(
+
+            Path frameworkRoot,
+
+            String output
+
+    ) {
+
+        return """
+                <!doctype html>
+                <html lang="en">
+                <head>
+                  <meta charset="utf-8">
+                  <title>Generated Cucumber Test Report</title>
+                  <style>
+                    body { font-family: Arial, sans-serif; margin: 0; color: #202124; background: #f8f9fb; }
+                    header { background: #1f2937; color: white; padding: 24px 32px; }
+                    main { padding: 24px 32px; }
+                    section { background: white; border: 1px solid #dfe3ea; border-radius: 6px; margin-bottom: 18px; padding: 18px; }
+                    h1, h2 { margin: 0 0 12px; }
+                    code, pre { font-family: Menlo, Consolas, monospace; }
+                    pre { white-space: pre-wrap; background: #111827; color: #f9fafb; padding: 16px; border-radius: 6px; overflow-x: auto; }
+                    .muted { color: #5f6b7a; }
+                  </style>
+                </head>
+                <body>
+                  <header>
+                    <h1>Generated Cucumber Test Report</h1>
+                    <div>Cucumber did not produce <code>target/cucumber-report.html</code>, so AIF preserved the Maven/Cucumber output for diagnosis.</div>
+                  </header>
+                  <main>
+                    <section>
+                      <h2>Framework</h2>
+                      <div class="muted">%s</div>
+                    </section>
+                    <section>
+                      <h2>Execution Output</h2>
+                      <pre>%s</pre>
+                    </section>
+                  </main>
+                </body>
+                </html>
+                """.formatted(
+                escapeHtml(
+                        frameworkRoot.toAbsolutePath()
+                                .normalize()
+                                .toString()
+                ),
+                escapeHtml(
+                        output == null
+                                ? ""
+                                : output
+                )
+        );
+    }
+
+    private String escapeHtml(
+            String value
+    ) {
+
+        if (
+                value == null
+        ) {
+
+            return "";
+        }
+
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     private void applyVariables(
@@ -1082,6 +1279,19 @@ public class GeneratedTestExecutionService {
 
     ) {
 
+        Map<String, String> environment =
+                processBuilder.environment();
+
+        environment.putIfAbsent(
+                "AIF_BROWSER_CHANNEL",
+                "chrome"
+        );
+
+        environment.putIfAbsent(
+                "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD",
+                "1"
+        );
+
         if (
                 variables == null
                         ||
@@ -1090,9 +1300,6 @@ public class GeneratedTestExecutionService {
 
             return;
         }
-
-        Map<String, String> environment =
-                processBuilder.environment();
 
         for (
                 Map.Entry<String, String> entry

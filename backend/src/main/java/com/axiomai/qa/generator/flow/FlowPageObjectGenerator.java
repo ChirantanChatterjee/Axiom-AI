@@ -147,6 +147,11 @@ public class FlowPageObjectGenerator {
 
                         dismissCookieBanner();
 
+                        if (handleSpecialClick(target)) {
+                            waitAfterClick(target);
+                            return;
+                        }
+
                         Locator special = resolveSpecialClick(target);
 
                         if (special != null) {
@@ -350,6 +355,10 @@ public class FlowPageObjectGenerator {
                                     ||
                                     actual.contains("is empty")
                                     ||
+                                    actual.contains("cannot be empty")
+                                    ||
+                                    actual.contains("empty")
+                                    ||
                                     actual.contains("error");
                         }
 
@@ -385,12 +394,171 @@ public class FlowPageObjectGenerator {
                                     (
                                             actual.contains("number")
                                                     ||
-                                                    actual.contains("valid")
+                                            actual.contains("valid")
                                                     ||
-                                                    actual.contains("invalid")
+                                            actual.contains("invalid")
                                                     ||
-                                                    actual.contains("error")
+                                            actual.contains("match")
+                                                    ||
+                                            actual.contains("same")
+                                                    ||
+                                            actual.contains("error")
                                     );
+                        }
+
+                        if (
+                                expected.contains("registration success")
+                                        ||
+                                        expected.contains("account is created")
+                                        ||
+                                        expected.contains("account created")
+                        ) {
+
+                            return actual.contains("welcome")
+                                    ||
+                                    actual.contains("account created")
+                                    ||
+                                    actual.contains("account was created")
+                                    ||
+                                    actual.contains("created successfully")
+                                    ||
+                                    actual.contains("success");
+                        }
+
+                        if (expected.contains("password mismatch")) {
+
+                            return actual.contains("password")
+                                    &&
+                                    (
+                                            actual.contains("match")
+                                                    ||
+                                            actual.contains("same")
+                                                    ||
+                                            actual.contains("error")
+                                    );
+                        }
+
+                        if (expected.contains("duplicate username")) {
+
+                            return actual.contains("username")
+                                    &&
+                                    (
+                                            actual.contains("already")
+                                                    ||
+                                            actual.contains("exists")
+                                                    ||
+                                            actual.contains("taken")
+                                                    ||
+                                            actual.contains("error")
+                                    );
+                        }
+
+                        if (expected.contains("login error")) {
+
+                            return actual.contains("error")
+                                    ||
+                                    actual.contains("invalid")
+                                    ||
+                                    actual.contains("could not be verified")
+                                    ||
+                                    (
+                                            actual.contains("username")
+                                                    &&
+                                            actual.contains("password")
+                                    );
+                        }
+
+                        if (
+                                expected.contains("account overview")
+                                        ||
+                                        expected.contains("accounts and balances")
+                        ) {
+
+                            return actual.contains("accounts overview")
+                                    ||
+                                    (
+                                            actual.contains("account")
+                                                    &&
+                                            actual.contains("balance")
+                                    )
+                                    ||
+                                    currentUrl.contains("overview");
+                        }
+
+                        if (expected.contains("new account number")) {
+
+                            return actual.contains("account opened")
+                                    ||
+                                    actual.contains("new account")
+                                    ||
+                                    (
+                                            actual.contains("account")
+                                                    &&
+                                            actual.contains("number")
+                                    );
+                        }
+
+                        if (expected.contains("transfer confirmation")) {
+
+                            return actual.contains("transfer")
+                                    &&
+                                    (
+                                            actual.contains("complete")
+                                                    ||
+                                            actual.contains("transferred")
+                                                    ||
+                                            actual.contains("confirmation")
+                                                    ||
+                                            actual.contains("success")
+                                    );
+                        }
+
+                        if (expected.contains("matching transactions")) {
+
+                            return actual.contains("transaction")
+                                    ||
+                                    actual.contains("results");
+                        }
+
+                        if (
+                                expected.contains("no matching transactions")
+                                        ||
+                                        expected.contains("no-match")
+                        ) {
+
+                            return actual.contains("no transactions")
+                                    ||
+                                    actual.contains("no results")
+                                    ||
+                                    actual.contains("no matching")
+                                    ||
+                                    actual.contains("not found");
+                        }
+
+                        if (expected.contains("login page")) {
+
+                            return actual.contains("customer login")
+                                    ||
+                                    actual.contains("log in")
+                                    ||
+                                    (
+                                            actual.contains("username")
+                                                    &&
+                                            actual.contains("password")
+                                    );
+                        }
+
+                        if (expected.contains("secure page should not be accessible")) {
+
+                            return actual.contains("login")
+                                    ||
+                                    actual.contains("unauthorized")
+                                    ||
+                                    actual.contains("forbidden")
+                                    ||
+                                    actual.contains("session")
+                                    ||
+                                    actual.contains("access denied");
                         }
 
                         if (expected.contains(" from ") && expected.contains(" to ")) {
@@ -444,6 +612,33 @@ public class FlowPageObjectGenerator {
                         throw new RuntimeException("Unable to resolve element: " + target);
                     }
 
+                    private boolean handleSpecialClick(String target) {
+
+                        String lower = target == null ? "" : target.toLowerCase();
+
+                        if (
+                                lower.equals("browser back")
+                                        ||
+                                        lower.equals("back button")
+                                        ||
+                                        lower.equals("go back")
+                        ) {
+
+                            page.goBack();
+
+                            try {
+                                page.waitForLoadState();
+                            } catch (RuntimeException ignored) {
+                                // Some apps restore state from cache without a load event.
+                            }
+
+                            page.waitForTimeout(500);
+                            return true;
+                        }
+
+                        return false;
+                    }
+
                     private Locator resolveSpecialClick(String target) {
 
                         String lower = target == null ? "" : target.toLowerCase();
@@ -491,6 +686,65 @@ public class FlowPageObjectGenerator {
                             if (submitButton != null) {
                                 return submitButton;
                             }
+                        }
+
+                        if (
+                                lower.equals("register")
+                                        ||
+                                        lower.contains("registration page")
+                        ) {
+
+                            return firstVisibleSoon(
+                                    4000,
+                                    "a:has-text(\\"Register\\")",
+                                    "button:has-text(\\"Register\\")",
+                                    "[role='button']:has-text(\\"Register\\")"
+                            );
+                        }
+
+                        if (lower.contains("open new account")) {
+                            return firstVisibleSoon(
+                                    4000,
+                                    "a:has-text(\\"Open New Account\\")",
+                                    "button:has-text(\\"Open New Account\\")",
+                                    "[role='button']:has-text(\\"Open New Account\\")"
+                            );
+                        }
+
+                        if (lower.contains("transfer funds")) {
+                            return firstVisibleSoon(
+                                    4000,
+                                    "a:has-text(\\"Transfer Funds\\")",
+                                    "button:has-text(\\"Transfer Funds\\")",
+                                    "[role='button']:has-text(\\"Transfer Funds\\")"
+                            );
+                        }
+
+                        if (lower.contains("accounts overview") || lower.contains("account overview")) {
+                            return firstVisibleSoon(
+                                    4000,
+                                    "a:has-text(\\"Accounts Overview\\")",
+                                    "a:has-text(\\"Account Overview\\")",
+                                    "button:has-text(\\"Accounts Overview\\")"
+                            );
+                        }
+
+                        if (lower.contains("find transactions")) {
+                            return firstVisibleSoon(
+                                    4000,
+                                    "a:has-text(\\"Find Transactions\\")",
+                                    "button:has-text(\\"Find Transactions\\")",
+                                    "[role='button']:has-text(\\"Find Transactions\\")"
+                            );
+                        }
+
+                        if (lower.contains("bill pay") || lower.contains("bill payment")) {
+                            return firstVisibleSoon(
+                                    4000,
+                                    "a:has-text(\\"Bill Pay\\")",
+                                    "button:has-text(\\"Bill Pay\\")",
+                                    "[role='button']:has-text(\\"Bill Pay\\")"
+                            );
                         }
 
                         if (lower.contains("login") || lower.contains("log in") || lower.contains("sign in")) {
@@ -823,40 +1077,128 @@ public class FlowPageObjectGenerator {
 
                         String lower = target == null ? "" : target.toLowerCase();
 
+                        if (lower.contains("first") && lower.contains("name")) {
+                            return firstVisible("input[name='customer.firstName']");
+                        }
+
+                        if (lower.contains("last") && lower.contains("name")) {
+                            return firstVisible("input[name='customer.lastName']");
+                        }
+
+                        if (lower.contains("confirm") && lower.contains("password")) {
+                            return firstVisible("input[name='repeatedPassword']");
+                        }
+
+                        if (lower.contains("ssn")) {
+                            return firstVisible("input[name='customer.ssn']");
+                        }
+
+                        if (lower.contains("username")) {
+                            return firstVisible("input[name='customer.username']", "input[name='username']");
+                        }
+
+                        if (lower.equals("password") || lower.contains("password")) {
+                            return firstVisible("input[name='customer.password']", "input[name='password']");
+                        }
+
                         if (lower.contains("payee") && lower.contains("name")) {
                             return firstVisible("input[name='payee.name']");
                         }
 
                         if (lower.equals("address") || lower.contains("street")) {
-                            return firstVisible("input[name='payee.address.street']");
+                            return firstVisible(
+                                    "input[name='customer.address.street']",
+                                    "input[name='payee.address.street']"
+                            );
                         }
 
                         if (lower.contains("city")) {
-                            return firstVisible("input[name='payee.address.city']");
+                            return firstVisible(
+                                    "input[name='customer.address.city']",
+                                    "input[name='payee.address.city']"
+                            );
                         }
 
                         if (lower.contains("state")) {
-                            return firstVisible("input[name='payee.address.state']");
+                            return firstVisible(
+                                    "input[name='customer.address.state']",
+                                    "input[name='payee.address.state']"
+                            );
                         }
 
                         if (lower.contains("zip")) {
-                            return firstVisible("input[name='payee.address.zipCode']");
+                            return firstVisible(
+                                    "input[name='customer.address.zipCode']",
+                                    "input[name='payee.address.zipCode']"
+                            );
                         }
 
                         if (lower.contains("phone")) {
-                            return firstVisible("input[name='payee.phoneNumber']");
+                            return firstVisible(
+                                    "input[name='customer.phoneNumber']",
+                                    "input[name='payee.phoneNumber']"
+                            );
                         }
 
                         if (lower.contains("verify") && lower.contains("account")) {
                             return firstVisible("input[name='verifyAccount']");
                         }
 
+                        if (lower.contains("account type")) {
+                            return firstVisible(
+                                    "select[name='type']",
+                                    "#type"
+                            );
+                        }
+
+                        if (lower.contains("source account") || lower.contains("from account")) {
+                            return firstVisible(
+                                    "select[name='fromAccountId']",
+                                    "#fromAccountId"
+                            );
+                        }
+
+                        if (lower.contains("to account")) {
+                            return firstVisible(
+                                    "select[name='toAccountId']",
+                                    "#toAccountId"
+                            );
+                        }
+
+                        if (lower.contains("transaction id")) {
+                            return firstVisible(
+                                    "input[name='criteria.transactionId']",
+                                    "input[id*='transaction' i]"
+                            );
+                        }
+
+                        if (lower.contains("from date")) {
+                            return firstVisible(
+                                    "input[name='criteria.fromDate']",
+                                    "input[id*='fromDate' i]"
+                            );
+                        }
+
+                        if (lower.contains("to date")) {
+                            return firstVisible(
+                                    "input[name='criteria.toDate']",
+                                    "input[id*='toDate' i]"
+                            );
+                        }
+
                         if (lower.contains("account")) {
-                            return firstVisible("input[name='payee.accountNumber']");
+                            return firstVisible(
+                                    "input[name='payee.accountNumber']",
+                                    "select[name='fromAccountId']",
+                                    "#fromAccountId"
+                            );
                         }
 
                         if (lower.contains("amount")) {
-                            return firstVisible("input[name='amount']");
+                            return firstVisible(
+                                    "input[name='amount']",
+                                    "input[name='criteria.amount']"
+                            );
                         }
 
                         return null;
@@ -911,6 +1253,17 @@ public class FlowPageObjectGenerator {
                     }
 
                     private void fillOrType(Locator locator, String value) {
+
+                        try {
+                            Object tagName = locator.evaluate("el => el.tagName.toLowerCase()");
+
+                            if ("select".equals(tagName)) {
+                                locator.selectOption(value == null ? "" : value);
+                                return;
+                            }
+                        } catch (RuntimeException ignored) {
+                            // Non-select controls continue through normal filling.
+                        }
 
                         try {
                             locator.fill("");
@@ -984,6 +1337,14 @@ public class FlowPageObjectGenerator {
                                         lower.contains("submit")
                                         ||
                                 lower.contains("continue")
+                                        ||
+                                        lower.contains("register")
+                                        ||
+                                        lower.contains("account")
+                                        ||
+                                        lower.contains("transfer")
+                                        ||
+                                        lower.contains("transaction")
                                         ||
                                         lower.contains("finish")
                                         ||

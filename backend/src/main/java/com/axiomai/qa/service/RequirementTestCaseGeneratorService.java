@@ -14,6 +14,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RequirementTestCaseGeneratorService {
 
+    private final RequirementDocumentAnalyzer
+            requirementDocumentAnalyzer =
+            new RequirementDocumentAnalyzer();
+
     private final OpenAIService openAIService;
 
     private final FrameworkGeneratorService frameworkGeneratorService;
@@ -33,11 +37,41 @@ public class RequirementTestCaseGeneratorService {
         GeneratedFramework baseFramework =
                 frameworkGeneratorService.generate(flows);
 
+        String launchUrl =
+                normalizeLaunchUrlForFeature(
+                        requirement,
+                        featureName,
+                        url
+                );
+
+        RequirementDocumentAnalyzer.Analysis analysis =
+                requirementDocumentAnalyzer
+                        .analyze(
+                                requirement,
+                                featureName,
+                                launchUrl
+                        );
+
+        if (
+                analysis.hasTestCases()
+        ) {
+
+            baseFramework.setFeatureFile(
+                    analysis.featureFile()
+            );
+
+            baseFramework.setTestCases(
+                    analysis.testCases()
+            );
+
+            return baseFramework;
+        }
+
         String feature =
                 generateFeatureFile(
                         requirement,
                         featureName,
-                        url,
+                        launchUrl,
                         sessionId
                 );
 
@@ -70,11 +104,18 @@ public class RequirementTestCaseGeneratorService {
                         sessionId
                 );
 
+        String normalizedAi =
+                normalizeGeneratedFeature(aiGenerated);
+
         if (
-                isUsableFeature(aiGenerated)
+                isUsableFeature(
+                        normalizedAi,
+                        requirement,
+                        featureName
+                )
         ) {
 
-            return normalizeGeneratedFeature(aiGenerated);
+            return normalizedAi;
         }
 
         return fallbackFeature(
@@ -121,7 +162,9 @@ public class RequirementTestCaseGeneratorService {
                 - If a requested feature is behind login, include login steps before the feature steps.
                 - For ParaBank bill pay, launch the ParaBank home page, log in, click "Bill Pay", fill "verify account" with ${account}, and click "send payment button".
                 - For ParaBank successful bill pay, assert an app-observable payment success state instead of relying only on a brittle exact heading.
+                - Treat "bill pay", "billpay", "bill payment", and "pay bill" as the same Bill Pay feature and tag it @bill_pay.
                 - Generate meaningful positive, negative, required-field, and boundary scenarios when the requirement implies them.
+                - When the user asks for more tests, additional tests, edge cases, negative tests, validation tests, or boundary tests, do not return only a happy path. Return a scenario set covering those categories.
                 - For negative validation scenarios, do not guess brittle exact validation copy. Assert an observable validation outcome such as "amount validation error", "required field error", or another exact message only when the page is known to show it.
                 - Today's date is %s. Convert partial dates into explicit dates and never output YYYY placeholders.
                 - The launch URL is: %s
@@ -153,26 +196,29 @@ public class RequirementTestCaseGeneratorService {
             String url
     ) {
 
-        String safeUrl =
-                safe(url);
-
         String requestedFeature =
                 (safe(requirement) + " " + safe(featureName))
                         .toLowerCase();
 
         if (
-                safeUrl.toLowerCase()
-                        .contains("parabank")
+                isBillPayRequest(requestedFeature)
                         &&
-                        requestedFeature.contains("bill")
-                        &&
-                        requestedFeature.contains("pay")
+                        isBlank(url)
         ) {
 
             return "https://parabank.parasoft.com/parabank/index.htm";
         }
 
         return url;
+    }
+
+    private boolean isBlank(
+            String value
+    ) {
+
+        return value == null
+                ||
+                value.isBlank();
     }
 
     private String normalizeGeneratedFeature(
@@ -195,7 +241,7 @@ public class RequirementTestCaseGeneratorService {
         );
     }
 
-    private String fallbackFeature(
+    String fallbackFeature(
 
             String requirement,
             String featureName,
@@ -209,8 +255,12 @@ public class RequirementTestCaseGeneratorService {
         String tag =
                 tag(title);
 
-        String lower =
-                safe(requirement)
+        String requestedText =
+                (
+                        safe(requirement)
+                                + " "
+                                + safe(featureName)
+                )
                         .toLowerCase();
 
         StringBuilder feature =
@@ -220,16 +270,26 @@ public class RequirementTestCaseGeneratorService {
                 .append(title)
                 .append("\n\n");
 
+        if (
+                isBillPayRequest(requestedText)
+        ) {
+
+            return billPayFallbackFeature(
+                    feature,
+                    url
+            );
+        }
+
         feature.append("  @generated @ai_requirement @")
                 .append(tag)
                 .append("\n");
 
         if (
-                lower.contains("cart")
+                requestedText.contains("cart")
                         ||
-                        lower.contains("product")
+                        requestedText.contains("product")
                         ||
-                        lower.contains("shopping")
+                        requestedText.contains("shopping")
         ) {
 
             feature.append("  Scenario: Add a product to the cart\n")
@@ -247,7 +307,7 @@ public class RequirementTestCaseGeneratorService {
         }
 
         if (
-                lower.contains("search")
+                requestedText.contains("search")
         ) {
 
             feature.append("  Scenario: Search for content\n")
@@ -262,9 +322,9 @@ public class RequirementTestCaseGeneratorService {
         }
 
         if (
-                lower.contains("login")
+                requestedText.contains("login")
                         ||
-                        lower.contains("sign in")
+                        requestedText.contains("sign in")
         ) {
 
             feature.append("  Scenario: Login with valid credentials\n")
@@ -286,6 +346,140 @@ public class RequirementTestCaseGeneratorService {
                 .append("    Then flow should complete successfully\n\n");
 
         return feature.toString();
+    }
+
+    private String billPayFallbackFeature(
+
+            StringBuilder feature,
+            String url
+
+    ) {
+
+        feature.append("  @generated @ai_requirement @bill_pay @positive\n")
+                .append("  Scenario: Successful bill payment with valid information\n");
+
+        appendBillPayStart(
+                feature,
+                url
+        );
+
+        appendBillPayValidDetails(feature);
+
+        feature.append("    And user enters \"${amount}\" into \"amount\"\n")
+                .append("    And user clicks \"send payment button\"\n")
+                .append("    Then user should see \"Bill Payment Complete\"\n\n");
+
+        feature.append("  @generated @ai_requirement @bill_pay @required_field @negative\n")
+                .append("  Scenario: Bill payment requires payee name\n");
+
+        appendBillPayStart(
+                feature,
+                url
+        );
+
+        feature.append("    And user enters \"${address}\" into \"address\"\n")
+                .append("    And user enters \"${city}\" into \"city\"\n")
+                .append("    And user enters \"${state}\" into \"state\"\n")
+                .append("    And user enters \"${zip}\" into \"zip\"\n")
+                .append("    And user enters \"${phone}\" into \"phone\"\n")
+                .append("    And user enters \"${account}\" into \"account\"\n")
+                .append("    And user enters \"${account}\" into \"verify account\"\n")
+                .append("    And user enters \"${amount}\" into \"amount\"\n")
+                .append("    And user clicks \"send payment button\"\n")
+                .append("    Then user should see \"required field error\"\n\n");
+
+        feature.append("  @generated @ai_requirement @bill_pay @required_field @negative\n")
+                .append("  Scenario: Bill payment requires amount\n");
+
+        appendBillPayStart(
+                feature,
+                url
+        );
+
+        appendBillPayValidDetails(feature);
+
+        feature.append("    And user clicks \"send payment button\"\n")
+                .append("    Then user should see \"required field error\"\n\n");
+
+        feature.append("  @generated @ai_requirement @bill_pay @validation @negative\n")
+                .append("  Scenario: Bill payment rejects invalid amount\n");
+
+        appendBillPayStart(
+                feature,
+                url
+        );
+
+        appendBillPayValidDetails(feature);
+
+        feature.append("    And user enters \"abc\" into \"amount\"\n")
+                .append("    And user clicks \"send payment button\"\n")
+                .append("    Then user should see \"amount validation error\"\n\n");
+
+        feature.append("  @generated @ai_requirement @bill_pay @validation @negative\n")
+                .append("  Scenario: Bill payment detects account confirmation mismatch\n");
+
+        appendBillPayStart(
+                feature,
+                url
+        );
+
+        feature.append("    And user enters \"${payee}\" into \"payee name\"\n")
+                .append("    And user enters \"${address}\" into \"address\"\n")
+                .append("    And user enters \"${city}\" into \"city\"\n")
+                .append("    And user enters \"${state}\" into \"state\"\n")
+                .append("    And user enters \"${zip}\" into \"zip\"\n")
+                .append("    And user enters \"${phone}\" into \"phone\"\n")
+                .append("    And user enters \"${account}\" into \"account\"\n")
+                .append("    And user enters \"99999\" into \"verify account\"\n")
+                .append("    And user enters \"${amount}\" into \"amount\"\n")
+                .append("    And user clicks \"send payment button\"\n")
+                .append("    Then user should see \"invalid account\"\n\n");
+
+        feature.append("  @generated @ai_requirement @bill_pay @boundary\n")
+                .append("  Scenario: Bill payment handles a high amount boundary\n");
+
+        appendBillPayStart(
+                feature,
+                url
+        );
+
+        appendBillPayValidDetails(feature);
+
+        feature.append("    And user enters \"999999.99\" into \"amount\"\n")
+                .append("    And user clicks \"send payment button\"\n")
+                .append("    Then user should see \"Bill Payment Complete\"\n\n");
+
+        return feature.toString();
+    }
+
+    private void appendBillPayStart(
+
+            StringBuilder feature,
+            String url
+
+    ) {
+
+        feature.append("    Given user launches \"")
+                .append(safe(url))
+                .append("\"\n")
+                .append("    When user enters \"${username}\" into \"username\"\n")
+                .append("    And user enters \"${password}\" into \"password\"\n")
+                .append("    And user clicks \"login button\"\n")
+                .append("    And user clicks \"Bill Pay\"\n");
+    }
+
+    private void appendBillPayValidDetails(
+            StringBuilder feature
+    ) {
+
+        feature.append("    And user enters \"${payee}\" into \"payee name\"\n")
+                .append("    And user enters \"${address}\" into \"address\"\n")
+                .append("    And user enters \"${city}\" into \"city\"\n")
+                .append("    And user enters \"${state}\" into \"state\"\n")
+                .append("    And user enters \"${zip}\" into \"zip\"\n")
+                .append("    And user enters \"${phone}\" into \"phone\"\n")
+                .append("    And user enters \"${account}\" into \"account\"\n")
+                .append("    And user enters \"${account}\" into \"verify account\"\n");
     }
 
     private String extractFeature(
@@ -336,16 +530,185 @@ public class RequirementTestCaseGeneratorService {
     }
 
     private boolean isUsableFeature(
-            String feature
+            String feature,
+            String requirement,
+            String featureName
     ) {
 
-        return feature != null
+        boolean basicFeature =
+                feature != null
                 &&
                 feature.contains("Feature:")
                 &&
                 feature.contains("Scenario:")
                 &&
                 feature.contains("@generated");
+
+        if (
+                !basicFeature
+        ) {
+
+            return false;
+        }
+
+        if (
+                isBillPayRequest(
+                        safe(requirement)
+                                + " "
+                                + safe(featureName)
+                )
+        ) {
+
+            if (
+                    !isUsableBillPayFeature(feature)
+            ) {
+
+                return false;
+            }
+
+            if (
+                    isExpandedCoverageRequest(requirement)
+            ) {
+
+                return scenarioCount(feature) >= 2
+                        &&
+                        hasExpandedCoverage(feature);
+            }
+
+            return true;
+        }
+
+        if (
+                !isExpandedCoverageRequest(requirement)
+        ) {
+
+            return true;
+        }
+
+        if (
+                scenarioCount(feature) < 2
+        ) {
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean isUsableBillPayFeature(
+            String feature
+    ) {
+
+        String lower =
+                safe(feature)
+                        .toLowerCase();
+
+        return lower.contains("parabank.parasoft.com")
+                &&
+                (
+                        lower.contains("@bill_pay")
+                                ||
+                                lower.contains("@billpay")
+                )
+                &&
+                lower.contains("verify account")
+                &&
+                lower.contains("send payment");
+    }
+
+    private boolean isExpandedCoverageRequest(
+            String requirement
+    ) {
+
+        String lower =
+                safe(requirement)
+                        .toLowerCase();
+
+        return lower.contains("more")
+                ||
+                lower.contains("additional")
+                ||
+                lower.contains("edge case")
+                ||
+                lower.contains("edge-case")
+                ||
+                lower.contains("negative")
+                ||
+                lower.contains("boundary")
+                ||
+                lower.contains("required field")
+                ||
+                lower.contains("validation");
+    }
+
+    private int scenarioCount(
+            String feature
+    ) {
+
+        if (
+                feature == null
+        ) {
+
+            return 0;
+        }
+
+        int count =
+                0;
+
+        for (
+                String line
+                : feature.split("\\R")
+        ) {
+
+            if (
+                    line.trim()
+                            .startsWith("Scenario:")
+                            ||
+                            line.trim()
+                                    .startsWith("Scenario Outline:")
+            ) {
+
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private boolean hasExpandedCoverage(
+            String feature
+    ) {
+
+        String lower =
+                safe(feature)
+                        .toLowerCase();
+
+        return (
+                lower.contains("@negative")
+                        ||
+                        lower.contains("@validation")
+                        ||
+                        lower.contains("@required_field")
+        )
+                &&
+                lower.contains("@boundary");
+    }
+
+    private boolean isBillPayRequest(
+            String value
+    ) {
+
+        String lower =
+                safe(value)
+                        .toLowerCase();
+
+        return lower.contains("bill pay")
+                ||
+                lower.contains("billpay")
+                ||
+                lower.contains("bill payment")
+                ||
+                lower.contains("pay bill");
     }
 
     private String title(

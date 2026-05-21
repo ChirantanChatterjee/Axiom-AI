@@ -57,13 +57,15 @@ public class StepDefinitionGenerator {
         sb.append("        browser = playwright.chromium()\n")
                 .append("                .launch(\n")
                 .append("                        new BrowserType.LaunchOptions()\n")
-                .append("                                .setHeadless(false)\n")
-                .append("                                .setArgs(java.util.Arrays.asList(\"--incognito\", \"--start-maximized\", \"--start-fullscreen\", \"--no-first-run\", \"--no-default-browser-check\"))\n")
+                .append("                                .setHeadless(Boolean.parseBoolean(System.getenv().getOrDefault(\"AIF_HEADLESS\", \"false\")))\n")
+                .append("                                .setChannel(System.getenv().getOrDefault(\"AIF_BROWSER_CHANNEL\", \"chrome\"))\n")
+                .append("                                .setTimeout(15000)\n")
+                .append("                                .setArgs(java.util.Arrays.asList(\"--incognito\", \"--no-first-run\", \"--no-default-browser-check\"))\n")
                 .append("                );\n\n");
 
         sb.append("        browserContext = browser.newContext(\n")
                 .append("                new Browser.NewContextOptions()\n")
-                .append("                        .setViewportSize(null)\n")
+                .append("                        .setViewportSize(1440, 1000)\n")
                 .append("        );\n\n");
 
         sb.append("        page = browserContext.newPage();\n\n");

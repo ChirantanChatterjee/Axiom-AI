@@ -8,7 +8,9 @@ import com.axiomai.ai.service.OpenAIIntentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,6 +36,22 @@ public class IntentParser {
 
         Map<String, String> variables =
                 extractVariables(message);
+
+        if (
+                containsRequirementDocument(message)
+        ) {
+
+            return AICommand.builder()
+                    .intent("GENERATE_FEATURE")
+                    .flowName("requirements")
+                    .featureName("requirements")
+                    .url(
+                            extractUrl(message)
+                    )
+                    .variables(variables)
+                    .message(message)
+                    .build();
+        }
 
         if (
                 containsGeneratedTestTagRequest(message)
@@ -117,10 +135,7 @@ public class IntentParser {
                     )
 
                     .url(
-                            firstNonBlank(
-                                    response.getUrl(),
-                                    extractUrl(message)
-                            )
+                            extractUrl(message)
                     )
 
                     .variables(
@@ -271,16 +286,73 @@ public class IntentParser {
         String lower =
                 message.toLowerCase();
 
-        return lower.contains("generate")
-                &&
-                !lower.contains("framework")
-                &&
+        if (
+                containsRequirementDocument(message)
+        ) {
+
+            return true;
+        }
+
+        if (
+                lower.contains("framework")
+        ) {
+
+            return false;
+        }
+
+        boolean generationVerb =
+                lower.contains("generate")
+                        ||
+                        lower.contains("create")
+                        ||
+                        lower.contains("add")
+                        ||
+                        lower.contains("write")
+                        ||
+                        lower.contains("produce");
+
+        boolean testArtifact =
+                lower.contains("feature")
+                        ||
+                        lower.contains("scenario")
+                        ||
+                        lower.contains("test")
+                        ||
+                        lower.contains("case");
+
+        boolean expandedCoverage =
+                lower.contains("more")
+                        ||
+                        lower.contains("additional")
+                        ||
+                        lower.contains("edge case")
+                        ||
+                        lower.contains("edge-case")
+                        ||
+                        lower.contains("negative")
+                        ||
+                        lower.contains("boundary")
+                        ||
+                        lower.contains("required field")
+                        ||
+                        lower.contains("validation");
+
+        return (
+                generationVerb
+                        &&
+                        (
+                                testArtifact
+                                        ||
+                                        expandedCoverage
+                        )
+        )
+                ||
                 (
-                        lower.contains("feature")
-                                ||
-                                lower.contains("scenario")
-                                ||
-                                lower.contains("test")
+                        testArtifact
+                                &&
+                                expandedCoverage
+                                &&
+                                extractFeatureName(message) != null
                 );
     }
 
@@ -298,6 +370,53 @@ public class IntentParser {
         return lower.contains("generate")
                 &&
                 lower.contains("framework");
+    }
+
+    private boolean containsRequirementDocument(
+            String message
+    ) {
+
+        if (
+                message == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                message.toLowerCase();
+
+        boolean hasStoryId =
+                Pattern.compile("(?i)\\bUS[-_]?\\d+\\s*:")
+                        .matcher(message)
+                        .find();
+
+        boolean hasRequirementShape =
+                lower.contains("acceptance criteria")
+                        &&
+                        (
+                                lower.contains("user story")
+                                        ||
+                                        lower.contains("user stories")
+                                        ||
+                                        lower.contains("as a ")
+                                        ||
+                                        lower.contains("as an ")
+                        );
+
+        return (
+                hasStoryId
+                        &&
+                        (
+                                lower.contains("acceptance criteria")
+                                        ||
+                                        lower.contains("user stories")
+                                        ||
+                                        lower.contains("as a ")
+                        )
+        )
+                ||
+                hasRequirementShape;
     }
 
     // =====================================================
@@ -321,7 +440,11 @@ public class IntentParser {
         if (
                 lower.contains("download")
                         ||
-                        lower.contains("zip")
+                        (
+                                variables.isEmpty()
+                                        &&
+                                        containsStandaloneZipRequest(lower)
+                        )
         ) {
 
             return AICommand.builder()
@@ -515,7 +638,9 @@ public class IntentParser {
         return lower.contains("tag")
                 &&
                 (
-                        lower.contains("provide")
+                        lower.contains("give")
+                                ||
+                                lower.contains("provide")
                                 ||
                                 lower.contains("show")
                                 ||
@@ -531,6 +656,19 @@ public class IntentParser {
                                 ||
                                 lower.contains("test")
                 );
+    }
+
+    private boolean containsStandaloneZipRequest(
+            String lower
+    ) {
+
+        return Pattern.compile("\\bzip\\b")
+                .matcher(lower)
+                .find()
+                &&
+                !lower.contains("zip code")
+                &&
+                !lower.contains("zipcode");
     }
 
     private boolean containsGeneratedTestExecutionRequest(
@@ -562,6 +700,10 @@ public class IntentParser {
                                 lower.contains("@")
                                 ||
                                 lower.contains("all")
+                                ||
+                                lower.contains("bill pay")
+                                ||
+                                lower.contains("billpay")
                 );
     }
 
@@ -571,6 +713,15 @@ public class IntentParser {
 
         String lower =
                 message.toLowerCase();
+
+        if (
+                lower.contains("bill pay")
+                        ||
+                        lower.contains("billpay")
+        ) {
+
+            return billPayTagExpression(lower);
+        }
 
         if (
                 lower.contains("all")
@@ -591,28 +742,111 @@ public class IntentParser {
         Matcher matcher =
                 pattern.matcher(message);
 
-        StringBuilder expression =
-                new StringBuilder();
+        List<String> tags =
+                new ArrayList<>();
 
         while (
                 matcher.find()
         ) {
 
-            if (
-                    !expression.isEmpty()
-            ) {
-
-                expression.append(" or ");
-            }
-
-            expression.append(
+            tags.add(
                     matcher.group()
             );
         }
 
-        return expression.isEmpty()
-                ? "ALL"
-                : expression.toString();
+        if (
+                tags.isEmpty()
+        ) {
+
+            return "ALL";
+        }
+
+        String operator =
+                lower.contains(" or ")
+                        ? " or "
+                        : " and ";
+
+        return String.join(
+                operator,
+                tags
+        );
+    }
+
+    private String billPayTagExpression(
+            String lower
+    ) {
+
+        String baseExpression =
+                "(@bill_pay or @billpay)";
+
+        List<String> coverageTags =
+                new ArrayList<>();
+
+        if (
+                lower.contains("positive")
+                        ||
+                        lower.contains("successful")
+                        ||
+                        lower.contains("happy path")
+        ) {
+
+            coverageTags.add("@positive");
+        }
+
+        if (
+                lower.contains("negative")
+        ) {
+
+            coverageTags.add("@negative");
+        }
+
+        if (
+                lower.contains("required")
+                        ||
+                        lower.contains("mandatory")
+        ) {
+
+            coverageTags.add("@required_field");
+        }
+
+        if (
+                lower.contains("validation")
+                        ||
+                        lower.contains("invalid")
+        ) {
+
+            coverageTags.add("@validation");
+        }
+
+        if (
+                lower.contains("boundary")
+                        ||
+                        lower.contains("edge")
+        ) {
+
+            coverageTags.add("@boundary");
+        }
+
+        if (
+                coverageTags.isEmpty()
+        ) {
+
+            return baseExpression;
+        }
+
+        String coverageExpression =
+                coverageTags.size() == 1
+                        ? coverageTags.get(0)
+                        : "("
+                        + String.join(
+                        " or ",
+                        coverageTags
+                )
+                        + ")";
+
+        return baseExpression
+                + " and "
+                + coverageExpression;
     }
 
     private boolean containsGeneratedTestRepairRequest(
@@ -770,6 +1004,19 @@ public class IntentParser {
                 message.toLowerCase();
 
         if (
+                lower.contains("bill pay")
+                        ||
+                        lower.contains("billpay")
+                        ||
+                        lower.contains("bill payment")
+                        ||
+                        lower.contains("pay bill")
+        ) {
+
+            return "bill pay";
+        }
+
+        if (
                 lower.contains("login")
         ) {
 
@@ -844,7 +1091,7 @@ public class IntentParser {
 
         Pattern unquoted =
                 Pattern.compile(
-                        "\\b(username|user|password|pass|email|search term|search|first name|last name|phone|postal code|zip code|postcode|product|quantity|token|otp)\\s*(?:=|:|is|as)\\s*([^,;]+?)(?=\\s+(?:and\\s+)?(?:username|user|password|pass|email|search term|search|first name|last name|phone|postal code|zip code|postcode|product|quantity|token|otp)\\s*(?:=|:|is|as)\\s*|$|[,;])",
+                        "\\b(username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp)\\s*(?:=|:|is|as)\\s*([^,;]+?)(?=\\s+(?:and\\s+)?(?:username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp)\\s*(?:=|:|is|as)\\s*|$|[,;])",
                         Pattern.CASE_INSENSITIVE
                 );
 
@@ -934,6 +1181,9 @@ public class IntentParser {
 
             case "pass" -> "password";
 
+            case "confirm password",
+                 "confirmation password" -> "confirmPassword";
+
             case "search term" -> "search";
 
             case "first name" -> "firstName";
@@ -942,7 +1192,9 @@ public class IntentParser {
 
             case "postal code",
                  "zip code",
-                 "postcode" -> "postalCode";
+                 "postcode" -> "zip";
+
+            case "verify account" -> "account";
 
             default -> normalized.replace(" ", "");
         };

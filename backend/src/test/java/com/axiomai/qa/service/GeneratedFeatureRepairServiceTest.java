@@ -84,4 +84,44 @@ class GeneratedFeatureRepairServiceTest {
                 summary.contains("Failures: 2")
         );
     }
+
+    @Test
+    void summarizesParaBankInvalidCredentialsAsRuntimeDataIssue() {
+
+        String summary =
+                new GeneratedFeatureRepairService()
+                        .failureSummary(
+                                """
+                                java.lang.AssertionError: Expected page to contain text: Accounts Overview
+                                Body:
+                                Error!
+                                The username and password could not be verified.
+                                """
+                        );
+
+        assertTrue(
+                summary.contains("runtime test-data issue")
+        );
+
+        assertTrue(
+                summary.contains("valid ParaBank credentials")
+        );
+    }
+
+    @Test
+    void summarizesPlaywrightBrowserStartupFailuresAsRuntimeIssue() {
+
+        String summary =
+                new GeneratedFeatureRepairService()
+                        .failureSummary(
+                                """
+                                java.lang.RuntimeException: Failed to create driver
+                                Caused by: java.lang.RuntimeException: Failed to install browsers
+                                """
+                        );
+
+        assertTrue(
+                summary.contains("browser-runtime issue")
+        );
+    }
 }

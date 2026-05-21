@@ -142,7 +142,9 @@ public class GeneratedSteps {
                 playwright.chromium()
                         .launch(
                                 new BrowserType.LaunchOptions()
-                                        .setHeadless(false)
+                                        .setHeadless(Boolean.parseBoolean(System.getenv().getOrDefault("AIF_HEADLESS", "false")))
+                                        .setChannel(System.getenv().getOrDefault("AIF_BROWSER_CHANNEL", "chrome"))
+                                        .setTimeout(15000)
                         );
 
         page =

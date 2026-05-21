@@ -1027,6 +1027,47 @@ textarea:disabled {
   overflow-wrap: anywhere;
 }
 
+.testcase-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.testcase-row {
+  min-width: 840px;
+  display: grid;
+  grid-template-columns: 72px 84px minmax(180px, 1.2fr) minmax(140px, 0.8fr) minmax(180px, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: #425862;
+  background: rgba(237, 247, 242, 0.72);
+  border: 1px solid rgba(81, 111, 116, 0.10);
+}
+
+.testcase-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #24313a;
+  background: rgba(255, 255, 255, 0.94);
+  font-weight: 900;
+}
+
+.testcase-row strong,
+.testcase-row span,
+.testcase-row p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.testcase-row p {
+  margin: 0;
+}
+
 .status-pass {
   color: #25835c;
 }
@@ -1757,6 +1798,7 @@ body {
 .session-summary h3,
 .history-header h3,
 .db-row strong,
+.testcase-row strong,
 .profile-details strong,
 .metric-card strong {
   color: #ffffff;
@@ -1790,10 +1832,16 @@ body {
 .profile-card,
 .profile-details div,
 .metric-card,
+.testcase-row,
 .session-lock-card {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.08);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+}
+
+.testcase-header {
+  color: #ffffff;
+  background: rgba(18, 18, 22, 0.96);
 }
 
 .missing-variable-card {

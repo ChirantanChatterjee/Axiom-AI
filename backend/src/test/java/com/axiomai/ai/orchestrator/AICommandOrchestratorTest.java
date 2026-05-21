@@ -78,6 +78,69 @@ class AICommandOrchestratorTest {
 
     }
 
+    @Test
+    void blocksFeatureGenerationForDifferentWebsiteInSameChatSession() {
+
+        WebsiteCrawlerService crawler =
+                new GuardedCrawlerService();
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        workspaceService.setWebsite(
+                "chat-one",
+                "https://parabank.parasoft.com/parabank/index.htm"
+        );
+
+        workspaceService.addArtifact(
+                "chat-one",
+                GeneratedArtifact.builder()
+                        .name("framework.zip")
+                        .type("FRAMEWORK")
+                        .path("generated-frameworks/chat-one/framework.zip")
+                        .downloadUrl("http://localhost:8080/api/workspace/artifacts/chat-one/framework.zip")
+                        .build()
+        );
+
+        AICommandOrchestrator orchestrator =
+                new AICommandOrchestrator(
+                        null,
+                        null,
+                        null,
+                        crawler,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        new ExecutionMemoryService(),
+                        workspaceService,
+                        null,
+                        null,
+                        null
+                );
+
+        AIResponse response =
+                orchestrator.execute(
+                        AICommand.builder()
+                                .intent("GENERATE_FEATURE")
+                                .featureName("bill pay")
+                                .url("https://www.google.com")
+                                .userId("chat-one")
+                                .build()
+                );
+
+        assertFalse(
+                response.isSuccess()
+        );
+
+        assertEquals(
+                "session_guard",
+                response.getType()
+        );
+    }
+
     private static class GuardedCrawlerService
             extends WebsiteCrawlerService {
 

@@ -361,7 +361,7 @@ public class AutomationWorkspaceService {
         ) {
 
             String target =
-                    requestedName.toLowerCase();
+                    normalizeFlowName(requestedName);
 
             for (
                     DetectedFlow flow
@@ -371,13 +371,18 @@ public class AutomationWorkspaceService {
                 String flowType =
                         flow.getFlowType() == null
                                 ? ""
-                                : flow.getFlowType()
-                                .toLowerCase();
+                                : normalizeFlowName(
+                                        flow.getFlowType()
+                                );
 
                 if (
-                        flowType.contains(target)
-                                ||
-                                target.contains(flowType)
+                        !flowType.isBlank()
+                                &&
+                                (
+                                        flowType.contains(target)
+                                                ||
+                                                target.contains(flowType)
+                                )
                 ) {
 
                     return flow;
@@ -387,6 +392,19 @@ public class AutomationWorkspaceService {
 
         return session.getDetectedFlows()
                 .get(0);
+    }
+
+    private String normalizeFlowName(
+            String value
+    ) {
+
+        return value == null
+                ? ""
+                : value.toLowerCase()
+                        .replaceAll(
+                                "[^a-z0-9]+",
+                                ""
+                        );
     }
 
     // =====================================================

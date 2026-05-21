@@ -121,6 +121,46 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                page.contains("actual.contains(\"match\")")
+        );
+
+        assertTrue(
+                page.contains("actual.contains(\"cannot be empty\")")
+        );
+
+        assertTrue(
+                page.contains("handleSpecialClick(target)")
+        );
+
+        assertTrue(
+                page.contains("page.goBack()")
+        );
+
+        assertTrue(
+                page.contains("locator.selectOption")
+        );
+
+        assertTrue(
+                page.contains("input[name='customer.firstName']")
+        );
+
+        assertTrue(
+                page.contains("input[name='repeatedPassword']")
+        );
+
+        assertTrue(
+                page.contains("expected.contains(\"registration success\")")
+        );
+
+        assertTrue(
+                page.contains("expected.contains(\"duplicate username\")")
+        );
+
+        assertTrue(
+                page.contains("expected.contains(\"transfer confirmation\")")
+        );
+
+        assertTrue(
                 page.contains("lower.startsWith(\"send \")")
         );
     }

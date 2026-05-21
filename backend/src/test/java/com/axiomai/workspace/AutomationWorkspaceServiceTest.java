@@ -1,6 +1,9 @@
 package com.axiomai.workspace;
 
+import com.axiomai.qa.flow.DetectedFlow;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -55,6 +58,32 @@ class AutomationWorkspaceServiceTest {
         assertNull(
                 service.getSession("chat-three")
                         .getWebsiteUrl()
+        );
+    }
+
+    @Test
+    void findFlowMatchesSpaceAndUnderscoreFeatureAliases() {
+
+        AutomationWorkspaceService service =
+                new AutomationWorkspaceService();
+
+        DetectedFlow billPay =
+                new DetectedFlow();
+
+        billPay.setFlowType("BILL_PAY");
+        billPay.setPageUrl("https://parabank.parasoft.com/parabank/index.htm");
+
+        service.storeFlows(
+                "chat-one",
+                List.of(billPay)
+        );
+
+        assertEquals(
+                billPay,
+                service.findFlow(
+                        "chat-one",
+                        "bill pay"
+                )
         );
     }
 }

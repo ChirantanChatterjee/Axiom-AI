@@ -91,6 +91,8 @@ Allowed intents:
 Rules:
 - GENERATE_FRAMEWORK means the user wants a full automation framework for a website.
 - GENERATE_FEATURE means the user wants a specific feature/scenario/test created or updated.
+- Phrases such as "generate more tests", "add edge cases", "add negative tests", or "create boundary scenarios" for a named feature are GENERATE_FEATURE.
+- Treat "bill pay", "billpay", "bill payment", and "pay bill" as featureName "bill pay".
 - UPDATE_TEST_DATA means the user provides values such as username, password, email, search term, or other field data.
 - EXECUTE_FEATURE means the user wants to run a named generated feature.
 - EXECUTE_FLOW means the user wants to run a detected or stored flow.

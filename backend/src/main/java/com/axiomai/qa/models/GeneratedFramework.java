@@ -1,5 +1,8 @@
 package com.axiomai.qa.models;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class GeneratedFramework {
 
     private String featureFile;
@@ -7,6 +10,9 @@ public class GeneratedFramework {
     private String pageObject;
 
     private String stepDefinition;
+
+    private List<RequirementTestCase> testCases =
+            new ArrayList<>();
 
     public GeneratedFramework() {
     }
@@ -44,5 +50,18 @@ public class GeneratedFramework {
 
     public void setStepDefinition(String stepDefinition) {
         this.stepDefinition = stepDefinition;
+    }
+
+    public List<RequirementTestCase> getTestCases() {
+        return testCases;
+    }
+
+    public void setTestCases(
+            List<RequirementTestCase> testCases
+    ) {
+
+        this.testCases = testCases == null
+                ? new ArrayList<>()
+                : new ArrayList<>(testCases);
     }
 }

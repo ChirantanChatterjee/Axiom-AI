@@ -472,6 +472,33 @@ public class GeneratedFeatureRepairService {
                     .trim();
         }
 
+        String lowerOutput =
+                output.toLowerCase();
+
+        if (
+                lowerOutput.contains(
+                        "the username and password could not be verified"
+                )
+                        ||
+                        lowerOutput.contains(
+                                "invalid username/password"
+                        )
+        ) {
+
+            return "The last generated test reached ParaBank, but login failed because the supplied username/password were rejected. This is a runtime test-data issue, not a feature-file or locator issue. Update the workspace credentials with valid ParaBank credentials, then rerun the bill-pay tag.";
+        }
+
+        if (
+                lowerOutput.contains("failed to create driver")
+                        ||
+                        lowerOutput.contains("failed to install browsers")
+                        ||
+                        lowerOutput.contains("target page, context or browser has been closed")
+        ) {
+
+            return "The last generated test failed while starting the Playwright browser. This is a browser-runtime issue, not a feature-file issue. Refresh the generated support files so the run uses installed Chrome and skips Playwright browser downloads, then rerun the same tag.";
+        }
+
         Matcher expectedText =
                 Pattern.compile(
                                 "Expected page to contain text: ([^\\r\\n<]+)",
