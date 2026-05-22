@@ -43,7 +43,8 @@ public class Hooks {
         BrowserType.LaunchOptions launchOptions =
                 new BrowserType.LaunchOptions()
                         .setHeadless(headless)
-                        .setTimeout(15000)
+                        .setChromiumSandbox(false)
+                        .setTimeout(browserLaunchTimeoutMs())
                         .setArgs(java.util.Arrays.asList(
                                 "--incognito",
                                 "--no-first-run",
@@ -51,6 +52,7 @@ public class Hooks {
                                 "--no-sandbox",
                                 "--disable-setuid-sandbox",
                                 "--disable-gpu",
+                                "--disable-software-rasterizer",
                                 "--disable-dev-shm-usage"
                         ));
 
@@ -89,26 +91,58 @@ public class Hooks {
                     .launch(launchOptions);
         } catch (PlaywrightException exception) {
 
-            if (browserChannel == null || !isMissingChannelFailure(exception)) {
+            if (browserChannel != null && isMissingChannelFailure(exception)) {
+
+                System.out.println("AIF Chromium channel unavailable; retrying bundled Chromium.");
+
+                return playwright.chromium()
+                        .launch(containerFallbackLaunchOptions(false));
+            }
+
+            if (!isLaunchTimeout(exception)) {
                 throw exception;
             }
 
+            System.out.println("AIF Chromium launch timed out; retrying with constrained-container flags.");
+
             return playwright.chromium()
-                    .launch(
-                            new BrowserType.LaunchOptions()
-                                    .setHeadless(resolveHeadless())
-                                    .setTimeout(15000)
-                                    .setArgs(java.util.Arrays.asList(
-                                            "--incognito",
-                                            "--no-first-run",
-                                            "--no-default-browser-check",
-                                            "--no-sandbox",
-                                            "--disable-setuid-sandbox",
-                                            "--disable-gpu",
-                                            "--disable-dev-shm-usage"
-                                    ))
-                    );
+                    .launch(containerFallbackLaunchOptions(true));
         }
+    }
+
+    private BrowserType.LaunchOptions containerFallbackLaunchOptions(
+            boolean singleProcess
+    ) {
+
+        java.util.List<String> args =
+                new java.util.ArrayList<>(
+                        java.util.Arrays.asList(
+                                "--incognito",
+                                "--no-first-run",
+                                "--no-default-browser-check",
+                                "--no-sandbox",
+                                "--disable-setuid-sandbox",
+                                "--disable-gpu",
+                                "--disable-software-rasterizer",
+                                "--disable-dev-shm-usage",
+                                "--disable-background-networking",
+                                "--disable-component-update",
+                                "--disable-sync",
+                                "--metrics-recording-only",
+                                "--mute-audio",
+                                "--no-zygote"
+                        )
+                );
+
+        if (singleProcess) {
+            args.add("--single-process");
+        }
+
+        return new BrowserType.LaunchOptions()
+                .setHeadless(resolveHeadless())
+                .setChromiumSandbox(false)
+                .setTimeout(browserLaunchRetryTimeoutMs())
+                .setArgs(args);
     }
 
     private boolean isMissingChannelFailure(PlaywrightException exception) {
@@ -122,6 +156,19 @@ public class Hooks {
         return message.contains("distribution")
                 &&
                 message.contains("is not found");
+    }
+
+    private boolean isLaunchTimeout(PlaywrightException exception) {
+
+        String message =
+                exception.getMessage() == null
+                        ? ""
+                        : exception.getMessage()
+                        .toLowerCase();
+
+        return message.contains("timeout")
+                &&
+                message.contains("launch");
     }
 
     private boolean resolveHeadless() {
@@ -175,6 +222,22 @@ public class Hooks {
         return parseTimeout(
                 System.getenv("AIF_NAVIGATION_TIMEOUT_MS"),
                 15000
+        );
+    }
+
+    private double browserLaunchTimeoutMs() {
+
+        return parseTimeout(
+                System.getenv("AIF_BROWSER_LAUNCH_TIMEOUT_MS"),
+                60000
+        );
+    }
+
+    private double browserLaunchRetryTimeoutMs() {
+
+        return parseTimeout(
+                System.getenv("AIF_BROWSER_LAUNCH_RETRY_TIMEOUT_MS"),
+                90000
         );
     }
 

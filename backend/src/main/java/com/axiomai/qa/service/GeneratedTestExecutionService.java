@@ -1616,6 +1616,31 @@ public class GeneratedTestExecutionService {
                         : "false"
         );
 
+        environment.putIfAbsent(
+                "AIF_BROWSER_LAUNCH_TIMEOUT_MS",
+                "60000"
+        );
+
+        environment.putIfAbsent(
+                "AIF_BROWSER_LAUNCH_RETRY_TIMEOUT_MS",
+                "90000"
+        );
+
+        environment.putIfAbsent(
+                "AIF_STEP_TIMEOUT_MS",
+                "8000"
+        );
+
+        environment.putIfAbsent(
+                "AIF_NAVIGATION_TIMEOUT_MS",
+                "15000"
+        );
+
+        environment.putIfAbsent(
+                "NO_AT_BRIDGE",
+                "1"
+        );
+
         if (
                 allowBrowserDownload
         ) {
