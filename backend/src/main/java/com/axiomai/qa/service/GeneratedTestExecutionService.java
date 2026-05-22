@@ -5,6 +5,7 @@ import com.axiomai.qa.generator.flow.FlowStepDefinitionGenerator;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -31,13 +32,20 @@ import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GeneratedTestExecutionService {
 
-    private static final long TEST_TIMEOUT_MINUTES =
-            10;
+    private static final long DEFAULT_TEST_TIMEOUT_MINUTES =
+            6;
+
+    private static final int MAX_COMMAND_OUTPUT_CHARS =
+            200_000;
 
     @Value("${aif.public-base-url:http://localhost:8080}")
     private String publicBaseUrl;
+
+    @Value("${aif.generated-tests.timeout-minutes:${AIF_GENERATED_TEST_TIMEOUT_MINUTES:6}}")
+    private long generatedTestTimeoutMinutes;
 
     private final GeneratedProjectWriterService
             generatedProjectWriterService;
@@ -1379,14 +1387,32 @@ public class GeneratedTestExecutionService {
         Process process =
                 processBuilder.start();
 
+        long timeoutMinutes =
+                executionTimeoutMinutes();
+
+        long startedAt =
+                System.nanoTime();
+
+        String commandSummary =
+                commandSummary(command);
+
+        log.info(
+                "Starting generated test command: {} (timeout {} minute(s))",
+                commandSummary,
+                timeoutMinutes
+        );
+
         CompletableFuture<String> outputFuture =
                 CompletableFuture.supplyAsync(
-                        () -> readOutput(process)
+                        () -> readOutput(
+                                process,
+                                commandSummary
+                        )
                 );
 
         boolean completed =
                 process.waitFor(
-                        TEST_TIMEOUT_MINUTES,
+                        timeoutMinutes,
                         TimeUnit.MINUTES
                 );
 
@@ -1398,19 +1424,63 @@ public class GeneratedTestExecutionService {
 
             outputFuture.cancel(true);
 
+            log.warn(
+                    "Generated test command timed out after {} minute(s): {}",
+                    timeoutMinutes,
+                    commandSummary
+            );
+
             throw new RuntimeException(
                     "Generated test execution timed out after "
-                            + TEST_TIMEOUT_MINUTES
+                            + timeoutMinutes
                             + " minutes."
             );
         }
 
-        return new CommandResult(
-                process.exitValue(),
+        String output =
                 outputFuture.get(
                         5,
                         TimeUnit.SECONDS
-                )
+                );
+
+        long durationSeconds =
+                TimeUnit.NANOSECONDS.toSeconds(
+                        System.nanoTime()
+                                - startedAt
+                );
+
+        log.info(
+                "Generated test command finished with exit code {} in {} second(s): {}",
+                process.exitValue(),
+                durationSeconds,
+                commandSummary
+        );
+
+        return new CommandResult(
+                process.exitValue(),
+                output
+        );
+    }
+
+    private long executionTimeoutMinutes() {
+
+        if (
+                generatedTestTimeoutMinutes <= 0
+        ) {
+
+            return DEFAULT_TEST_TIMEOUT_MINUTES;
+        }
+
+        return generatedTestTimeoutMinutes;
+    }
+
+    private String commandSummary(
+            List<String> command
+    ) {
+
+        return String.join(
+                " ",
+                command
         );
     }
 
@@ -1525,6 +1595,11 @@ public class GeneratedTestExecutionService {
 
         Map<String, String> environment =
                 processBuilder.environment();
+
+        environment.putIfAbsent(
+                "MAVEN_OPTS",
+                "-Xmx384m -XX:MaxMetaspaceSize=192m -Djava.awt.headless=true"
+        );
 
         environment.putIfAbsent(
                 "AIF_HEADLESS",
@@ -1658,7 +1733,8 @@ public class GeneratedTestExecutionService {
     }
 
     private String readOutput(
-            Process process
+            Process process,
+            String commandSummary
     ) {
 
         StringBuilder output =
@@ -1679,19 +1755,56 @@ public class GeneratedTestExecutionService {
                     (line = reader.readLine()) != null
             ) {
 
-                output.append(line)
-                        .append(System.lineSeparator());
+                log.debug(
+                        "[generated-test-command] {}",
+                        line
+                );
+
+                appendBoundedOutput(
+                        output,
+                        line
+                );
             }
 
         } catch (IOException e) {
 
-            output.append(
+            log.warn(
+                    "Unable to read generated test output for {}",
+                    commandSummary,
+                    e
+            );
+
+            appendBoundedOutput(
+                    output,
                     "Unable to read generated test output: "
                             + e.getMessage()
             );
         }
 
         return output.toString();
+    }
+
+    private void appendBoundedOutput(
+
+            StringBuilder output,
+
+            String line
+
+    ) {
+
+        output.append(line)
+                .append(System.lineSeparator());
+
+        if (
+                output.length() > MAX_COMMAND_OUTPUT_CHARS
+        ) {
+
+            output.delete(
+                    0,
+                    output.length()
+                            - MAX_COMMAND_OUTPUT_CHARS
+            );
+        }
     }
 
     private String tail(
