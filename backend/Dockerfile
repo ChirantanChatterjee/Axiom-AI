@@ -2,9 +2,9 @@ FROM eclipse-temurin:17-jammy
 
 WORKDIR /app
 
-COPY . .
+COPY backend/ .
 
-RUN chmod +x mvnw
+RUN chmod +x ./mvnw
 
 RUN apt-get update && apt-get install -y \
     libxcursor1 \
