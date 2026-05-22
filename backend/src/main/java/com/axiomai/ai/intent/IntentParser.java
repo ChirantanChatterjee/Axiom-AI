@@ -736,7 +736,7 @@ public class IntentParser {
 
         Pattern pattern =
                 Pattern.compile(
-                        "@[A-Za-z0-9_\\-]+"
+                        "@\\s*[A-Za-z0-9_\\-]+"
                 );
 
         Matcher matcher =
@@ -751,6 +751,10 @@ public class IntentParser {
 
             tags.add(
                     matcher.group()
+                            .replaceAll(
+                                    "\\s+",
+                                    ""
+                            )
             );
         }
 
@@ -758,7 +762,18 @@ public class IntentParser {
                 tags.isEmpty()
         ) {
 
-            return "ALL";
+            String tagName =
+                    extractPlainTagName(message);
+
+            if (
+                    tagName == null
+            ) {
+
+                return "ALL";
+            }
+
+            return "@"
+                    + tagName;
         }
 
         String operator =
@@ -770,6 +785,28 @@ public class IntentParser {
                 operator,
                 tags
         );
+    }
+
+    private String extractPlainTagName(
+            String message
+    ) {
+
+        Pattern pattern =
+                Pattern.compile(
+                        "(?i)\\btag(?:ged)?\\s+(?:@\\s*)?([A-Za-z0-9_\\-]+)"
+                );
+
+        Matcher matcher =
+                pattern.matcher(message);
+
+        if (
+                !matcher.find()
+        ) {
+
+            return null;
+        }
+
+        return matcher.group(1);
     }
 
     private String billPayTagExpression(

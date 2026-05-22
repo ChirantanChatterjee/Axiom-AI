@@ -1,6 +1,8 @@
 package com.axiomai.qa.service;
 
 import com.axiomai.workspace.SupabaseStorageCleanupService;
+import com.axiomai.workspace.entity.GeneratedFrameworkArchiveEntity;
+import com.axiomai.workspace.repository.GeneratedFrameworkArchiveRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -8,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -26,16 +29,12 @@ public class GeneratedFrameworkPersistenceService {
     private final SupabaseStorageCleanupService
             supabaseStorageCleanupService;
 
+    private final GeneratedFrameworkArchiveRepository
+            generatedFrameworkArchiveRepository;
+
     public boolean persistFramework(
             String sessionId
     ) {
-
-        if (
-                !supabaseStorageCleanupService.isConfigured()
-        ) {
-
-            return false;
-        }
 
         Path frameworkRoot =
                 generatedProjectWriterService
@@ -70,26 +69,86 @@ public class GeneratedFrameworkPersistenceService {
 
     ) {
 
+        boolean persisted =
+                persistFrameworkArchiveToDatabase(
+                        sessionId,
+                        archive
+                );
+
         if (
-                !supabaseStorageCleanupService.isConfigured()
+                supabaseStorageCleanupService.isConfigured()
         ) {
 
-            return false;
+            try {
+
+                persisted =
+                        supabaseStorageCleanupService.uploadFile(
+                                archiveObjectPath(sessionId),
+                                archive
+                        )
+                                || persisted;
+
+            } catch (Exception e) {
+
+                if (
+                        !persisted
+                ) {
+
+                    throw new RuntimeException(
+                            "Unable to persist generated framework for chat "
+                                    + sessionId
+                                    + ". Check SUPABASE_SERVICE_ROLE_KEY and AIF_SUPABASE_STORAGE_BUCKET.",
+                            e
+                    );
+                }
+            }
         }
+
+        return persisted;
+    }
+
+    private boolean persistFrameworkArchiveToDatabase(
+
+            String sessionId,
+
+            Path archive
+
+    ) {
 
         try {
 
-            return supabaseStorageCleanupService.uploadFile(
-                    archiveObjectPath(sessionId),
-                    archive
+            if (
+                    archive == null
+                            ||
+                            !Files.exists(archive)
+            ) {
+
+                return false;
+            }
+
+            byte[] archiveBytes =
+                    Files.readAllBytes(archive);
+
+            generatedFrameworkArchiveRepository.save(
+                    GeneratedFrameworkArchiveEntity.builder()
+                            .sessionId(
+                                    normalizeSessionId(sessionId)
+                            )
+                            .archive(archiveBytes)
+                            .archiveName(FRAMEWORK_ARCHIVE)
+                            .sizeBytes(archiveBytes.length)
+                            .updatedAt(Instant.now())
+                            .build()
             );
+
+            return true;
 
         } catch (Exception e) {
 
             throw new RuntimeException(
-                    "Unable to persist generated framework for chat "
+                    "Unable to persist generated framework archive for chat "
                             + sessionId
-                            + ". Check SUPABASE_SERVICE_ROLE_KEY and AIF_SUPABASE_STORAGE_BUCKET.",
+                            + " in the database.",
                     e
             );
         }
@@ -114,66 +173,195 @@ public class GeneratedFrameworkPersistenceService {
             return true;
         }
 
-        if (
-                !supabaseStorageCleanupService.isConfigured()
-        ) {
-
-            return false;
-        }
-
         Path workspaceRoot =
                 generatedProjectWriterService
                         .getWorkspaceRoot(sessionId)
                         .toAbsolutePath()
                         .normalize();
 
-        Path archive =
-                workspaceRoot.resolve("restored-framework.zip");
+        Exception storageRestoreFailure =
+                null;
+
+        if (
+                supabaseStorageCleanupService.isConfigured()
+        ) {
+
+            Path archive =
+                    workspaceRoot.resolve(
+                            "restored-framework.zip"
+                    );
+
+            try {
+
+                boolean downloaded =
+                        supabaseStorageCleanupService.downloadFile(
+                                archiveObjectPath(sessionId),
+                                archive
+                        );
+
+                if (
+                        downloaded
+                ) {
+
+                    restoreFromArchive(
+                            archive,
+                            frameworkRoot
+                    );
+
+                    Files.deleteIfExists(archive);
+
+                    return Files.exists(
+                            frameworkRoot.resolve("pom.xml")
+                    );
+                }
+
+            } catch (Exception e) {
+
+                storageRestoreFailure =
+                        e;
+            }
+        }
 
         try {
 
-            boolean downloaded =
-                    supabaseStorageCleanupService.downloadFile(
-                            archiveObjectPath(sessionId),
-                            archive
+            boolean restored =
+                    restoreFrameworkFromDatabase(
+                            sessionId,
+                            workspaceRoot,
+                            frameworkRoot
                     );
 
             if (
-                    !downloaded
+                    restored
             ) {
 
-                return false;
+                return true;
             }
 
-            deleteDirectory(frameworkRoot);
+            if (
+                    storageRestoreFailure != null
+            ) {
 
-            Files.createDirectories(frameworkRoot);
+                throw new RuntimeException(
+                        "Unable to restore generated framework for chat "
+                                + sessionId
+                                + " from Supabase Storage, and no database archive was available.",
+                        storageRestoreFailure
+                );
+            }
 
-            unzipInto(
-                    archive,
-                    frameworkRoot
-            );
-
-            Files.deleteIfExists(archive);
-
-            return Files.exists(
-                    frameworkRoot.resolve("pom.xml")
-            );
+            return false;
 
         } catch (Exception e) {
 
             throw new RuntimeException(
                     "Unable to restore generated framework for chat "
                             + sessionId
-                            + " from Supabase Storage.",
+                            + " from the database.",
                     e
             );
         }
     }
 
+    private boolean restoreFrameworkFromDatabase(
+
+            String sessionId,
+
+            Path workspaceRoot,
+
+            Path frameworkRoot
+
+    ) throws IOException {
+
+        return generatedFrameworkArchiveRepository
+                .findById(
+                        normalizeSessionId(sessionId)
+                )
+                .map(archiveEntity -> {
+
+                    Path archive =
+                            workspaceRoot.resolve(
+                                    "restored-framework-db.zip"
+                            );
+
+                    try {
+
+                        Files.createDirectories(workspaceRoot);
+
+                        Files.write(
+                                archive,
+                                archiveEntity.getArchive()
+                        );
+
+                        restoreFromArchive(
+                                archive,
+                                frameworkRoot
+                        );
+
+                        Files.deleteIfExists(archive);
+
+                        return Files.exists(
+                                frameworkRoot.resolve("pom.xml")
+                        );
+
+                    } catch (IOException e) {
+
+                        throw new RuntimeException(e);
+                    }
+                })
+                .orElse(false);
+    }
+
+    public void deletePersistedFramework(
+            String sessionId
+    ) {
+
+        generatedFrameworkArchiveRepository.deleteById(
+                normalizeSessionId(sessionId)
+        );
+    }
+
+    private void restoreFromArchive(
+
+            Path archive,
+
+            Path frameworkRoot
+
+    ) throws IOException {
+
+        deleteDirectory(frameworkRoot);
+
+        Files.createDirectories(frameworkRoot);
+
+        unzipInto(
+                archive,
+                frameworkRoot
+        );
+    }
+
     public boolean isPersistenceConfigured() {
 
-        return supabaseStorageCleanupService.isConfigured();
+        return true;
+    }
+
+    private String normalizeSessionId(
+            String sessionId
+    ) {
+
+        if (
+                sessionId == null
+                        ||
+                        sessionId.isBlank()
+        ) {
+
+            return "default-session";
+        }
+
+        return sessionId.trim()
+                .replaceAll(
+                        "[^A-Za-z0-9._-]",
+                        "-"
+                );
     }
 
     private String archiveObjectPath(

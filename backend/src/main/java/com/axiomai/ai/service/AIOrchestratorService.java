@@ -9,10 +9,12 @@ import com.axiomai.core.session.ExecutionSession;
 import com.axiomai.workspace.AutomationSession;
 import com.axiomai.workspace.AutomationWorkspaceService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 
 public class AIOrchestratorService {
 
@@ -160,9 +162,47 @@ public class AIOrchestratorService {
         // EXECUTE
         // =================================================
 
-        return orchestrator.execute(
-                command
-        );
+        try {
+
+            return orchestrator.execute(
+                    command
+            );
+
+        } catch (RuntimeException e) {
+
+            log.warn(
+                    "AIF command failed: {}",
+                    e.getMessage(),
+                    e
+            );
+
+            return AIResponse.builder()
+                    .success(false)
+                    .type("error")
+                    .message(
+                            userFriendlyMessage(e)
+                    )
+                    .build();
+        }
+    }
+
+    private String userFriendlyMessage(
+            RuntimeException e
+    ) {
+
+        String message =
+                e.getMessage();
+
+        if (
+                message == null
+                        ||
+                        message.isBlank()
+        ) {
+
+            return "AIF could not complete that request. Please try again or regenerate the framework for this chat.";
+        }
+
+        return message;
     }
 
     private String resolveUserId(

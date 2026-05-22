@@ -2,6 +2,7 @@ package com.axiomai.workspace;
 
 import com.axiomai.core.memory.ExecutionMemoryService;
 import com.axiomai.core.session.ExecutionSession;
+import com.axiomai.qa.service.GeneratedFrameworkPersistenceService;
 import com.axiomai.qa.service.GeneratedProjectWriterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,9 @@ public class WorkspaceCleanupService {
 
     private final SupabaseStorageCleanupService
             supabaseStorageCleanupService;
+
+    private final GeneratedFrameworkPersistenceService
+            generatedFrameworkPersistenceService;
 
     public WorkspaceCleanupResult cleanup(
             String sessionId
@@ -74,6 +78,10 @@ public class WorkspaceCleanupService {
                 supabaseStorageCleanupService.cleanupSession(
                         workspaceId
                 );
+
+        generatedFrameworkPersistenceService.deletePersistedFramework(
+                workspaceId
+        );
 
         return new WorkspaceCleanupResult(
                 normalizedSessionId,

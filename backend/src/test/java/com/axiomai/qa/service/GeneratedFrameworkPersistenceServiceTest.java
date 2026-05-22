@@ -1,20 +1,27 @@
 package com.axiomai.qa.service;
 
 import com.axiomai.workspace.SupabaseStorageCleanupService;
+import com.axiomai.workspace.entity.GeneratedFrameworkArchiveEntity;
+import com.axiomai.workspace.repository.GeneratedFrameworkArchiveRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GeneratedFrameworkPersistenceServiceTest {
 
     @Test
-    void restoresGeneratedFrameworkFromPersistedArchive() throws Exception {
+    void restoresGeneratedFrameworkFromDatabaseArchive() throws Exception {
 
         String sessionId =
                 "persist-test-"
@@ -27,21 +34,26 @@ class GeneratedFrameworkPersistenceServiceTest {
                         new PomGeneratorService()
                 );
 
-        Path storedArchive =
-                Files.createTempFile(
-                        "aif-framework-",
-                        ".zip"
-                );
+        Map<String, GeneratedFrameworkArchiveEntity> archiveStore =
+                new HashMap<>();
 
-        Files.deleteIfExists(storedArchive);
+        GeneratedFrameworkArchiveRepository archiveRepository =
+                inMemoryArchiveRepository(archiveStore);
 
         SupabaseStorageCleanupService storageService =
-                new FakeSupabaseStorageService(storedArchive);
+                new SupabaseStorageCleanupService(
+                        new ObjectMapper(),
+                        "",
+                        "",
+                        "",
+                        "generated-frameworks/"
+                );
 
         GeneratedFrameworkPersistenceService persistenceService =
                 new GeneratedFrameworkPersistenceService(
                         writerService,
-                        storageService
+                        storageService,
+                        archiveRepository
                 );
 
         Path frameworkRoot =
@@ -71,8 +83,20 @@ class GeneratedFrameworkPersistenceServiceTest {
                     persistenceService.persistFramework(sessionId)
             );
 
+            GeneratedFrameworkArchiveEntity storedArchive =
+                    archiveStore.get(sessionId);
+
+            assertEquals(
+                    sessionId,
+                    storedArchive.getSessionId()
+            );
+
+            assertNotNull(
+                    storedArchive.getArchive()
+            );
+
             assertTrue(
-                    Files.exists(storedArchive)
+                    storedArchive.getArchive().length > 0
             );
 
             writerService.deleteWorkspace(sessionId);
@@ -102,68 +126,81 @@ class GeneratedFrameworkPersistenceServiceTest {
         } finally {
 
             writerService.deleteWorkspace(sessionId);
-            Files.deleteIfExists(storedArchive);
         }
     }
 
-    private static class FakeSupabaseStorageService extends SupabaseStorageCleanupService {
+    private static GeneratedFrameworkArchiveRepository inMemoryArchiveRepository(
+            Map<String, GeneratedFrameworkArchiveEntity> archiveStore
+    ) {
 
-        private final Path storedArchive;
+        return (GeneratedFrameworkArchiveRepository) Proxy.newProxyInstance(
+                GeneratedFrameworkArchiveRepository.class.getClassLoader(),
+                new Class<?>[]{
+                        GeneratedFrameworkArchiveRepository.class
+                },
+                (proxy, method, args) -> {
 
-        FakeSupabaseStorageService(
-                Path storedArchive
-        ) {
+                    String methodName =
+                            method.getName();
 
-            super(
-                    new ObjectMapper(),
-                    "https://example.supabase.co",
-                    "service-role",
-                    "aif-artifacts",
-                    "generated-frameworks/"
-            );
+                    if (
+                            "save".equals(methodName)
+                    ) {
 
-            this.storedArchive =
-                    storedArchive;
-        }
+                        GeneratedFrameworkArchiveEntity entity =
+                                (GeneratedFrameworkArchiveEntity) args[0];
 
-        @Override
-        public boolean uploadFile(
+                        archiveStore.put(
+                                entity.getSessionId(),
+                                entity
+                        );
 
-                String objectPath,
+                        return entity;
+                    }
 
-                Path file
+                    if (
+                            "findById".equals(methodName)
+                    ) {
 
-        ) throws Exception {
+                        return java.util.Optional.ofNullable(
+                                archiveStore.get(args[0])
+                        );
+                    }
 
-            Files.copy(
-                    file,
-                    storedArchive,
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
-            );
+                    if (
+                            "deleteById".equals(methodName)
+                    ) {
 
-            return true;
-        }
+                        archiveStore.remove(args[0]);
+                        return null;
+                    }
 
-        @Override
-        public boolean downloadFile(
+                    if (
+                            "toString".equals(methodName)
+                    ) {
 
-                String objectPath,
+                        return "InMemoryGeneratedFrameworkArchiveRepository";
+                    }
 
-                Path target
+                    if (
+                            "hashCode".equals(methodName)
+                    ) {
 
-        ) throws Exception {
+                        return System.identityHashCode(proxy);
+                    }
 
-            Files.createDirectories(
-                    target.getParent()
-            );
+                    if (
+                            "equals".equals(methodName)
+                    ) {
 
-            Files.copy(
-                    storedArchive,
-                    target,
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
-            );
+                        return proxy == args[0];
+                    }
 
-            return true;
-        }
+                    throw new UnsupportedOperationException(
+                            "Unexpected repository method: "
+                                    + methodName
+                    );
+                }
+        );
     }
 }

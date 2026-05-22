@@ -964,7 +964,11 @@ public class GeneratedTestExecutionService {
             return null;
         }
 
-        return tagExpression.trim();
+        return tagExpression.trim()
+                .replaceAll(
+                        "@\\s+([A-Za-z0-9_\\-]+)",
+                        "@$1"
+                );
     }
 
     private List<String> missingVariables(

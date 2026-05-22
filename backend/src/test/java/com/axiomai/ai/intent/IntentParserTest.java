@@ -143,6 +143,56 @@ class IntentParserTest {
     }
 
     @Test
+    void detectsGeneratedTestExecutionBySpacedAtTag() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Can you run tests with tag @ registration"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "@registration",
+                command.getTarget()
+        );
+    }
+
+    @Test
+    void detectsGeneratedTestExecutionByPlainTagName() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Can you run tests with tag registration"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "@registration",
+                command.getTarget()
+        );
+    }
+
+    @Test
     void detectsBillPayGeneratedTestExecution() {
 
         IntentParser parser =
