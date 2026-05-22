@@ -36,25 +36,40 @@ public class WorkspaceAccessService {
 
         WorkspaceSessionOwnershipEntity ownership =
                 ownershipRepository.findById(normalizedSessionId)
-                        .orElseGet(
-                                () -> createOwnership(
-                                        normalizedSessionId,
-                                        user
-                                )
-                        );
+                        .orElse(null);
+
+        if (
+                ownership == null
+        ) {
+
+            ownershipRepository.save(
+                    createOwnership(
+                            normalizedSessionId,
+                            user
+                    )
+            );
+
+            return normalizedSessionId;
+        }
 
         assertOwner(
                 ownership,
                 user
         );
 
-        ownership.setUpdatedAt(
-                Instant.now()
-        );
-
-        ownershipRepository.save(ownership);
-
         return normalizedSessionId;
+    }
+
+    @Transactional
+    public String requireOrBindAccess(
+            String token,
+            String sessionId
+    ) {
+
+        return bindToCurrentUser(
+                token,
+                sessionId
+        );
     }
 
     @Transactional(readOnly = true)

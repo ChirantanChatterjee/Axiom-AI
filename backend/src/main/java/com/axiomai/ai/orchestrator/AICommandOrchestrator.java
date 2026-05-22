@@ -102,7 +102,7 @@ public class AICommandOrchestrator {
     private final GraphExecutionBridge
             graphExecutionBridge;
 
-    @Value("${aif.generated-tests.execution-mode:${AIF_GENERATED_TEST_EXECUTION_MODE:inline}}")
+    @Value("${aif.generated-tests.execution-mode:${AIF_GENERATED_TEST_EXECUTION_MODE:worker}}")
     private String generatedTestExecutionMode;
 
     // =====================================================
