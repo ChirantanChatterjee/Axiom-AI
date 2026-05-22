@@ -42,9 +42,6 @@ public class GeneratedTestExecutionService {
     private static final int MAX_COMMAND_OUTPUT_CHARS =
             200_000;
 
-    @Value("${aif.public-base-url:http://localhost:8080}")
-    private String publicBaseUrl;
-
     @Value("${aif.generated-tests.timeout-minutes:${AIF_GENERATED_TEST_TIMEOUT_MINUTES:6}}")
     private long generatedTestTimeoutMinutes;
 
@@ -1232,8 +1229,7 @@ public class GeneratedTestExecutionService {
                 reportHtml
         );
 
-        return publicBaseUrl
-                + "/api/reports/"
+        return "/api/reports/"
                 + fileName;
     }
 

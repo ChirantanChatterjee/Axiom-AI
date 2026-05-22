@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/qa")
-@CrossOrigin("*")
 public class GenerationController {
 
     @Autowired

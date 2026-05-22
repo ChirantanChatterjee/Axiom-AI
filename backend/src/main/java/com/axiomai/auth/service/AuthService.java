@@ -195,13 +195,21 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
+    public AifUserEntity requireUser(
+            String token
+    ) {
+
+        return sessionFor(token)
+                .getUser();
+    }
+
+    @Transactional(readOnly = true)
     public AifUserEntity requireAdmin(
             String token
     ) {
 
         AifUserEntity user =
-                sessionFor(token)
-                        .getUser();
+                requireUser(token);
 
         if (
                 !"ADMIN".equalsIgnoreCase(

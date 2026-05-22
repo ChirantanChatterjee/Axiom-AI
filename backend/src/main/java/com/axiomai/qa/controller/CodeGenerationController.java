@@ -13,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/qa")
-@CrossOrigin("*")
 public class CodeGenerationController {
 
     @Autowired

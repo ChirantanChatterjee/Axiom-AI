@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/runtime")
 @RequiredArgsConstructor
-@CrossOrigin("*")
 public class RuntimeController {
 
     private final RuntimeFlowExecutor runtimeFlowExecutor;

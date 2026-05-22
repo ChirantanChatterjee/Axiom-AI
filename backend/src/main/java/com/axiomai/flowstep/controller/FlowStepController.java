@@ -12,7 +12,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/flow-steps")
 @RequiredArgsConstructor
-@CrossOrigin("*")
 public class FlowStepController {
 
     private final FlowStepService flowStepService;

@@ -13,7 +13,6 @@ import java.util.List;
 @RequestMapping("/api/flows")
 
 @RequiredArgsConstructor
-@CrossOrigin("*")
 
 public class FlowController {
 

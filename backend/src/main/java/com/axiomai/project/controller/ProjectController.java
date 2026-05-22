@@ -13,7 +13,6 @@ import java.util.List;
 @RequestMapping("/api/projects")
 
 @RequiredArgsConstructor
-@CrossOrigin("*")
 
 public class ProjectController {
 
