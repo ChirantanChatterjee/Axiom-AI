@@ -2,9 +2,9 @@ FROM eclipse-temurin:17-jammy
 
 WORKDIR /app
 
-COPY . .
+COPY backend/ .
 
-RUN chmod +x mvnw
+RUN chmod +x ./mvnw
 
 RUN ./mvnw clean package -DskipTests
 
@@ -13,8 +13,8 @@ RUN ./mvnw -q exec:java \
     -Dexec.args="install --with-deps chromium"
 
 ENV AIF_HEADLESS=true
-ENV AIF_BROWSER_CHANNEL=
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+ENV NO_AT_BRIDGE=1
 
 EXPOSE 10000
 

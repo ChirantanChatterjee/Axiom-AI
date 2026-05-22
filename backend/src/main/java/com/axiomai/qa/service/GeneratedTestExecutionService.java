@@ -2,6 +2,7 @@ package com.axiomai.qa.service;
 
 import com.axiomai.qa.generator.flow.FlowPageObjectGenerator;
 import com.axiomai.qa.generator.flow.FlowStepDefinitionGenerator;
+import com.axiomai.reporting.service.ReportArtifactService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,9 @@ public class GeneratedTestExecutionService {
 
     private final GeneratedFrameworkPersistenceService
             generatedFrameworkPersistenceService;
+
+    private final ReportArtifactService
+            reportArtifactService;
 
     private final FlowPageObjectGenerator
             flowPageObjectGenerator;
@@ -1198,26 +1202,35 @@ public class GeneratedTestExecutionService {
                 Paths.get("reports")
                         .resolve(fileName);
 
+        String reportHtml;
+
         if (
                 isCompleteCucumberReport(cucumberReport)
         ) {
 
-            Files.copy(
-                    cucumberReport,
-                    copiedReport,
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
-            );
+            reportHtml =
+                    Files.readString(
+                            cucumberReport
+                    );
 
         } else {
 
-            Files.writeString(
-                    copiedReport,
+            reportHtml =
                     fallbackReportHtml(
                             frameworkRoot,
                             output
-                    )
-            );
+                    );
         }
+
+        Files.writeString(
+                copiedReport,
+                reportHtml
+        );
+
+        reportArtifactService.saveHtmlReport(
+                fileName,
+                reportHtml
+        );
 
         return publicBaseUrl
                 + "/api/reports/"

@@ -39,6 +39,13 @@ const CHAT_STORAGE_PREFIX =
 const ACTIVE_CHAT_PREFIX =
   "aif.chat.activeSession.v2";
 
+const TERMINAL_EXECUTION_STATUSES =
+  new Set([
+    "PASSED",
+    "FAILED",
+    "CANCELLED"
+  ]);
+
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ||
     "https://aif-fpj8.onrender.com";
@@ -244,6 +251,19 @@ const compactResponseData = (type, data) => {
     };
   }
 
+  if (type === "generated-test-execution-queued") {
+    return {
+      jobId: data.jobId,
+      status: data.status,
+      success: data.success,
+      tagExpression: data.tagExpression,
+      reportUrl: data.reportUrl,
+      exitCode: data.exitCode,
+      message: data.message,
+      errorMessage: data.errorMessage
+    };
+  }
+
   if (type === "download") {
     return {
       sessionId: data.sessionId,
@@ -284,6 +304,7 @@ const isSensitiveKey = (key) => {
 const isHandledStructuredType = (type) => {
   return type === "tags" ||
     type === "generated-test-execution" ||
+    type === "generated-test-execution-queued" ||
     type === "framework" ||
     type === "feature" ||
     type === "download" ||
@@ -1332,6 +1353,56 @@ function StructuredMessage({
       }
 
       {
+        msg.type === "generated-test-execution-queued" &&
+        msg.data && (
+          <div className="execution-card">
+            <div className="db-row">
+              <span>Status:</span>
+
+              <strong
+                className={
+                  msg.data.status === "PASSED"
+                    ? "status-pass"
+                    : msg.data.status === "FAILED"
+                      ? "status-fail"
+                      : ""
+                }
+              >
+                {msg.data.status || "QUEUED"}
+              </strong>
+            </div>
+
+            <div className="db-row">
+              <span>Tag filter:</span>
+
+              <strong>
+                {msg.data.tagExpression || "ALL"}
+              </strong>
+            </div>
+
+            {
+              msg.data.exitCode !== null &&
+              msg.data.exitCode !== undefined && (
+                <div className="db-row">
+                  <span>Exit code:</span>
+
+                  <strong
+                    className={
+                      msg.data.success
+                        ? "status-pass"
+                        : "status-fail"
+                    }
+                  >
+                    {msg.data.exitCode}
+                  </strong>
+                </div>
+              )
+            }
+          </div>
+        )
+      }
+
+      {
         msg.type === "session_guard" &&
         msg.data && (
           <div className="session-lock-card">
@@ -1784,6 +1855,96 @@ function App() {
     );
   };
 
+  const updateQueuedExecutionMessage = (chatId, job) => {
+    const data =
+      compactResponseData(
+        "generated-test-execution-queued",
+        job
+      );
+
+    patchChat(
+      chatId,
+      chat => ({
+        messages: (chat.messages || []).map(message => {
+          if (
+            message.type !== "generated-test-execution-queued" ||
+            message.data?.jobId !== data.jobId
+          ) {
+            return message;
+          }
+
+          return {
+            ...message,
+            text:
+              data.message ||
+              message.text,
+            data: {
+              ...message.data,
+              ...data
+            },
+            reportUrl:
+              normalizeBackendUrl(
+                data.reportUrl ||
+                message.reportUrl ||
+                null
+              )
+          };
+        })
+      })
+    );
+  };
+
+  const pollGeneratedExecutionJob = (chatId, jobId) => {
+    let attempts =
+      0;
+
+    const poll = async () => {
+      attempts += 1;
+
+      try {
+        const response =
+          await axios.get(
+            `${API_BASE_URL}/api/generated-test-executions/${encodeURIComponent(jobId)}`,
+            {
+              headers: {
+                "X-AIF-Session": authUser?.sessionToken || ""
+              }
+            }
+          );
+
+        updateQueuedExecutionMessage(
+          chatId,
+          response.data
+        );
+
+        if (
+          !TERMINAL_EXECUTION_STATUSES.has(response.data.status) &&
+          attempts < 240
+        ) {
+          window.setTimeout(
+            poll,
+            5000
+          );
+        }
+
+      } catch (error) {
+        if (
+          attempts < 5
+        ) {
+          window.setTimeout(
+            poll,
+            5000
+          );
+        }
+      }
+    };
+
+    window.setTimeout(
+      poll,
+      2000
+    );
+  };
+
   const startNewChat = () => {
     const chat =
       createChatSession();
@@ -2217,6 +2378,16 @@ function App() {
         chatId,
         aiMessage
       );
+
+      if (
+        responseType === "generated-test-execution-queued" &&
+        compactData?.jobId
+      ) {
+        pollGeneratedExecutionJob(
+          chatId,
+          compactData.jobId
+        );
+      }
 
     } catch (error) {
       appendMessage(

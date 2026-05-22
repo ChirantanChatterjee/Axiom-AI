@@ -18,6 +18,9 @@ import com.axiomai.flowstep.entity.FlowStepEntity;
 import com.axiomai.flowstep.repository.FlowStepRepository;
 import com.axiomai.qa.flow.DetectedFlow;
 import com.axiomai.qa.flow.FlowDetectionEngine;
+import com.axiomai.qa.execution.entity.GeneratedTestExecutionJobEntity;
+import com.axiomai.qa.execution.service.GeneratedTestExecutionJobDto;
+import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
 import com.axiomai.qa.models.GeneratedFramework;
 import com.axiomai.qa.models.PageNode;
 import com.axiomai.qa.models.SiteMapResult;
@@ -32,6 +35,7 @@ import com.axiomai.workspace.AutomationSession;
 import com.axiomai.workspace.AutomationWorkspaceService;
 import com.axiomai.workspace.GeneratedArtifact;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
@@ -70,6 +74,9 @@ public class AICommandOrchestrator {
     private final GeneratedTestExecutionService
             generatedTestExecutionService;
 
+    private final GeneratedTestExecutionQueueService
+            generatedTestExecutionQueueService;
+
     private final RequirementTestCaseGeneratorService
             requirementTestCaseGeneratorService;
 
@@ -94,6 +101,9 @@ public class AICommandOrchestrator {
 
     private final GraphExecutionBridge
             graphExecutionBridge;
+
+    @Value("${aif.generated-tests.execution-mode:${AIF_GENERATED_TEST_EXECUTION_MODE:inline}}")
+    private String generatedTestExecutionMode;
 
     // =====================================================
     // MAIN EXECUTION
@@ -1289,6 +1299,36 @@ public class AICommandOrchestrator {
                 automationWorkspaceService
                         .getVariableValues(userId);
 
+        if (
+                useQueuedGeneratedTestExecution()
+        ) {
+
+            GeneratedTestExecutionJobEntity job =
+                    generatedTestExecutionQueueService.enqueue(
+                            workspace.getSessionId(),
+                            userId,
+                            command.getTarget(),
+                            variables
+                    );
+
+            GeneratedTestExecutionJobDto dto =
+                    generatedTestExecutionQueueService.toDto(job);
+
+            return AIResponse.builder()
+
+                    .success(true)
+
+                    .message(
+                            "Generated test execution has been queued for the worker."
+                    )
+
+                    .type("generated-test-execution-queued")
+
+                    .data(dto)
+
+                    .build();
+        }
+
         GeneratedTestExecutionService.GeneratedTestRunResult result =
                 generatedTestExecutionService
                         .runTests(
@@ -1335,6 +1375,26 @@ public class AICommandOrchestrator {
                 )
 
                 .build();
+    }
+
+    private boolean useQueuedGeneratedTestExecution() {
+
+        if (
+                generatedTestExecutionMode == null
+        ) {
+
+            return false;
+        }
+
+        String mode =
+                generatedTestExecutionMode.trim()
+                        .toLowerCase();
+
+        return "worker".equals(mode)
+                ||
+                "queued".equals(mode)
+                ||
+                "async".equals(mode);
     }
 
     private AIResponse repairGeneratedTests(

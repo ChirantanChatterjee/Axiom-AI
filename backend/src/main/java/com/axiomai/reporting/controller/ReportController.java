@@ -1,5 +1,7 @@
 package com.axiomai.reporting.controller;
 
+import com.axiomai.reporting.service.ReportArtifactService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
@@ -18,10 +20,14 @@ import java.nio.file.Paths;
 @RestController
 @RequestMapping("/api/reports")
 @CrossOrigin("*")
+@RequiredArgsConstructor
 public class ReportController {
 
+    private final ReportArtifactService
+            reportArtifactService;
+
     @GetMapping("/{fileName:.+}")
-    public ResponseEntity<Resource> openReport(
+    public ResponseEntity<?> openReport(
             @PathVariable String fileName
     ) throws MalformedURLException {
 
@@ -40,9 +46,19 @@ public class ReportController {
                         !Files.exists(target)
         ) {
 
-            return ResponseEntity
-                    .notFound()
-                    .build();
+            return reportArtifactService.find(fileName)
+                    .map(artifact -> ResponseEntity.ok()
+                            .contentType(
+                                    MediaType.parseMediaType(
+                                            artifact.getContentType()
+                                    )
+                            )
+                            .body(artifact.getContent()))
+                    .orElseGet(
+                            () -> ResponseEntity
+                                    .notFound()
+                                    .build()
+                    );
         }
 
         Resource resource =
