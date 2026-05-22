@@ -148,6 +148,10 @@ public class GeneratedTestExecutionService {
                 mavenCommand()
         );
 
+        command.add("-B");
+
+        command.add("-ntp");
+
         command.add("-f");
 
         command.add(
@@ -1329,6 +1333,10 @@ public class GeneratedTestExecutionService {
         command.add(
                 mavenCommand()
         );
+
+        command.add("-B");
+
+        command.add("-ntp");
 
         command.add("-f");
 

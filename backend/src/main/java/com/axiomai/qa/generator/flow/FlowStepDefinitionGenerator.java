@@ -29,32 +29,40 @@ public class FlowStepDefinitionGenerator {
                     @Given("user launches {string}")
                     public void userLaunches(String url) {
 
+                        System.out.println("AIF STEP start: user launches " + url);
                         generatedPage().launch(resolveValue(url));
+                        System.out.println("AIF STEP done: user launches " + url);
                     }
 
                     @When("user enters {string} into {string}")
                     public void userEntersInto(String value, String target) {
 
+                        System.out.println("AIF STEP start: user enters into " + target);
                         generatedPage().enter(
                                 resolveValue(target),
                                 resolveValue(value)
                         );
+                        System.out.println("AIF STEP done: user enters into " + target);
                     }
 
                     @When("user clicks {string}")
                     public void userClicks(String target) {
 
+                        System.out.println("AIF STEP start: user clicks " + target);
                         generatedPage().click(
                                 resolveValue(target)
                         );
+                        System.out.println("AIF STEP done: user clicks " + target);
                     }
 
                     @Then("user should see {string}")
                     public void userShouldSee(String expectedText) {
 
+                        System.out.println("AIF STEP start: user should see " + expectedText);
                         generatedPage().shouldSee(
                                 resolveValue(expectedText)
                         );
+                        System.out.println("AIF STEP done: user should see " + expectedText);
                     }
 
                     @Then("flow should complete successfully")

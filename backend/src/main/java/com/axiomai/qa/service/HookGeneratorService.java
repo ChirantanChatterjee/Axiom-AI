@@ -28,6 +28,8 @@ public class Hooks {
     @Before
     public void setup() {
 
+        System.out.println("AIF HOOK setup start");
+
         playwright = Playwright.create();
 
         boolean headless =
@@ -47,6 +49,8 @@ public class Hooks {
                                 "--no-first-run",
                                 "--no-default-browser-check",
                                 "--no-sandbox",
+                                "--disable-setuid-sandbox",
+                                "--disable-gpu",
                                 "--disable-dev-shm-usage"
                         ));
 
@@ -65,7 +69,14 @@ public class Hooks {
                         .setViewportSize(1440, 1000)
         );
 
+        context.setDefaultTimeout(runtimeTimeoutMs());
+        context.setDefaultNavigationTimeout(runtimeNavigationTimeoutMs());
+
         page = context.newPage();
+        page.setDefaultTimeout(runtimeTimeoutMs());
+        page.setDefaultNavigationTimeout(runtimeNavigationTimeoutMs());
+
+        System.out.println("AIF HOOK setup complete");
     }
 
     private Browser launchChromium(
@@ -92,6 +103,8 @@ public class Hooks {
                                             "--no-first-run",
                                             "--no-default-browser-check",
                                             "--no-sandbox",
+                                            "--disable-setuid-sandbox",
+                                            "--disable-gpu",
                                             "--disable-dev-shm-usage"
                                     ))
                     );
@@ -149,6 +162,39 @@ public class Hooks {
                 !"0".equals(normalized);
     }
 
+    private double runtimeTimeoutMs() {
+
+        return parseTimeout(
+                System.getenv("AIF_STEP_TIMEOUT_MS"),
+                8000
+        );
+    }
+
+    private double runtimeNavigationTimeoutMs() {
+
+        return parseTimeout(
+                System.getenv("AIF_NAVIGATION_TIMEOUT_MS"),
+                15000
+        );
+    }
+
+    private double parseTimeout(String value, double fallback) {
+
+        String normalized =
+                normalize(value);
+
+        if (normalized == null) {
+            return fallback;
+        }
+
+        try {
+            double parsed = Double.parseDouble(normalized);
+            return parsed > 0 ? parsed : fallback;
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
     private String normalize(String value) {
 
         if (value == null || value.isBlank()) {
@@ -165,17 +211,28 @@ public class Hooks {
             return;
         }
 
-        byte[] screenshot =
-                page.screenshot(
-                        new Page.ScreenshotOptions()
-                                .setFullPage(true)
-                );
+        try {
 
-        scenario.attach(
-                screenshot,
-                "image/png",
-                "step-screenshot"
-        );
+            byte[] screenshot =
+                    page.screenshot(
+                            new Page.ScreenshotOptions()
+                                    .setFullPage(false)
+                                    .setTimeout(3000)
+                    );
+
+            scenario.attach(
+                    screenshot,
+                    "image/png",
+                    "step-screenshot"
+            );
+
+        } catch (RuntimeException exception) {
+
+            System.out.println(
+                    "AIF screenshot skipped: "
+                            + exception.getMessage()
+            );
+        }
     }
 
     @After

@@ -20,6 +20,7 @@ public class FlowPageObjectGenerator {
 
         sb.append("package com.axiomai.generated.pages;\n\n");
         sb.append("import com.microsoft.playwright.*;\n\n");
+        sb.append("import com.microsoft.playwright.options.*;\n\n");
         sb.append("import java.nio.file.*;\n");
         sb.append("import java.util.*;\n\n");
         sb.append("public class GeneratedPage {\n\n");
@@ -27,6 +28,8 @@ public class FlowPageObjectGenerator {
         sb.append("    private final Map<String, List<String>> selectors = new HashMap<>();\n\n");
         sb.append("    public GeneratedPage(Page page) {\n\n");
         sb.append("        this.page = page;\n");
+        sb.append("        this.page.setDefaultTimeout(runtimeTimeoutMs());\n");
+        sb.append("        this.page.setDefaultNavigationTimeout(runtimeNavigationTimeoutMs());\n");
 
         Set<String> generatedTargets =
                 new HashSet<>();
@@ -75,8 +78,25 @@ public class FlowPageObjectGenerator {
         sb.append("""
                     public void launch(String url) {
 
-                        page.navigate(url);
-                        page.waitForLoadState();
+                        System.out.println("AIF PAGE launch: " + url);
+
+                        page.navigate(
+                                url,
+                                new Page.NavigateOptions()
+                                        .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                                        .setTimeout(runtimeNavigationTimeoutMs())
+                        );
+
+                        try {
+                            page.waitForLoadState(
+                                    LoadState.DOMCONTENTLOADED,
+                                    new Page.WaitForLoadStateOptions()
+                                            .setTimeout(3000)
+                            );
+                        } catch (RuntimeException ignored) {
+                            // Navigation already reached domcontentloaded or the app updates without another load event.
+                        }
+
                         dismissCookieBanner();
                     }
 
@@ -222,6 +242,36 @@ public class FlowPageObjectGenerator {
                                 matchesHtmlValidation(expectedText)
                                 ||
                                 matchesSuccessfulTechnicalResponse(expectedText, body);
+                    }
+
+                    private double runtimeTimeoutMs() {
+
+                        return parseTimeout(
+                                System.getenv("AIF_STEP_TIMEOUT_MS"),
+                                8000
+                        );
+                    }
+
+                    private double runtimeNavigationTimeoutMs() {
+
+                        return parseTimeout(
+                                System.getenv("AIF_NAVIGATION_TIMEOUT_MS"),
+                                15000
+                        );
+                    }
+
+                    private double parseTimeout(String value, double fallback) {
+
+                        if (value == null || value.isBlank()) {
+                            return fallback;
+                        }
+
+                        try {
+                            double parsed = Double.parseDouble(value.trim());
+                            return parsed > 0 ? parsed : fallback;
+                        } catch (NumberFormatException ignored) {
+                            return fallback;
+                        }
                     }
 
                     private String bodyText() {
@@ -627,7 +677,11 @@ public class FlowPageObjectGenerator {
                             page.goBack();
 
                             try {
-                                page.waitForLoadState();
+                                page.waitForLoadState(
+                                        LoadState.DOMCONTENTLOADED,
+                                        new Page.WaitForLoadStateOptions()
+                                                .setTimeout(3000)
+                                );
                             } catch (RuntimeException ignored) {
                                 // Some apps restore state from cache without a load event.
                             }
@@ -1054,7 +1108,10 @@ public class FlowPageObjectGenerator {
                             if (
                                     locator.count() > 0
                                             &&
-                                            locator.first().isVisible()
+                                            locator.first().isVisible(
+                                                    new Locator.IsVisibleOptions()
+                                                            .setTimeout(350)
+                                            )
                                             &&
                                             isEditable(locator.first())
                             ) {
@@ -1238,7 +1295,14 @@ public class FlowPageObjectGenerator {
                             try {
                                 Locator locator = page.locator(selector);
 
-                                if (locator.count() > 0 && locator.first().isVisible()) {
+                                if (
+                                        locator.count() > 0
+                                                &&
+                                                locator.first().isVisible(
+                                                        new Locator.IsVisibleOptions()
+                                                                .setTimeout(350)
+                                                )
+                                ) {
 
                                     if (!editableOnly || isEditable(locator.first())) {
                                         return locator.first();
@@ -1356,7 +1420,11 @@ public class FlowPageObjectGenerator {
                         ) {
 
                             try {
-                                page.waitForLoadState();
+                                page.waitForLoadState(
+                                        LoadState.DOMCONTENTLOADED,
+                                        new Page.WaitForLoadStateOptions()
+                                                .setTimeout(3000)
+                                );
                             } catch (RuntimeException ignored) {
                                 // Some single-page apps update without a full load-state transition.
                             }
@@ -1389,7 +1457,14 @@ public class FlowPageObjectGenerator {
                             try {
                                 Locator locator = page.locator(selector);
 
-                                if (locator.count() > 0 && locator.first().isVisible()) {
+                                if (
+                                        locator.count() > 0
+                                                &&
+                                                locator.first().isVisible(
+                                                        new Locator.IsVisibleOptions()
+                                                                .setTimeout(350)
+                                                )
+                                ) {
                                     return locator.first();
                                 }
                             } catch (RuntimeException ignored) {
