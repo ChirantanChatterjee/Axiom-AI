@@ -98,6 +98,40 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void addsAccountsOverviewCheckpointBeforeBillPayWhenLoginAlreadyExists() {
+
+        String feature =
+                """
+                        Feature: bill pay
+
+                        @bill_pay @generated
+                        Scenario: Open bill pay
+                          Given user launches "https://parabank.parasoft.com/parabank/index.htm"
+                          When user enters "${username}" into "username"
+                          And user enters "${password}" into "password"
+                          And user clicks "login button"
+                          And user clicks "Bill Pay"
+                          Then user should see "Bill Payment Service"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.RuntimeException: Unable to resolve element: Bill Pay"
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"Accounts Overview\"\n  And user clicks \"Bill Pay\"")
+        );
+    }
+
+    @Test
     void summarizesExpectedTextAssertionFailures() {
 
         String summary =

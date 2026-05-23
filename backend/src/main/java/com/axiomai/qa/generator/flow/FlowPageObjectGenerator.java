@@ -659,8 +659,20 @@ public class FlowPageObjectGenerator {
                             return semantic;
                         }
 
+                        Locator heuristic = firstVisibleSoon(
+                                2500,
+                                dynamicClickSelectors(target).toArray(String[]::new)
+                        );
+
+                        if (heuristic != null) {
+                            return heuristic;
+                        }
+
                         throw new RuntimeException("Unable to resolve element: " + target);
                     }
+                """);
+
+        sb.append("""
 
                     private boolean handleSpecialClick(String target) {
 
@@ -690,7 +702,424 @@ public class FlowPageObjectGenerator {
                             return true;
                         }
 
+                        if (handleGenericNavigationClick(target, lower)) {
+                            return true;
+                        }
+
+                        if (isParaBankNavigationCommand(lower)) {
+                            Locator navigationLink = paraBankNavigationLink(lower);
+
+                            if (navigationLink != null) {
+                                clickWithFallback(navigationLink);
+                                return true;
+                            }
+
+                            if (isParaBankSite()) {
+                                navigateToParaBankPage(paraBankNavigationPath(lower));
+                                return true;
+                            }
+                        }
+
                         return false;
+                    }
+
+                    private boolean handleGenericNavigationClick(String target, String lower) {
+
+                        if (!looksLikeNavigationTarget(lower)) {
+                            return false;
+                        }
+
+                        Locator navigation = firstVisibleSoon(
+                                3500,
+                                dynamicNavigationSelectors(target).toArray(String[]::new)
+                        );
+
+                        if (navigation != null) {
+                            clickWithFallback(navigation);
+                            return true;
+                        }
+
+                        return navigateToLikelyRoute(target);
+                    }
+
+                    private boolean looksLikeNavigationTarget(String lower) {
+
+                        if (lower == null || lower.isBlank()) {
+                            return false;
+                        }
+
+                        if (
+                                lower.contains("button")
+                                        ||
+                                        lower.contains("submit")
+                                        ||
+                                        lower.startsWith("send ")
+                                        ||
+                                        lower.startsWith("save")
+                                        ||
+                                        lower.startsWith("delete")
+                                        ||
+                                        lower.startsWith("remove")
+                                        ||
+                                        lower.startsWith("add ")
+                                        ||
+                                        lower.contains("login")
+                                        ||
+                                        lower.contains("log in")
+                                        ||
+                                        lower.contains("sign in")
+                        ) {
+                            return false;
+                        }
+
+                        if (
+                                lower.contains("page")
+                                        ||
+                                        lower.contains("menu")
+                                        ||
+                                        lower.contains("nav")
+                                        ||
+                                        lower.contains("dashboard")
+                                        ||
+                                        lower.equals("home")
+                                        ||
+                                        lower.contains("about")
+                                        ||
+                                        lower.contains("contact")
+                                        ||
+                                        lower.contains("service")
+                                        ||
+                                        lower.equals("products")
+                                        ||
+                                        lower.contains("location")
+                                        ||
+                                        lower.contains("user")
+                                        ||
+                                        lower.contains("order")
+                                        ||
+                                        lower.contains("invoice")
+                                        ||
+                                        lower.contains("overview")
+                                        ||
+                                        lower.contains("account")
+                                        ||
+                                        lower.contains("payment")
+                                        ||
+                                        lower.contains("pay")
+                                        ||
+                                        lower.contains("transfer")
+                                        ||
+                                        lower.contains("transaction")
+                                        ||
+                                        lower.contains("report")
+                                        ||
+                                        lower.contains("profile")
+                                        ||
+                                        lower.contains("settings")
+                                        ||
+                                        lower.contains("admin")
+                                        ||
+                                        lower.contains("cart")
+                                        ||
+                                        lower.contains("checkout")
+                        ) {
+                            return true;
+                        }
+
+                        return false;
+                    }
+
+                    private boolean navigateToLikelyRoute(String target) {
+
+                        List<String> candidates = likelyRouteUrls(target);
+
+                        if (candidates.isEmpty()) {
+                            return false;
+                        }
+
+                        String originalUrl = page.url();
+
+                        for (String candidate : candidates) {
+                            try {
+                                Response response = page.navigate(
+                                        candidate,
+                                        new Page.NavigateOptions()
+                                                .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                                                .setTimeout(runtimeNavigationTimeoutMs())
+                                );
+
+                                int status = response == null ? 200 : response.status();
+
+                                if (status >= 400) {
+                                    restoreUrl(originalUrl);
+                                    continue;
+                                }
+
+                                page.waitForTimeout(600);
+
+                                if (!looksLikeNotFoundPage()) {
+                                    return true;
+                                }
+
+                                restoreUrl(originalUrl);
+
+                            } catch (RuntimeException ignored) {
+                                restoreUrl(originalUrl);
+                            }
+                        }
+
+                        return false;
+                    }
+
+                    private List<String> likelyRouteUrls(String target) {
+
+                        String slug = slug(target);
+                        String compact = slug.replace("-", "");
+
+                        if (slug.isBlank()) {
+                            return List.of();
+                        }
+
+                        List<String> routeNames = new ArrayList<>();
+                        addIfMissing(routeNames, slug);
+                        addIfMissing(routeNames, compact);
+                        addIfMissing(routeNames, slug.replace("-", "_"));
+
+                        List<String> bases = routeBaseUrls();
+                        List<String> candidates = new ArrayList<>();
+
+                        for (String base : bases) {
+                            for (String routeName : routeNames) {
+                                addIfMissing(candidates, base + routeName);
+                                addIfMissing(candidates, base + routeName + "/");
+                                addIfMissing(candidates, base + routeName + ".html");
+                                addIfMissing(candidates, base + routeName + ".htm");
+                            }
+                        }
+
+                        return candidates;
+                    }
+
+                    private List<String> routeBaseUrls() {
+
+                        String currentUrl = page.url();
+
+                        if (currentUrl == null || currentUrl.isBlank()) {
+                            return List.of();
+                        }
+
+                        List<String> bases = new ArrayList<>();
+
+                        try {
+                            java.net.URI uri = java.net.URI.create(currentUrl);
+                            String origin = uri.getScheme() + "://" + uri.getAuthority() + "/";
+                            addIfMissing(bases, origin);
+
+                            String path = uri.getPath();
+
+                            if (path != null && !path.isBlank() && path.contains("/")) {
+                                int lastSlash = path.lastIndexOf('/');
+                                String directory = path.substring(0, lastSlash + 1);
+
+                                if (directory.startsWith("/")) {
+                                    directory = directory.substring(1);
+                                }
+
+                                if (!directory.isBlank()) {
+                                    addIfMissing(bases, origin + directory);
+                                }
+                            }
+
+                        } catch (RuntimeException ignored) {
+                            int slash = currentUrl.lastIndexOf('/');
+
+                            if (slash > "https://".length()) {
+                                addIfMissing(bases, currentUrl.substring(0, slash + 1));
+                            }
+                        }
+
+                        return bases;
+                    }
+
+                    private boolean looksLikeNotFoundPage() {
+
+                        try {
+                            String body = page.locator("body").innerText(
+                                    new Locator.InnerTextOptions()
+                                            .setTimeout(1500)
+                            );
+
+                            String lower = body == null ? "" : body.toLowerCase();
+
+                            return lower.contains("404")
+                                    ||
+                                    lower.contains("not found")
+                                    ||
+                                    lower.contains("page not found")
+                                    ||
+                                    lower.contains("cannot find")
+                                    ||
+                                    lower.contains("no route matches");
+
+                        } catch (RuntimeException ignored) {
+                            return false;
+                        }
+                    }
+
+                    private void restoreUrl(String originalUrl) {
+
+                        if (originalUrl == null || originalUrl.isBlank()) {
+                            return;
+                        }
+
+                        try {
+                            page.navigate(
+                                    originalUrl,
+                                    new Page.NavigateOptions()
+                                            .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                                            .setTimeout(3000)
+                            );
+                        } catch (RuntimeException ignored) {
+                            // A failed heuristic route should not mask the original unresolved target.
+                        }
+                    }
+
+                    private boolean isParaBankNavigationCommand(String lower) {
+
+                        return lower != null
+                                &&
+                                (
+                                        lower.contains("bill pay")
+                                                ||
+                                                lower.contains("billpay")
+                                                ||
+                                                lower.contains("bill payment")
+                                                ||
+                                                lower.contains("accounts overview")
+                                                ||
+                                                lower.contains("account overview")
+                                                ||
+                                                lower.contains("open new account")
+                                                ||
+                                                lower.contains("transfer funds")
+                                                ||
+                                                lower.contains("find transactions")
+                                );
+                    }
+
+                    private Locator paraBankNavigationLink(String lower) {
+
+                        if (lower.contains("bill pay") || lower.contains("billpay") || lower.contains("bill payment")) {
+                            return firstVisibleSoon(
+                                    5000,
+                                    "a:has-text(\\"Bill Pay\\")",
+                                    "a[href*='billpay' i]",
+                                    "button:has-text(\\"Bill Pay\\")",
+                                    "[role='button']:has-text(\\"Bill Pay\\")"
+                            );
+                        }
+
+                        if (lower.contains("accounts overview") || lower.contains("account overview")) {
+                            return firstVisibleSoon(
+                                    5000,
+                                    "a:has-text(\\"Accounts Overview\\")",
+                                    "a:has-text(\\"Account Overview\\")",
+                                    "a[href*='overview' i]",
+                                    "button:has-text(\\"Accounts Overview\\")"
+                            );
+                        }
+
+                        if (lower.contains("open new account")) {
+                            return firstVisibleSoon(
+                                    5000,
+                                    "a:has-text(\\"Open New Account\\")",
+                                    "a[href*='openaccount' i]",
+                                    "button:has-text(\\"Open New Account\\")"
+                            );
+                        }
+
+                        if (lower.contains("transfer funds")) {
+                            return firstVisibleSoon(
+                                    5000,
+                                    "a:has-text(\\"Transfer Funds\\")",
+                                    "a[href*='transfer' i]",
+                                    "button:has-text(\\"Transfer Funds\\")"
+                            );
+                        }
+
+                        if (lower.contains("find transactions")) {
+                            return firstVisibleSoon(
+                                    5000,
+                                    "a:has-text(\\"Find Transactions\\")",
+                                    "a[href*='findtrans' i]",
+                                    "button:has-text(\\"Find Transactions\\")"
+                            );
+                        }
+
+                        return null;
+                    }
+
+                    private String paraBankNavigationPath(String lower) {
+
+                        if (lower.contains("bill pay") || lower.contains("billpay") || lower.contains("bill payment")) {
+                            return "billpay.htm";
+                        }
+
+                        if (lower.contains("accounts overview") || lower.contains("account overview")) {
+                            return "overview.htm";
+                        }
+
+                        if (lower.contains("open new account")) {
+                            return "openaccount.htm";
+                        }
+
+                        if (lower.contains("transfer funds")) {
+                            return "transfer.htm";
+                        }
+
+                        if (lower.contains("find transactions")) {
+                            return "findtrans.htm";
+                        }
+
+                        return "index.htm";
+                    }
+
+                    private boolean isParaBankSite() {
+
+                        String currentUrl = page.url() == null ? "" : page.url().toLowerCase();
+
+                        return currentUrl.contains("parabank.parasoft.com/parabank");
+                    }
+
+                    private void navigateToParaBankPage(String path) {
+
+                        String currentUrl = page.url() == null ? "" : page.url();
+                        String lowerUrl = currentUrl.toLowerCase();
+                        int paraBankIndex = lowerUrl.indexOf("/parabank/");
+                        String baseUrl = "https://parabank.parasoft.com/parabank/";
+
+                        if (paraBankIndex >= 0) {
+                            baseUrl = currentUrl.substring(0, paraBankIndex + "/parabank/".length());
+                        }
+
+                        page.navigate(
+                                baseUrl + path,
+                                new Page.NavigateOptions()
+                                        .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                                        .setTimeout(runtimeNavigationTimeoutMs())
+                        );
+
+                        try {
+                            page.waitForLoadState(
+                                    LoadState.DOMCONTENTLOADED,
+                                    new Page.WaitForLoadStateOptions()
+                                            .setTimeout(3000)
+                            );
+                        } catch (RuntimeException ignored) {
+                            // Direct ParaBank navigation sometimes hydrates without another load event.
+                        }
+
+                        dismissCookieBanner();
                     }
 
                     private Locator resolveSpecialClick(String target) {
@@ -1490,6 +1919,87 @@ public class FlowPageObjectGenerator {
                         } while (System.currentTimeMillis() < deadline);
 
                         return null;
+                    }
+                """);
+
+        sb.append("""
+
+                    private List<String> dynamicClickSelectors(String target) {
+
+                        String escaped = cssText(target);
+                        String action = cssText(actionText(target));
+                        String slug = slug(target);
+                        String compact = slug.replace("-", "");
+
+                        List<String> candidates = new ArrayList<>();
+
+                        addIfMissing(candidates, "button:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "button:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "a:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "a:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "[role='button']:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "[role='button']:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "[role='link']:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "[role='link']:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "input[type='submit'][value*=\\"" + escaped + "\\" i]");
+                        addIfMissing(candidates, "input[type='button'][value*=\\"" + escaped + "\\" i]");
+                        addIfMissing(candidates, "[aria-label*=\\"" + escaped + "\\" i]");
+                        addIfMissing(candidates, "[title*=\\"" + escaped + "\\" i]");
+                        addIfMissing(candidates, "[data-test*=\\"" + slug + "\\" i]");
+                        addIfMissing(candidates, "[data-testid*=\\"" + slug + "\\" i]");
+                        addIfMissing(candidates, "[data-cy*=\\"" + slug + "\\" i]");
+                        addIfMissing(candidates, "[id*=\\"" + slug + "\\" i]");
+                        addIfMissing(candidates, "[name*=\\"" + escaped + "\\" i]");
+
+                        if (!compact.isBlank() && !compact.equals(slug)) {
+                            addIfMissing(candidates, "[href*=\\"" + compact + "\\" i]");
+                            addIfMissing(candidates, "[data-test*=\\"" + compact + "\\" i]");
+                            addIfMissing(candidates, "[data-testid*=\\"" + compact + "\\" i]");
+                        }
+
+                        return candidates;
+                    }
+
+                    private List<String> dynamicNavigationSelectors(String target) {
+
+                        String escaped = cssText(target);
+                        String action = cssText(actionText(target));
+                        String slug = slug(target);
+                        String compact = slug.replace("-", "");
+
+                        List<String> candidates = new ArrayList<>();
+
+                        addIfMissing(candidates, "a:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "a:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "[role='link']:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "[role='link']:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "nav a:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "nav a:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "aside a:has-text(\\"" + escaped + "\\")");
+                        addIfMissing(candidates, "aside a:has-text(\\"" + action + "\\")");
+                        addIfMissing(candidates, "a[href*=\\"" + slug + "\\" i]");
+                        addIfMissing(candidates, "a[href*=\\"" + slug.replace("-", "_") + "\\" i]");
+                        addIfMissing(candidates, "[data-test*=\\"" + slug + "\\" i]");
+                        addIfMissing(candidates, "[data-testid*=\\"" + slug + "\\" i]");
+                        addIfMissing(candidates, "[aria-label*=\\"" + escaped + "\\" i]");
+                        addIfMissing(candidates, "[title*=\\"" + escaped + "\\" i]");
+
+                        if (!compact.isBlank() && !compact.equals(slug)) {
+                            addIfMissing(candidates, "a[href*=\\"" + compact + "\\" i]");
+                            addIfMissing(candidates, "[data-test*=\\"" + compact + "\\" i]");
+                            addIfMissing(candidates, "[data-testid*=\\"" + compact + "\\" i]");
+                        }
+
+                        return candidates;
+                    }
+
+                    private void addIfMissing(List<String> values, String value) {
+
+                        if (value == null || value.isBlank() || values.contains(value)) {
+                            return;
+                        }
+
+                        values.add(value);
                     }
 
                     private List<String> semanticSelectors(String target) {

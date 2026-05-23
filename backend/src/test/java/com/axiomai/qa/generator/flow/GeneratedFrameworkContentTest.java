@@ -145,6 +145,18 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                page.contains("handleGenericNavigationClick")
+        );
+
+        assertTrue(
+                page.contains("dynamicNavigationSelectors")
+        );
+
+        assertTrue(
+                page.contains("navigateToLikelyRoute")
+        );
+
+        assertTrue(
                 page.contains("page.goBack()")
         );
 

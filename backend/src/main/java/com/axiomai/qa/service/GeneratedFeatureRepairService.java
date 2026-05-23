@@ -228,6 +228,31 @@ public class GeneratedFeatureRepairService {
                         canonicalBillPayClick;
             }
 
+            if (
+                    billPayClick.matches()
+                            &&
+                            scenarioContains(
+                                    lines,
+                                    i,
+                                    "login button"
+                            )
+                            &&
+                            !scenarioContains(
+                                    lines,
+                                    i,
+                                    "Accounts Overview"
+                            )
+            ) {
+
+                repaired.append(billPayClick.group(1))
+                        .append("Then user should see \"Accounts Overview\"")
+                        .append(System.lineSeparator());
+
+                changes.add(
+                        "Added an Accounts Overview checkpoint before Bill Pay navigation."
+                );
+            }
+
             repaired.append(line)
                     .append(System.lineSeparator());
 
