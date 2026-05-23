@@ -258,6 +258,15 @@ public class AICommandOrchestrator {
         AIResponse latestResponse =
                 null;
 
+        AutomationSession workspace =
+                automationWorkspaceService
+                        .getSession(userId);
+
+        String workspaceUrl =
+                workspace == null
+                        ? null
+                        : workspace.getWebsiteUrl();
+
         for (
                 int i = 0;
                 i < commands.size();
@@ -279,6 +288,15 @@ public class AICommandOrchestrator {
                 subCommand.setVariables(
                         command.getVariables()
                 );
+            }
+
+            if (
+                    isBlank(subCommand.getUrl())
+                            &&
+                            !isBlank(workspaceUrl)
+            ) {
+
+                subCommand.setUrl(workspaceUrl);
             }
 
             latestResponse =
@@ -1504,7 +1522,7 @@ public class AICommandOrchestrator {
                     .success(true)
 
                     .message(
-                            "Generated test execution has been queued for the worker."
+                            "Generated Cucumber test execution has been queued for the worker."
                     )
 
                     .type("generated-test-execution-queued")
@@ -1707,17 +1725,22 @@ public class AICommandOrchestrator {
             return workspace.getDetectedFlows();
         }
 
+        String targetUrl =
+                firstNonBlank(
+                        command.getUrl(),
+                        workspace.getWebsiteUrl(),
+                        ""
+                );
+
         if (
-                command.getUrl() == null
-                        ||
-                        command.getUrl().isBlank()
+                isBlank(targetUrl)
         ) {
 
             return List.of();
         }
 
         return crawlAndStoreFlows(
-                command.getUrl(),
+                targetUrl,
                 userId
         );
     }

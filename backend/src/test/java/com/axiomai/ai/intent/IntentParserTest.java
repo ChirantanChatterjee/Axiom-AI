@@ -252,6 +252,56 @@ class IntentParserTest {
     }
 
     @Test
+    void detectsGeneratedTestExecutionForRegisterFeaturePhraseBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "can you run tests for register a user?"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "(@register or @registration)",
+                command.getTarget()
+        );
+    }
+
+    @Test
+    void detectsGeneratedTestExecutionForGenericFeaturePhrase() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "run tests for account transfer"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "@account_transfer",
+                command.getTarget()
+        );
+    }
+
+    @Test
     void detectsBillPayGeneratedTestExecution() {
 
         IntentParser parser =

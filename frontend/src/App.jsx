@@ -1472,7 +1472,12 @@ function StructuredMessage({
             className="report-link"
           >
             <FiExternalLink />
-            Open Execution Report
+            {
+              msg.type === "generated-test-execution" ||
+              msg.type === "generated-test-execution-queued"
+                ? "Open Cucumber Report"
+                : "Open Execution Report"
+            }
           </a>
         )
       }
@@ -1951,7 +1956,7 @@ function App() {
           );
         }
 
-      } catch (error) {
+      } catch {
         if (
           attempts < 5
         ) {

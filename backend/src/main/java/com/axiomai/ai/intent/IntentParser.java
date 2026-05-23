@@ -839,32 +839,45 @@ public class IntentParser {
         String lower =
                 message.toLowerCase();
 
-        return (
+        boolean hasRunIntent =
+                (
                 lower.contains("run")
                         ||
                         lower.contains("execute")
                         ||
                         lower.contains("start")
-        )
-                &&
+                );
+
+        boolean referencesTests =
                 (
                         lower.contains("test")
                                 ||
                                 lower.contains("generated")
                                 ||
                                 lower.contains("@")
-                )
-                &&
+                );
+
+        boolean hasExplicitTarget =
                 (
                         lower.contains("tag")
                                 ||
-                                lower.contains("@")
+                        lower.contains("@")
                                 ||
                                 lower.contains("all")
                                 ||
-                                lower.contains("bill pay")
+                        lower.contains("bill pay")
                                 ||
                                 lower.contains("billpay")
+                );
+
+        return hasRunIntent
+                &&
+                referencesTests
+                &&
+                (
+                        hasExplicitTarget
+                                ||
+                                containsGeneratedTestFeatureTarget(message)
                 );
     }
 
@@ -874,6 +887,19 @@ public class IntentParser {
 
         String lower =
                 message.toLowerCase();
+
+        String explicitTagExpression =
+                extractExplicitTagExpression(
+                        message,
+                        lower
+                );
+
+        if (
+                explicitTagExpression != null
+        ) {
+
+            return explicitTagExpression;
+        }
 
         if (
                 lower.contains("bill pay")
@@ -885,9 +911,25 @@ public class IntentParser {
         }
 
         if (
+                lower.contains("register")
+                        ||
+                        lower.contains("registration")
+                        ||
+                        lower.contains("signup")
+                        ||
+                        lower.contains("sign up")
+        ) {
+
+            return featureTagExpression(
+                    "(@register or @registration)",
+                    lower
+            );
+        }
+
+        if (
                 lower.contains("all")
                         &&
-                        lower.contains("generated")
+                lower.contains("generated")
                         &&
                         lower.contains("test")
         ) {
@@ -927,14 +969,28 @@ public class IntentParser {
                     extractPlainTagName(message);
 
             if (
-                    tagName == null
+                    tagName != null
             ) {
 
-                return "ALL";
+                return "@"
+                        + tagName;
             }
 
-            return "@"
-                    + tagName;
+            String featureTagName =
+                    extractGeneratedTestFeatureTagName(message);
+
+            if (
+                    featureTagName != null
+            ) {
+
+                return featureTagExpression(
+                        "@"
+                                + featureTagName,
+                        lower
+                );
+            }
+
+            return "ALL";
         }
 
         String operator =
@@ -946,6 +1002,255 @@ public class IntentParser {
                 operator,
                 tags
         );
+    }
+
+    private String extractExplicitTagExpression(
+            String message,
+            String lower
+    ) {
+
+        Pattern pattern =
+                Pattern.compile(
+                        "@\\s*[A-Za-z0-9_\\-]+"
+                );
+
+        Matcher matcher =
+                pattern.matcher(message);
+
+        List<String> tags =
+                new ArrayList<>();
+
+        while (
+                matcher.find()
+        ) {
+
+            tags.add(
+                    matcher.group()
+                            .replaceAll(
+                                    "\\s+",
+                                    ""
+                            )
+            );
+        }
+
+        if (
+                !tags.isEmpty()
+        ) {
+
+            String operator =
+                    lower.contains(" or ")
+                            ? " or "
+                            : " and ";
+
+            return String.join(
+                    operator,
+                    tags
+            );
+        }
+
+        String tagName =
+                extractPlainTagName(message);
+
+        if (
+                tagName == null
+        ) {
+
+            return null;
+        }
+
+        return "@"
+                + tagName;
+    }
+
+    private boolean containsGeneratedTestFeatureTarget(
+            String message
+    ) {
+
+        if (
+                extractFeatureName(message) != null
+        ) {
+
+            return true;
+        }
+
+        String target =
+                extractGeneratedTestTargetPhrase(message);
+
+        return target != null
+                &&
+                !target.isBlank();
+    }
+
+    private String extractGeneratedTestFeatureTagName(
+            String message
+    ) {
+
+        String featureName =
+                extractFeatureName(message);
+
+        if (
+                featureName != null
+        ) {
+
+            return toTagName(featureName);
+        }
+
+        String target =
+                extractGeneratedTestTargetPhrase(message);
+
+        if (
+                target == null
+        ) {
+
+            return null;
+        }
+
+        return toTagName(target);
+    }
+
+    private String extractGeneratedTestTargetPhrase(
+            String message
+    ) {
+
+        List<Pattern> patterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)\\b(?:run|execute|start)\\s+(?:the\\s+)?(?:generated\\s+)?tests?\\s+(?:for|of|on)\\s+(.+)$"
+                        ),
+                        Pattern.compile(
+                                "(?i)\\b(?:run|execute|start)\\s+(?:the\\s+)?(.+?)\\s+(?:generated\\s+)?tests?\\b"
+                        )
+                );
+
+        for (
+                Pattern pattern
+                : patterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(message);
+
+            if (
+                    matcher.find()
+            ) {
+
+                String cleaned =
+                        cleanGeneratedTestTargetPhrase(
+                                matcher.group(1)
+                        );
+
+                if (
+                        !cleaned.isBlank()
+                ) {
+
+                    return cleaned;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private String cleanGeneratedTestTargetPhrase(
+            String value
+    ) {
+
+        if (
+                value == null
+        ) {
+
+            return "";
+        }
+
+        String cleaned =
+                cleanToken(value)
+                        .replaceAll(
+                                "(?i)\\b(?:with|using)\\s+(?:tag|tags|filter)\\b.*$",
+                                ""
+                        )
+                        .replaceAll(
+                                "(?i)\\b(?:now|please)$",
+                                ""
+                        )
+                        .replaceAll(
+                                "(?i)\\b(?:page|feature|flow|scenario|test|tests)$",
+                                ""
+                        )
+                        .replaceAll(
+                                "(?i)^a\\s+",
+                                ""
+                        )
+                        .trim();
+
+        if (
+                cleaned.equalsIgnoreCase("user")
+        ) {
+
+            return "";
+        }
+
+        return cleaned;
+    }
+
+    private String toTagName(
+            String value
+    ) {
+
+        if (
+                value == null
+        ) {
+
+            return null;
+        }
+
+        String tagName =
+                value.toLowerCase()
+                        .replaceAll(
+                                "\\b(?:a|an|the|user)\\b",
+                                " "
+                        )
+                        .replaceAll(
+                                "[^a-z0-9]+",
+                                "_"
+                        )
+                        .replaceAll(
+                                "^_+|_+$",
+                                ""
+                        );
+
+        return tagName.isBlank()
+                ? null
+                : tagName;
+    }
+
+    private String featureTagExpression(
+            String baseExpression,
+            String lower
+    ) {
+
+        List<String> coverageTags =
+                coverageTags(lower);
+
+        if (
+                coverageTags.isEmpty()
+        ) {
+
+            return baseExpression;
+        }
+
+        String coverageExpression =
+                coverageTags.size() == 1
+                        ? coverageTags.get(0)
+                        : "("
+                        + String.join(
+                        " or ",
+                        coverageTags
+                )
+                        + ")";
+
+        return baseExpression
+                + " and "
+                + coverageExpression;
     }
 
     private String extractPlainTagName(
@@ -974,8 +1279,15 @@ public class IntentParser {
             String lower
     ) {
 
-        String baseExpression =
-                "(@bill_pay or @billpay)";
+        return featureTagExpression(
+                "(@bill_pay or @billpay)",
+                lower
+        );
+    }
+
+    private List<String> coverageTags(
+            String lower
+    ) {
 
         List<String> coverageTags =
                 new ArrayList<>();
@@ -1025,26 +1337,7 @@ public class IntentParser {
             coverageTags.add("@boundary");
         }
 
-        if (
-                coverageTags.isEmpty()
-        ) {
-
-            return baseExpression;
-        }
-
-        String coverageExpression =
-                coverageTags.size() == 1
-                        ? coverageTags.get(0)
-                        : "("
-                        + String.join(
-                        " or ",
-                        coverageTags
-                )
-                        + ")";
-
-        return baseExpression
-                + " and "
-                + coverageExpression;
+        return coverageTags;
     }
 
     private boolean containsGeneratedTestRepairRequest(

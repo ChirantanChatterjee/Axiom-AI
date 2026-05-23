@@ -132,6 +132,11 @@ public class GeneratedTestExecutionService {
 
         normalizeFeatureFiles(frameworkRoot);
 
+        requireMatchingScenarios(
+                frameworkRoot,
+                normalizedExpression
+        );
+
         List<String> missingVariables =
                 missingVariables(
                         frameworkRoot,
@@ -1324,6 +1329,216 @@ public class GeneratedTestExecutionService {
         return required;
     }
 
+    private void requireMatchingScenarios(
+            Path frameworkRoot,
+            String tagExpression
+    ) {
+
+        if (
+                hasMatchingScenario(
+                        frameworkRoot,
+                        tagExpression
+                )
+        ) {
+
+            return;
+        }
+
+        throw new RuntimeException(
+                noMatchingGeneratedTestsMessage(tagExpression)
+        );
+    }
+
+    private boolean hasMatchingScenario(
+            Path frameworkRoot,
+            String tagExpression
+    ) {
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            List<Path> featureFiles =
+                    paths.filter(Files::isRegularFile)
+                            .filter(path -> path.getFileName()
+                                    .toString()
+                                    .endsWith(".feature"))
+                            .toList();
+
+            for (
+                    Path featureFile
+                    : featureFiles
+            ) {
+
+                if (
+                        hasMatchingScenarioInFile(
+                                featureFile,
+                                tagExpression
+                        )
+                ) {
+
+                    return true;
+                }
+            }
+
+        } catch (IOException ignored) {
+        }
+
+        return false;
+    }
+
+    private boolean hasMatchingScenarioInFile(
+            Path featureFile,
+            String tagExpression
+    ) throws IOException {
+
+        List<String> lines =
+                Files.readAllLines(featureFile);
+
+        List<String> featureTags =
+                new ArrayList<>();
+
+        List<String> pendingTags =
+                new ArrayList<>();
+
+        for (
+                String line
+                : lines
+        ) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTags.addAll(
+                        List.of(
+                                trimmed.split("\\s+")
+                        )
+                );
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Feature:")
+            ) {
+
+                featureTags.addAll(pendingTags);
+                pendingTags.clear();
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Scenario:")
+                            ||
+                            trimmed.startsWith("Scenario Outline:")
+            ) {
+
+                List<String> scenarioTags =
+                        new ArrayList<>(featureTags);
+
+                scenarioTags.addAll(pendingTags);
+
+                if (
+                        scenarioMatchesTagExpression(
+                                scenarioTags,
+                                tagExpression
+                        )
+                ) {
+
+                    return true;
+                }
+
+                pendingTags.clear();
+            }
+        }
+
+        return false;
+    }
+
+    private boolean scenarioMatchesTagExpression(
+            List<String> scenarioTags,
+            String tagExpression
+    ) {
+
+        List<String> tagFilters =
+                extractTags(tagExpression);
+
+        if (
+                tagFilters.isEmpty()
+        ) {
+
+            return true;
+        }
+
+        List<String> normalizedScenarioTags =
+                scenarioTags.stream()
+                        .map(String::toLowerCase)
+                        .toList();
+
+        String[] andClauses =
+                tagExpression.split(
+                        "(?i)\\s+and\\s+"
+                );
+
+        for (
+                String clause
+                : andClauses
+        ) {
+
+            List<String> clauseTags =
+                    extractTags(clause);
+
+            if (
+                    clauseTags.isEmpty()
+            ) {
+
+                continue;
+            }
+
+            boolean clauseMatched =
+                    clauseTags.stream()
+                            .map(String::toLowerCase)
+                            .anyMatch(normalizedScenarioTags::contains);
+
+            if (
+                    !clauseMatched
+            ) {
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private String noMatchingGeneratedTestsMessage(
+            String tagExpression
+    ) {
+
+        if (
+                tagExpression == null
+                        ||
+                        tagExpression.isBlank()
+        ) {
+
+            return "No generated Cucumber scenarios were found in this framework. Generate tests first, then run them again.";
+        }
+
+        return "No generated Cucumber scenarios match tag filter `"
+                + tagExpression
+                + "`. Ask for the generated test tags, then run one of the listed tags.";
+    }
+
     private List<String> extractTags(
             String tagExpression
     ) {
@@ -2276,6 +2491,11 @@ public class GeneratedTestExecutionService {
                 normalizeTagExpression(tagExpression);
 
         normalizeFeatureFiles(frameworkRoot);
+
+        requireMatchingScenarios(
+                frameworkRoot,
+                normalizedExpression
+        );
 
         return missingVariables(
                 frameworkRoot,
