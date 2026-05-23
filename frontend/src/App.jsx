@@ -834,6 +834,7 @@ function HelpView({
           <code>The test failed because the assertion sentence actually was "Please enter a valid number.", can you fix it?</code>
           <code>The actual sentence is --&gt; Please enter a valid number.</code>
           <code>Replace assertion "account mismatch error" with "Please enter a valid number."</code>
+          <code>In scenario "Bill pay with mismatched verify account number", the actual sentence is "Please enter a valid number."</code>
           <code>The expected text should be "Bill Payment Complete".</code>
           <code>The page says "Bill Payment Complete", not "amount validation error". Please update the generated test assertion.</code>
           <code>For the failed scenario, change the assertion from "required field error" to "Payee name is required".</code>

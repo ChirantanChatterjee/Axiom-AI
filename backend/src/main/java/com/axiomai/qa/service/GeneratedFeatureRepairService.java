@@ -122,6 +122,9 @@ public class GeneratedFeatureRepairService {
                 .failureSummary(
                         failureSummary(latestOutput)
                 )
+                .repairGuidance(
+                        assertionMismatchRepairGuidance(latestOutput)
+                )
                 .build();
     }
 
@@ -653,17 +656,42 @@ public class GeneratedFeatureRepairService {
             );
         }
 
-        return inferredExpectedAssertionText(
-                actualText.get(),
-                missingTexts
-        )
-                .map(expected -> List.of(
-                        new AssertionReplacement(
-                                expected,
-                                actualText.get()
-                        )
-                ))
-                .orElseGet(List::of);
+        Optional<String> scenarioText =
+                scenarioAssertionText(userInstruction);
+
+        if (
+                scenarioText.isEmpty()
+        ) {
+
+            return List.of();
+        }
+
+        List<MissingAssertionFailure> matchingFailures =
+                missingExpectedTextFailures(latestOutput)
+                        .stream()
+                        .filter(failure -> failure.scenario()
+                                .map(scenario -> scenario.toLowerCase()
+                                        .contains(
+                                                scenarioText.get()
+                                                        .toLowerCase()
+                                        ))
+                                .orElse(false))
+                        .toList();
+
+        if (
+                matchingFailures.size() != 1
+        ) {
+
+            return List.of();
+        }
+
+        return List.of(
+                new AssertionReplacement(
+                        matchingFailures.get(0)
+                                .expectedText(),
+                        actualText.get()
+                )
+        );
     }
 
     private List<AssertionReplacement> explicitAssertionReplacements(
@@ -843,170 +871,6 @@ public class GeneratedFeatureRepairService {
         return normalized;
     }
 
-    private Optional<String> inferredExpectedAssertionText(
-            String actualText,
-            List<String> missingTexts
-    ) {
-
-        if (
-                missingTexts == null
-                        ||
-                        missingTexts.isEmpty()
-        ) {
-
-            return Optional.empty();
-        }
-
-        if (
-                missingTexts.size() == 1
-        ) {
-
-            return Optional.of(
-                    missingTexts.get(0)
-            );
-        }
-
-        String lowerActual =
-                actualText == null
-                        ? ""
-                        : actualText.toLowerCase();
-
-        if (
-                lowerActual.contains("valid number")
-                        ||
-                        lowerActual.contains("number")
-        ) {
-
-            Optional<String> accountAssertion =
-                    firstMissingTextContaining(
-                            missingTexts,
-                            "account",
-                            "mismatch",
-                            "verify"
-                    );
-
-            if (
-                    accountAssertion.isPresent()
-            ) {
-
-                return accountAssertion;
-            }
-
-            Optional<String> amountAssertion =
-                    firstMissingTextContaining(
-                            missingTexts,
-                            "amount"
-                    );
-
-            if (
-                    amountAssertion.isPresent()
-            ) {
-
-                return amountAssertion;
-            }
-        }
-
-        if (
-                lowerActual.contains("bill payment complete")
-                        ||
-                        lowerActual.contains("successful")
-        ) {
-
-            Optional<String> amountAssertion =
-                    firstMissingTextContaining(
-                            missingTexts,
-                            "amount",
-                            "validation"
-                    );
-
-            if (
-                    amountAssertion.isPresent()
-            ) {
-
-                return amountAssertion;
-            }
-        }
-
-        if (
-                lowerActual.contains("required")
-        ) {
-
-            return firstMissingTextContaining(
-                    missingTexts,
-                    "required"
-            );
-        }
-
-        if (
-                lowerActual.contains("email")
-        ) {
-
-            return firstMissingTextContaining(
-                    missingTexts,
-                    "email"
-            );
-        }
-
-        if (
-                lowerActual.contains("password")
-        ) {
-
-            return firstMissingTextContaining(
-                    missingTexts,
-                    "password"
-            );
-        }
-
-        if (
-                lowerActual.contains("username")
-                        ||
-                        lowerActual.contains("user name")
-                        ||
-                        lowerActual.contains("user")
-        ) {
-
-            return firstMissingTextContaining(
-                    missingTexts,
-                    "username",
-                    "user"
-            );
-        }
-
-        return Optional.empty();
-    }
-
-    private Optional<String> firstMissingTextContaining(
-            List<String> missingTexts,
-            String... tokens
-    ) {
-
-        for (
-                String missingText
-                : missingTexts
-        ) {
-
-            String lowerMissingText =
-                    missingText.toLowerCase();
-
-            for (
-                    String token
-                    : tokens
-            ) {
-
-                if (
-                        lowerMissingText.contains(token)
-                ) {
-
-                    return Optional.of(
-                            missingText
-                    );
-                }
-            }
-        }
-
-        return Optional.empty();
-    }
-
     private Optional<String> expectedAssertionText(
             String userInstruction
     ) {
@@ -1037,6 +901,43 @@ public class GeneratedFeatureRepairService {
                         matcher.group(1)
                                 .trim()
                 );
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<String> scenarioAssertionText(
+            String userInstruction
+    ) {
+
+        List<Pattern> patterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)(?:scenario|test)\\s+\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:scenario|test)\\s+([^\"\\r\\n,]+)"
+                        )
+                );
+
+        for (
+                Pattern pattern
+                : patterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(userInstruction);
+
+            if (
+                    matcher.find()
+            ) {
+
+                return Optional.of(
+                                matcher.group(1)
+                                        .trim()
+                        )
+                        .filter(scenario -> !scenario.isBlank());
             }
         }
 
@@ -1500,6 +1401,89 @@ public class GeneratedFeatureRepairService {
             String output
     ) {
 
+        return missingExpectedTextFailures(output)
+                .stream()
+                .map(MissingAssertionFailure::expectedText)
+                .distinct()
+                .toList();
+    }
+
+    String assertionMismatchRepairGuidance(
+            String output
+    ) {
+
+        List<MissingAssertionFailure> failures =
+                missingExpectedTextFailures(output);
+
+        if (
+                failures.isEmpty()
+        ) {
+
+            return "";
+        }
+
+        if (
+                failures.size() == 1
+        ) {
+
+            return "\n\nThis looks like an assertion-text mismatch, not a locator or URL problem. Tell me the exact UI sentence for this failed assertion, for example: `replace assertion \""
+                    + failures.get(0)
+                    .expectedText()
+                    + "\" with \"Please enter a valid number.\"`.";
+        }
+
+        StringBuilder guidance =
+                new StringBuilder(
+                        "\n\nThis looks like multiple assertion-text mismatches, not a locator or URL problem. I did not change the feature file because one actual sentence may not apply to every failed assertion.\n\nFailed assertions:"
+                );
+
+        for (
+                MissingAssertionFailure failure
+                : failures
+        ) {
+
+            guidance.append("\n- ");
+
+            failure.scenario()
+                    .ifPresent(scenario -> guidance.append("\"")
+                            .append(scenario)
+                            .append("\" expected "));
+
+            guidance.append("\"")
+                    .append(failure.expectedText())
+                    .append("\"");
+        }
+
+        guidance.append(
+                "\n\nTell me the specific mapping, for example: `replace assertion \""
+        );
+
+        guidance.append(
+                failures.get(0)
+                        .expectedText()
+        );
+
+        guidance.append(
+                "\" with \"Please enter a valid number.\"` or `In scenario \""
+        );
+
+        guidance.append(
+                failures.get(0)
+                        .scenario()
+                        .orElse("scenario name")
+        );
+
+        guidance.append(
+                "\", the actual sentence is \"Please enter a valid number.\"`."
+        );
+
+        return guidance.toString();
+    }
+
+    private List<MissingAssertionFailure> missingExpectedTextFailures(
+            String output
+    ) {
+
         if (
                 output == null
                         ||
@@ -1509,33 +1493,100 @@ public class GeneratedFeatureRepairService {
             return List.of();
         }
 
-        Matcher expectedText =
+        Pattern failureHeader =
                 Pattern.compile(
-                                "Expected page to contain text: ([^\\r\\n<]+)",
-                                Pattern.CASE_INSENSITIVE
-                        )
-                        .matcher(output);
+                        "^\\s*(.+?)\\s*<<<\\s*FAILURE!.*$",
+                        Pattern.CASE_INSENSITIVE
+                );
 
-        List<String> missingTexts =
+        Pattern expectedText =
+                Pattern.compile(
+                        "Expected page to contain text: ([^\\r\\n<]+)",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        List<MissingAssertionFailure> failures =
                 new ArrayList<>();
 
-        while (
-                expectedText.find()
+        String currentScenario =
+                "";
+
+        for (
+                String line
+                : output.lines()
+                .toList()
         ) {
 
-            String missingText =
-                    expectedText.group(1)
-                            .trim();
+            Matcher headerMatcher =
+                    failureHeader.matcher(line);
 
             if (
-                    !missingTexts.contains(missingText)
+                    headerMatcher.find()
             ) {
 
-                missingTexts.add(missingText);
+                currentScenario =
+                        cleanScenarioName(
+                                headerMatcher.group(1)
+                        );
+            }
+
+            Matcher expectedTextMatcher =
+                    expectedText.matcher(line);
+
+            if (
+                    expectedTextMatcher.find()
+            ) {
+
+                MissingAssertionFailure failure =
+                        new MissingAssertionFailure(
+                                currentScenario.isBlank()
+                                        ? Optional.empty()
+                                        : Optional.of(currentScenario),
+                                expectedTextMatcher.group(1)
+                                        .trim()
+                        );
+
+                if (
+                        !failures.contains(failure)
+                ) {
+
+                    failures.add(failure);
+                }
             }
         }
 
-        return missingTexts;
+        return failures;
+    }
+
+    private String cleanScenarioName(
+            String rawScenario
+    ) {
+
+        if (
+                rawScenario == null
+        ) {
+
+            return "";
+        }
+
+        String scenario =
+                rawScenario.trim();
+
+        int dotIndex =
+                scenario.lastIndexOf('.');
+
+        if (
+                dotIndex >= 0
+                        &&
+                        dotIndex < scenario.length() - 1
+        ) {
+
+            scenario =
+                    scenario.substring(dotIndex + 1)
+                            .trim();
+        }
+
+        return scenario;
     }
 
     private boolean looksLikeAuthenticationFailure(
@@ -1639,6 +1690,12 @@ public class GeneratedFeatureRepairService {
     ) {
     }
 
+    private record MissingAssertionFailure(
+            Optional<String> scenario,
+            String expectedText
+    ) {
+    }
+
     @Getter
     @Builder
     public static class RepairResult {
@@ -1650,5 +1707,7 @@ public class GeneratedFeatureRepairService {
         private List<String> changes;
 
         private String failureSummary;
+
+        private String repairGuidance;
     }
 }

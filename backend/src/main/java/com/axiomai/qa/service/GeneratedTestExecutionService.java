@@ -1060,7 +1060,12 @@ public class GeneratedTestExecutionService {
             ) {
 
                 message.append(
-                        "\n\nThis looks like an assertion-text mismatch, not a locator or URL problem. I did not change the feature file because I could not infer the correct UI sentence from the execution output. Tell me the actual sentence, for example: `the assertion should be \"Please enter a valid number.\"`, and I will update the generated test."
+                        repair.getRepairGuidance() == null
+                                ||
+                                repair.getRepairGuidance()
+                                        .isBlank()
+                                ? "\n\nThis looks like an assertion-text mismatch, not a locator or URL problem. I did not change the feature file because I could not infer a safe assertion replacement from the execution output. Tell me the specific mapping, for example: `replace assertion \"old expected text\" with \"actual UI text\"`."
+                                : repair.getRepairGuidance()
                 );
 
                 return message.toString();

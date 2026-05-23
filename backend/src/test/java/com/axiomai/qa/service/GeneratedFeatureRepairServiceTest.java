@@ -244,7 +244,7 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
-    void updatesLikelyAccountAssertionWhenActualTextMentionsValidNumber() {
+    void doesNotGuessAssertionReplacementWhenMultipleFailuresShareOneActualText() {
 
         String feature =
                 """
@@ -270,6 +270,51 @@ class GeneratedFeatureRepairServiceTest {
                                 java.lang.AssertionError: Expected page to contain text: amount validation error
                                 """,
                                 "The test failed because the assertion sentence actually was \"Please enter a valid number.\", can you fix it?"
+                        );
+
+        assertEquals(
+                List.of(),
+                repair.changes()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"account mismatch error\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"amount validation error\"")
+        );
+    }
+
+    @Test
+    void updatesScenarioSpecificAssertionWhenMultipleFailuresExist() {
+
+        String feature =
+                """
+                        Feature: bill pay
+
+                        @bill_pay @generated
+                        Scenario: Bill pay with mismatched verify account number
+                          Then user should see "account mismatch error"
+
+                        @bill_pay @generated
+                        Scenario: Bill pay with negative amount
+                          Then user should see "amount validation error"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                """
+                                bill pay.Bill pay with mismatched verify account number <<< FAILURE!
+                                java.lang.AssertionError: Expected page to contain text: account mismatch error
+                                bill pay.Bill pay with negative amount <<< FAILURE!
+                                java.lang.AssertionError: Expected page to contain text: amount validation error
+                                """,
+                                "In scenario \"Bill pay with mismatched verify account number\", the actual sentence is \"Please enter a valid number.\""
                         );
 
         assertTrue(
@@ -353,6 +398,33 @@ class GeneratedFeatureRepairServiceTest {
 
         assertTrue(
                 summary.contains("Failures: 2")
+        );
+    }
+
+    @Test
+    void providesSpecificGuidanceForMultipleAssertionFailures() {
+
+        String guidance =
+                new GeneratedFeatureRepairService()
+                        .assertionMismatchRepairGuidance(
+                                """
+                                bill pay.Bill pay with mismatched verify account number <<< FAILURE!
+                                java.lang.AssertionError: Expected page to contain text: account mismatch error
+                                bill pay.Bill pay with negative amount <<< FAILURE!
+                                java.lang.AssertionError: Expected page to contain text: amount validation error
+                                """
+                        );
+
+        assertTrue(
+                guidance.contains("\"Bill pay with mismatched verify account number\" expected \"account mismatch error\"")
+        );
+
+        assertTrue(
+                guidance.contains("\"Bill pay with negative amount\" expected \"amount validation error\"")
+        );
+
+        assertTrue(
+                guidance.contains("replace assertion \"account mismatch error\" with")
         );
     }
 
