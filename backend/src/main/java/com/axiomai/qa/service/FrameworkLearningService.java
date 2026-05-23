@@ -205,7 +205,8 @@ public class FrameworkLearningService {
                 Generation guidance:
                 - Recognize this failure signature when the user asks AIF to inspect the last failed generated test.
                 - Prefer dynamic assertion waits and app-observable success or validation text over brittle single-read assertions.
-                - For ParaBank bill pay, verify login, Bill Pay navigation, account confirmation, and post-submit page state before changing locators.
+                - For authenticated flows, distinguish runtime credential/app-state failures from locator failures before changing generated feature files.
+                - For multi-step form flows, verify navigation, duplicate/confirmation fields, and post-submit page state before changing locators.
                 - Keep generating negative and boundary scenarios, but express validation assertions as observable outcomes rather than guessed exact text.
                 """.formatted(
                         Instant.now(),

@@ -125,8 +125,22 @@ public class GeneratedFeatureRepairService {
             );
         }
 
+        FeatureRepair genericRepair =
+                repairMissingIntermediateAssertions(
+                        content,
+                        latestOutput
+                );
+
+        String repairedContent =
+                genericRepair.content();
+
+        List<String> allChanges =
+                new ArrayList<>(
+                        genericRepair.changes()
+                );
+
         String lower =
-                (content + "\n" + latestOutput)
+                (repairedContent + "\n" + latestOutput)
                         .toLowerCase();
 
         if (
@@ -157,14 +171,26 @@ public class GeneratedFeatureRepairService {
                         )
         ) {
 
-            return repairParaBankBillPay(
-                    content
+            FeatureRepair siteRepair =
+                    repairParaBankBillPay(
+                            repairedContent
+                    );
+
+            repairedContent =
+                    siteRepair.content();
+
+            allChanges.addAll(
+                    siteRepair.changes()
             );
         }
 
         return new FeatureRepair(
-                content,
-                List.of()
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : allChanges.stream()
+                        .distinct()
+                        .toList()
         );
     }
 
@@ -228,31 +254,6 @@ public class GeneratedFeatureRepairService {
                         canonicalBillPayClick;
             }
 
-            if (
-                    billPayClick.matches()
-                            &&
-                            scenarioContains(
-                                    lines,
-                                    i,
-                                    "login button"
-                            )
-                            &&
-                            !scenarioContains(
-                                    lines,
-                                    i,
-                                    "Accounts Overview"
-                            )
-            ) {
-
-                repaired.append(billPayClick.group(1))
-                        .append("Then user should see \"Accounts Overview\"")
-                        .append(System.lineSeparator());
-
-                changes.add(
-                        "Added an Accounts Overview checkpoint before Bill Pay navigation."
-                );
-            }
-
             repaired.append(line)
                     .append(System.lineSeparator());
 
@@ -281,18 +282,6 @@ public class GeneratedFeatureRepairService {
                     repaired.append("  And user clicks \"login button\"")
                             .append(System.lineSeparator());
 
-                    if (
-                            !scenarioContains(
-                                    lines,
-                                    i,
-                                    "Accounts Overview"
-                            )
-                    ) {
-
-                        repaired.append("  Then user should see \"Accounts Overview\"")
-                                .append(System.lineSeparator());
-                    }
-
                     changes.add(
                             "Inserted ParaBank login before Bill Pay navigation."
                     );
@@ -312,25 +301,6 @@ public class GeneratedFeatureRepairService {
                             "Inserted ParaBank Bill Pay navigation before bill-pay form steps."
                     );
                 }
-            }
-
-            if (
-                    billPayClick.matches()
-                            &&
-                            !scenarioContains(
-                                    lines,
-                                    i,
-                                    "Bill Payment Service"
-                            )
-            ) {
-
-                repaired.append(billPayClick.group(1))
-                        .append("Then user should see \"Bill Payment Service\"")
-                        .append(System.lineSeparator());
-
-                changes.add(
-                        "Added a Bill Payment Service assertion after Bill Pay navigation."
-                );
             }
 
             Matcher accountStep =
@@ -381,6 +351,136 @@ public class GeneratedFeatureRepairService {
                 content.equals(repairedContent)
                         ? List.of()
                         : changes
+        );
+    }
+
+    private FeatureRepair repairMissingIntermediateAssertions(
+            String content,
+            String latestOutput
+    ) {
+
+        List<String> missingTexts =
+                missingExpectedTexts(latestOutput);
+
+        if (
+                missingTexts.isEmpty()
+        ) {
+
+            return new FeatureRepair(
+                    content,
+                    List.of()
+            );
+        }
+
+        List<String> lines =
+                content.lines()
+                        .toList();
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        for (
+                int i = 0;
+                i < lines.size();
+                i++
+        ) {
+
+            String line =
+                    lines.get(i);
+
+            Matcher assertion =
+                    Pattern.compile(
+                                    "^(\\s*)(Then|And) user should see \"([^\"]+)\"\\s*$",
+                                    Pattern.CASE_INSENSITIVE
+                            )
+                            .matcher(line);
+
+            if (
+                    assertion.matches()
+                            &&
+                            missingTexts.stream()
+                                    .anyMatch(
+                                            missingText -> missingText.equalsIgnoreCase(
+                                                    assertion.group(3)
+                                            )
+                                    )
+                            &&
+                            hasLaterActionStep(
+                                    lines,
+                                    i
+                            )
+            ) {
+
+                changes.add(
+                        "Removed a failing intermediate assertion that was blocking later actions: "
+                                + assertion.group(3)
+                );
+
+                continue;
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes
+        );
+    }
+
+    private boolean hasLaterActionStep(
+            List<String> lines,
+            int index
+    ) {
+
+        for (
+                int i = index + 1;
+                i < lines.size();
+                i++
+        ) {
+
+            String trimmed =
+                    lines.get(i)
+                            .trim();
+
+            if (
+                    trimmed.startsWith("Scenario:")
+                            ||
+                            trimmed.startsWith("Scenario Outline:")
+            ) {
+
+                return false;
+            }
+
+            if (
+                    isActionStep(trimmed)
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isActionStep(
+            String trimmedLine
+    ) {
+
+        String lower =
+                trimmedLine.toLowerCase();
+
+        return lower.matches(
+                "^(when|and) user (clicks|enters|selects|chooses|sets|types|uploads|launches|navigates|opens|submits) .+"
         );
     }
 
@@ -726,16 +826,10 @@ public class GeneratedFeatureRepairService {
                 output.toLowerCase();
 
         if (
-                lowerOutput.contains(
-                        "the username and password could not be verified"
-                )
-                        ||
-                        lowerOutput.contains(
-                                "invalid username/password"
-                        )
+                looksLikeAuthenticationFailure(lowerOutput)
         ) {
 
-            return "The last generated test reached ParaBank, but login failed because the supplied username/password were rejected. This is a runtime test-data issue, not a feature-file or locator issue. Update the workspace credentials with valid ParaBank credentials, then rerun the bill-pay tag.";
+            return "The last generated test did not complete authentication. This is usually a runtime test-data or application-state issue, not a locator repair issue. Provide valid credentials or satisfy the login precondition, then rerun the same tag.";
         }
 
         if (
@@ -747,6 +841,49 @@ public class GeneratedFeatureRepairService {
         ) {
 
             return "The last generated test failed while starting the Playwright browser. This is a browser-runtime issue, not a feature-file issue. Refresh the generated support files so the run uses installed Chrome and skips Playwright browser downloads, then rerun the same tag.";
+        }
+
+        List<String> missingTexts =
+                missingExpectedTexts(output);
+
+        if (
+                !missingTexts.isEmpty()
+        ) {
+
+            return "The last generated test failed because the page did not show expected text: "
+                    + String.join(
+                    ", ",
+                    missingTexts
+            )
+                    + ".";
+        }
+
+        return output.lines()
+                .filter(line -> {
+                    String lower =
+                            line.toLowerCase();
+
+                    return lower.contains("failed")
+                            ||
+                            lower.contains("failure")
+                            ||
+                            lower.contains("error");
+                })
+                .findFirst()
+                .orElse("The last generated test output did not contain a recognized failure signature.");
+    }
+
+    private List<String> missingExpectedTexts(
+            String output
+    ) {
+
+        if (
+                output == null
+                        ||
+                        output.isBlank()
+        ) {
+
+            return List.of();
         }
 
         Matcher expectedText =
@@ -775,31 +912,63 @@ public class GeneratedFeatureRepairService {
             }
         }
 
+        return missingTexts;
+    }
+
+    private boolean looksLikeAuthenticationFailure(
+            String lowerOutput
+    ) {
+
         if (
-                !missingTexts.isEmpty()
+                lowerOutput == null
+                        ||
+                        lowerOutput.isBlank()
         ) {
 
-            return "The last generated test failed because the page did not show expected text: "
-                    + String.join(
-                    ", ",
-                    missingTexts
-            )
-                    + ".";
+            return false;
         }
 
-        return output.lines()
-                .filter(line -> {
-                    String lower =
-                            line.toLowerCase();
-
-                    return lower.contains("failed")
-                            ||
-                            lower.contains("failure")
-                            ||
-                            lower.contains("error");
-                })
-                .findFirst()
-                .orElse("The last generated test output did not contain a recognized failure signature.");
+        return lowerOutput.contains("authentication did not complete")
+                ||
+                lowerOutput.contains("authentication failed")
+                ||
+                lowerOutput.contains("login failed")
+                ||
+                lowerOutput.contains("sign in failed")
+                ||
+                lowerOutput.contains("signin failed")
+                ||
+                lowerOutput.contains("invalid username")
+                ||
+                lowerOutput.contains("invalid password")
+                ||
+                lowerOutput.contains("invalid username/password")
+                ||
+                lowerOutput.contains("incorrect username")
+                ||
+                lowerOutput.contains("incorrect password")
+                ||
+                lowerOutput.contains("bad credentials")
+                ||
+                lowerOutput.contains("invalid credentials")
+                ||
+                lowerOutput.contains("could not be verified")
+                ||
+                lowerOutput.contains("user not found")
+                ||
+                lowerOutput.contains("account locked")
+                ||
+                (
+                        lowerOutput.contains("unauthorized")
+                                &&
+                                (
+                                        lowerOutput.contains("login")
+                                                ||
+                                                lowerOutput.contains("password")
+                                                ||
+                                                lowerOutput.contains("credentials")
+                                )
+                );
     }
 
     private long lastModified(

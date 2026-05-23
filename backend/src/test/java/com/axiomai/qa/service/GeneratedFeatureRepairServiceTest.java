@@ -2,6 +2,8 @@ package com.axiomai.qa.service;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -98,7 +100,7 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
-    void addsAccountsOverviewCheckpointBeforeBillPayWhenLoginAlreadyExists() {
+    void removesFailingIntermediateAssertionBeforeLaterActions() {
 
         String feature =
                 """
@@ -111,6 +113,8 @@ class GeneratedFeatureRepairServiceTest {
                           And user enters "${password}" into "password"
                           And user clicks "login button"
                           And user clicks "Bill Pay"
+                          Then user should see "Accounts Overview"
+                          And user enters "${payee}" into "payee name"
                           Then user should see "Bill Payment Service"
                         """;
 
@@ -118,16 +122,56 @@ class GeneratedFeatureRepairServiceTest {
                 new GeneratedFeatureRepairService()
                         .repairFeatureContent(
                                 feature,
-                                "java.lang.RuntimeException: Unable to resolve element: Bill Pay"
+                                "java.lang.AssertionError: Expected page to contain text: Accounts Overview"
                         );
 
         assertTrue(
                 repair.changed()
         );
 
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("Then user should see \"Accounts Overview\""))
+                        .count()
+        );
+
         assertTrue(
                 repair.content()
-                        .contains("Then user should see \"Accounts Overview\"\n  And user clicks \"Bill Pay\"")
+                        .contains("And user enters \"${payee}\" into \"payee name\"")
+        );
+    }
+
+    @Test
+    void keepsFailingFinalAssertionAsBusinessFailure() {
+
+        String feature =
+                """
+                        Feature: checkout
+
+                        @checkout @generated
+                        Scenario: Checkout
+                          Given user launches "https://example.test"
+                          When user clicks "checkout"
+                          Then user should see "Order Complete"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.AssertionError: Expected page to contain text: Order Complete"
+                        );
+
+        assertEquals(
+                List.of(),
+                repair.changes()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"Order Complete\"")
         );
     }
 
@@ -166,7 +210,7 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
-    void summarizesParaBankInvalidCredentialsAsRuntimeDataIssue() {
+    void summarizesAuthenticationFailuresAsRuntimeDataIssue() {
 
         String summary =
                 new GeneratedFeatureRepairService()
@@ -180,11 +224,11 @@ class GeneratedFeatureRepairServiceTest {
                         );
 
         assertTrue(
-                summary.contains("runtime test-data issue")
+                summary.contains("did not complete authentication")
         );
 
         assertTrue(
-                summary.contains("valid ParaBank credentials")
+                summary.contains("valid credentials")
         );
     }
 

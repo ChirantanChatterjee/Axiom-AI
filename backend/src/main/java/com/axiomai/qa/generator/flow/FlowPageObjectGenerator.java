@@ -1827,6 +1827,12 @@ public class FlowPageObjectGenerator {
                         if (
                                 lower.contains("search")
                                         ||
+                                        lower.contains("login")
+                                        ||
+                                        lower.contains("log in")
+                                        ||
+                                        lower.contains("sign in")
+                                        ||
                                         lower.contains("submit")
                                         ||
                                 lower.contains("continue")
@@ -1860,6 +1866,98 @@ public class FlowPageObjectGenerator {
 
                             page.waitForTimeout(1200);
                         }
+
+                        if (looksLikeAuthenticationClick(lower)) {
+                            failFastOnAuthenticationError();
+                        }
+                    }
+
+                    private boolean looksLikeAuthenticationClick(String lower) {
+
+                        if (lower == null || lower.isBlank()) {
+                            return false;
+                        }
+
+                        return lower.contains("login")
+                                ||
+                                lower.contains("log in")
+                                ||
+                                lower.contains("sign in")
+                                ||
+                                lower.contains("signin")
+                                ||
+                                (
+                                        lower.contains("submit")
+                                                &&
+                                                page.locator("input[type='password'], [type='password']").count() > 0
+                                );
+                    }
+
+                    private void failFastOnAuthenticationError() {
+
+                        String body = bodyText();
+
+                        if (!hasAuthenticationFailureText(body)) {
+                            return;
+                        }
+
+                        recordAssertionFailure(
+                                "authentication completed",
+                                body
+                        );
+
+                        throw new RuntimeException(
+                                "Authentication did not complete: the page showed a login or credential error."
+                        );
+                    }
+
+                    private boolean hasAuthenticationFailureText(String body) {
+
+                        if (body == null || body.isBlank()) {
+                            return false;
+                        }
+
+                        String lower = body.toLowerCase();
+
+                        return lower.contains("authentication failed")
+                                ||
+                                lower.contains("login failed")
+                                ||
+                                lower.contains("sign in failed")
+                                ||
+                                lower.contains("signin failed")
+                                ||
+                                lower.contains("invalid username")
+                                ||
+                                lower.contains("invalid password")
+                                ||
+                                lower.contains("invalid username/password")
+                                ||
+                                lower.contains("incorrect username")
+                                ||
+                                lower.contains("incorrect password")
+                                ||
+                                lower.contains("bad credentials")
+                                ||
+                                lower.contains("invalid credentials")
+                                ||
+                                lower.contains("could not be verified")
+                                ||
+                                lower.contains("user not found")
+                                ||
+                                lower.contains("account locked")
+                                ||
+                                (
+                                        lower.contains("unauthorized")
+                                                &&
+                                                (
+                                                        lower.contains("login")
+                                                                ||
+                                                                lower.contains("password")
+                                                                ||
+                                                                lower.contains("credentials")
+                                                )
+                                );
                     }
 
                     private boolean isEditable(Locator locator) {

@@ -157,6 +157,10 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                page.contains("failFastOnAuthenticationError")
+        );
+
+        assertTrue(
                 page.contains("page.goBack()")
         );
 
