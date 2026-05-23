@@ -182,7 +182,10 @@ public class AICommandOrchestrator {
                         );
 
                 case "REPAIR_GENERATED_TESTS" ->
-                        repairGeneratedTests(userId);
+                        repairGeneratedTests(
+                                command,
+                                userId
+                        );
 
                 case "SHOW_REPORT" ->
                         showReport(userId);
@@ -1601,6 +1604,7 @@ public class AICommandOrchestrator {
     }
 
     private AIResponse repairGeneratedTests(
+            AICommand command,
             String userId
     ) {
 
@@ -1611,7 +1615,10 @@ public class AICommandOrchestrator {
         GeneratedTestExecutionService.GeneratedTestRepairResult result =
                 generatedTestExecutionService
                         .repairLatestFailure(
-                                workspace.getSessionId()
+                                workspace.getSessionId(),
+                                command == null
+                                        ? ""
+                                        : command.getMessage()
                         );
 
         return AIResponse.builder()

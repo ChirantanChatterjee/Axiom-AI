@@ -1347,49 +1347,125 @@ public class IntentParser {
         String lower =
                 message.toLowerCase();
 
-        return (
+        boolean assertionCorrection =
+                lower.contains("assertion")
+                        &&
+                        (
+                                lower.contains("actual")
+                                        ||
+                                        lower.contains("actually")
+                                        ||
+                                        lower.contains("should be")
+                                        ||
+                                        lower.contains("should say")
+                                        ||
+                                        lower.contains("replace")
+                                        ||
+                                        lower.contains("correct")
+                        );
+
+        if (
+                assertionCorrection
+        ) {
+
+            return true;
+        }
+
+        boolean failureSignal =
                 lower.contains("failed")
+                        ||
+                        lower.contains("fails")
+                        ||
+                        lower.contains("failing")
                         ||
                         lower.contains("failure")
                         ||
+                        lower.contains("failures")
+                        ||
                         lower.contains("error")
+                        ||
+                        lower.contains("broken")
                         ||
                         lower.contains("last test")
                         ||
                         lower.contains("look at it again")
                         ||
-                        lower.contains("check it again")
-        )
+                        lower.contains("check it again");
+
+        boolean repairSignal =
+                lower.contains("fix")
+                        ||
+                        lower.contains("repair")
+                        ||
+                        lower.contains("rectify")
+                        ||
+                        lower.contains("correct")
+                        ||
+                        lower.contains("update")
+                        ||
+                        lower.contains("look at")
+                        ||
+                        lower.contains("check");
+
+        boolean generatedTestContext =
+                lower.contains("last test")
+                        ||
+                        lower.contains("generated test")
+                        ||
+                        lower.contains("test")
+                        ||
+                        lower.contains("scenario")
+                        ||
+                        lower.contains("cucumber")
+                        ||
+                        lower.contains("report")
+                        ||
+                        lower.contains("test failed")
+                        ||
+                        lower.contains("failed test")
+                        ||
+                        lower.contains("failures")
+                        ||
+                        lower.contains("feature")
+                        ||
+                        lower.contains("generated")
+                        ||
+                        containsWholeWord(
+                                lower,
+                                "it"
+                        )
+                        ||
+                        containsWholeWord(
+                                lower,
+                                "this"
+                        )
+                        ||
+                        containsWholeWord(
+                                lower,
+                                "that"
+                        )
+                        ||
+                        lower.contains("look at it again")
+                        ||
+                        lower.contains("check it again");
+
+        return failureSignal
                 &&
-                (
-                        lower.contains("fix")
-                                ||
-                                lower.contains("repair")
-                                ||
-                                lower.contains("rectify")
-                                ||
-                                lower.contains("look at")
-                                ||
-                                lower.contains("check")
+                repairSignal
+                &&
+                generatedTestContext;
+    }
+
+    private boolean containsWholeWord(
+            String lower,
+            String word
+    ) {
+
+        return Pattern.compile(
+                        "\\b" + Pattern.quote(word) + "\\b"
                 )
-                &&
-                (
-                        lower.contains("last test")
-                                ||
-                                lower.contains("generated test")
-                                ||
-                                lower.contains("test failed")
-                                ||
-                                lower.contains("failed test")
-                                ||
-                                lower.contains("feature")
-                                ||
-                                lower.contains("generated")
-                                ||
-                                lower.contains("look at it again")
-                                ||
-                                lower.contains("check it again")
-                );
+                .matcher(lower)
+                .find();
     }
 
     // =====================================================

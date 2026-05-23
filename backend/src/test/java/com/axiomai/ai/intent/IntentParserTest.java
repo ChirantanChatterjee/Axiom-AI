@@ -591,6 +591,46 @@ class IntentParserTest {
         );
     }
 
+    @Test
+    void detectsNaturalGeneratedFailureRepairRequestBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "I see some failures can you please fix it?"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+    }
+
+    @Test
+    void detectsAssertionCorrectionRepairRequestBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "This test failed because the assertion sentence actually was \"abc example\", can you please fix the generated test?"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+    }
+
     private static class StubOpenAIIntentService
             extends OpenAIIntentService {
 

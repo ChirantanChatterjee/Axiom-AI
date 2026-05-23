@@ -176,6 +176,74 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void doesNotRewriteParaBankUrlForFinalValidationAssertionMismatch() {
+
+        String feature =
+                """
+                        Feature: bill pay
+
+                        @bill_pay @generated
+                        Scenario: Bill pay with invalid amount
+                          Given user launches "https://parabank.parasoft.com/parabank/admin.htm"
+                          When user enters "INVALIDAMOUNT" into "amount"
+                          Then user should see "amount validation error"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.AssertionError: Expected page to contain text: amount validation error"
+                        );
+
+        assertEquals(
+                List.of(),
+                repair.changes()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("parabank/admin.htm")
+        );
+    }
+
+    @Test
+    void updatesAssertionTextWhenUserProvidesActualTextForSingleFailure() {
+
+        String feature =
+                """
+                        Feature: bill pay
+
+                        @bill_pay @generated
+                        Scenario: Bill pay with mismatched verify account number
+                          Given user launches "https://parabank.parasoft.com/parabank/admin.htm"
+                          Then user should see "account mismatch error"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.AssertionError: Expected page to contain text: account mismatch error",
+                                "This test failed because the assertion sentence actually was \"Please enter a valid number.\", can you please fix the generated test?"
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"Please enter a valid number.\"")
+        );
+
+        assertEquals(
+                List.of("Updated assertion text from \"account mismatch error\" to \"Please enter a valid number.\"."),
+                repair.changes()
+        );
+    }
+
+    @Test
     void summarizesExpectedTextAssertionFailures() {
 
         String summary =

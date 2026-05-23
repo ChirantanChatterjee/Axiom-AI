@@ -762,14 +762,28 @@ function HelpView({
             Ask AIF to create an automation framework for a website. One chat should stay tied to one website and one framework.
           </p>
           <code>Generate framework for https://www.saucedemo.com</code>
+          <code>Can you generate framework for https://parabank.parasoft.com/parabank/admin.htm?</code>
         </section>
 
         <section className="help-section">
-          <h3>Create Tests From Requirements</h3>
+          <h3>Create Or Extend Tests</h3>
           <p>
-            Paste plain English requirements after the framework exists. AIF turns them into tagged Gherkin, page object support, and step definitions.
+            Create generated Cucumber tests after the framework exists, or add more coverage to an existing feature.
           </p>
-          <code>Generate tests for login, add backpack to cart, checkout successfully</code>
+          <code>Can you generate tests for bill pay?</code>
+          <code>Can you create tests for register a user?</code>
+          <code>Add negative and boundary tests for checkout.</code>
+          <code>Create tests for registration using valid, missing-field, invalid-email, and duplicate-user scenarios.</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Compound Requests</h3>
+          <p>
+            You can combine generation and execution in one message. Say which feature should be generated and which generated-test tag should run.
+          </p>
+          <code>Create tests for register a user, then run generated tests with tag @bill_pay.</code>
+          <code>Generate tests for bill pay, then list the generated tags.</code>
+          <code>Create tests for login and then run all generated tests.</code>
         </section>
 
         <section className="help-section">
@@ -785,16 +799,62 @@ function HelpView({
           <p>
             Execute one tag, multiple tags, or the complete generated suite. The chat response includes the Cucumber report link.
           </p>
-          <code>Can you please run the tests with tag @checkout?</code>
+          <code>Can you please run the tests with tag @bill_pay?</code>
+          <code>Can you run tests with @ai_requirement?</code>
+          <code>Run tests matching (@bill_pay or @billpay).</code>
           <code>Can you please run all the generated tests?</code>
+          <code>Run generated Cucumber tests for register a user.</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Run Flow Vs Generated Tests</h3>
+          <p>
+            Use "generated tests" or a tag when you want Cucumber execution. Use "flow" only for detected workspace flows.
+          </p>
+          <code>Run generated tests with tag @register.</code>
+          <code>Run the LOGIN flow.</code>
+          <code>Run tests for register a user using the generated Cucumber framework.</code>
         </section>
 
         <section className="help-section">
           <h3>Repair Failed Generated Tests</h3>
           <p>
-            If a generated test fails, ask AIF to inspect the latest run. AIF checks the last execution output, updates generated Gherkin or support files when it can identify a safe repair, then tells you what changed.
+            Ask AIF to inspect the latest generated-test run. It checks the last Cucumber output and only changes generated files when it can identify a safe repair.
           </p>
           <code>The last test failed, can you look at it again and fix it?</code>
+          <code>I see some failures, can you please fix it?</code>
+          <code>Fix the failed generated test from the last report.</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Correct Assertion Text</h3>
+          <p>
+            When the page text is different from the generated assertion, provide the actual sentence from the app or report.
+          </p>
+          <code>The test failed because the assertion sentence actually was "Please enter a valid number.", can you fix it?</code>
+          <code>Replace assertion "account mismatch error" with "Please enter a valid number."</code>
+          <code>The expected text should be "Bill Payment Complete".</code>
+          <code>The page says "Bill Payment Complete", not "amount validation error". Please update the generated test assertion.</code>
+          <code>For the failed scenario, change the assertion from "required field error" to "Payee name is required".</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Fix Locators Or Navigation</h3>
+          <p>
+            If a report shows an unresolved element or wrong page, describe the missing target and the visible label.
+          </p>
+          <code>The last test could not find "send payment button"; the button text is "SEND PAYMENT". Please fix it.</code>
+          <code>The Bill Pay link is visible after login. Please update the generated test to click "Bill Pay".</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Fix Test Data Issues</h3>
+          <p>
+            If the report shows login, account, or form-data problems, update the saved runtime values and rerun the same tag.
+          </p>
+          <code>The failure was caused by bad credentials. Use username chirantan and password chirantan.</code>
+          <code>The account number should be 13677 for this bill pay run.</code>
+          <code>Update amount to 100.00 and rerun @bill_pay.</code>
         </section>
 
         <section className="help-section">
@@ -803,6 +863,27 @@ function HelpView({
             If a generated test needs values, give them in chat. Sensitive values are stored in the session and masked in the UI.
           </p>
           <code>Use username standard_user and password secret_sauce</code>
+          <code>username is chirantan, password is chirantan, account is 00000121, amount is 1000.00</code>
+          <code>payee is Demo User, address is Dublin, city is Dublin, state is Dublin, zip is 12345, phone is 1213232312</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Open Or Explain Reports</h3>
+          <p>
+            Ask for the latest report or paste a report link when you want AIF to inspect failures and screenshots.
+          </p>
+          <code>Open the latest execution report.</code>
+          <code>Can you explain why the last generated test failed?</code>
+          <code>Please look at this report and fix the generated test: https://example.com/report.html</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Upload Modified Frameworks</h3>
+          <p>
+            If you edit the downloaded framework locally, upload it back into the same chat before listing tags or running tests.
+          </p>
+          <code>Upload modified framework, then list generated tags.</code>
+          <code>I uploaded the fixed framework. Run generated tests with tag @bill_pay.</code>
         </section>
 
         <section className="help-section">
@@ -816,9 +897,10 @@ function HelpView({
         <section className="help-section">
           <h3>Requirement Analysis and Test Creation</h3>
           <p>
-            When user wants to create tests from requirements.
+            Paste requirements directly in chat when you want AIF to derive test cases and generated scenarios from them.
           </p>
-          <code>can you create tests from the below requirements? {"-->"}Paste your requirement/requirements</code>
+          <code>Can you create tests from the below requirements? {"-->"} Paste your requirements</code>
+          <code>Create generated tests for: a user can register, log in, pay a bill, and see confirmation.</code>
         </section>
 
       </div>

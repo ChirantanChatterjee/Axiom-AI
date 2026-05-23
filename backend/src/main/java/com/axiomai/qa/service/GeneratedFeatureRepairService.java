@@ -27,6 +27,7 @@ public class GeneratedFeatureRepairService {
 
         return repair(
                 frameworkRoot,
+                "",
                 ""
         );
     }
@@ -34,6 +35,19 @@ public class GeneratedFeatureRepairService {
     public RepairResult repair(
             Path frameworkRoot,
             String previousExecutionOutput
+    ) {
+
+        return repair(
+                frameworkRoot,
+                previousExecutionOutput,
+                ""
+        );
+    }
+
+    public RepairResult repair(
+            Path frameworkRoot,
+            String previousExecutionOutput,
+            String userInstruction
     ) {
 
         String latestOutput =
@@ -62,7 +76,8 @@ public class GeneratedFeatureRepairService {
                 FeatureRepair repair =
                         repairFeatureContent(
                                 original,
-                                latestOutput
+                                latestOutput,
+                                userInstruction
                         );
 
                 if (
@@ -115,6 +130,19 @@ public class GeneratedFeatureRepairService {
             String latestOutput
     ) {
 
+        return repairFeatureContent(
+                content,
+                latestOutput,
+                ""
+        );
+    }
+
+    FeatureRepair repairFeatureContent(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
         if (
                 content == null
         ) {
@@ -123,6 +151,20 @@ public class GeneratedFeatureRepairService {
                     "",
                     List.of()
             );
+        }
+
+        FeatureRepair assertionTextRepair =
+                repairUserProvidedAssertionText(
+                        content,
+                        latestOutput,
+                        userInstruction
+                );
+
+        if (
+                assertionTextRepair.changed()
+        ) {
+
+            return assertionTextRepair;
         }
 
         FeatureRepair genericRepair =
@@ -139,36 +181,11 @@ public class GeneratedFeatureRepairService {
                         genericRepair.changes()
                 );
 
-        String lower =
-                (repairedContent + "\n" + latestOutput)
-                        .toLowerCase();
-
         if (
-                lower.contains("parabank")
-                        &&
-                        lower.contains("bill")
-                        &&
-                        lower.contains("pay")
-                        &&
-                        (
-                                lower.contains("admin.htm")
-                                        ||
-                                        lower.contains("overview.htm")
-                                        ||
-                                        lower.contains("unable to resolve element: bill pay")
-                                        ||
-                                        lower.contains("unable to resolve element: billpay")
-                                        ||
-                                        lower.contains("unable to resolve element: bill payment")
-                                        ||
-                                        lower.contains("unable to resolve element: send payment button")
-                                        ||
-                                        lower.contains("expected page to contain text: bill payment complete")
-                                        ||
-                                        lower.contains("expected page to contain text: invalid amount")
-                                        ||
-                                        !lower.contains("verify account")
-                        )
+                shouldRepairParaBankBillPay(
+                        repairedContent,
+                        latestOutput
+                )
         ) {
 
             FeatureRepair siteRepair =
@@ -192,6 +209,41 @@ public class GeneratedFeatureRepairService {
                         .distinct()
                         .toList()
         );
+    }
+
+    private boolean shouldRepairParaBankBillPay(
+            String content,
+            String latestOutput
+    ) {
+
+        String lowerContent =
+                content == null
+                        ? ""
+                        : content.toLowerCase();
+
+        String lowerOutput =
+                latestOutput == null
+                        ? ""
+                        : latestOutput.toLowerCase();
+
+        if (
+                !lowerContent.contains("parabank")
+                        ||
+                        !lowerContent.contains("bill")
+                        ||
+                        !lowerContent.contains("pay")
+        ) {
+
+            return false;
+        }
+
+        return lowerOutput.contains("unable to resolve element: bill pay")
+                ||
+                lowerOutput.contains("unable to resolve element: billpay")
+                ||
+                lowerOutput.contains("unable to resolve element: bill payment")
+                ||
+                lowerOutput.contains("unable to resolve element: send payment button");
     }
 
     private FeatureRepair repairParaBankBillPay(
@@ -434,6 +486,328 @@ public class GeneratedFeatureRepairService {
                 content.equals(repairedContent)
                         ? List.of()
                         : changes
+        );
+    }
+
+    private FeatureRepair repairUserProvidedAssertionText(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        List<AssertionReplacement> replacements =
+                assertionReplacements(
+                        userInstruction,
+                        latestOutput
+                );
+
+        if (
+                replacements.isEmpty()
+        ) {
+
+            return new FeatureRepair(
+                    content,
+                    List.of()
+            );
+        }
+
+        List<String> lines =
+                content.lines()
+                        .toList();
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        for (
+                String line
+                : lines
+        ) {
+
+            Matcher assertion =
+                    Pattern.compile(
+                                    "^(\\s*)(Then|And) user should see \"([^\"]+)\"\\s*$",
+                                    Pattern.CASE_INSENSITIVE
+                            )
+                            .matcher(line);
+
+            if (
+                    assertion.matches()
+            ) {
+
+                Optional<AssertionReplacement> replacement =
+                        replacements.stream()
+                                .filter(candidate -> candidate.expected()
+                                        .equalsIgnoreCase(
+                                                assertion.group(3)
+                                        ))
+                                .findFirst();
+
+                if (
+                        replacement.isPresent()
+                ) {
+
+                    String actual =
+                            sanitizeStepText(
+                                    replacement.get()
+                                            .actual()
+                            );
+
+                    line =
+                            assertion.group(1)
+                                    + assertion.group(2)
+                                    + " user should see \""
+                                    + actual
+                                    + "\"";
+
+                    changes.add(
+                            "Updated assertion text from \""
+                                    + assertion.group(3)
+                                    + "\" to \""
+                                    + actual
+                                    + "\"."
+                    );
+                }
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes.stream()
+                        .distinct()
+                        .toList()
+        );
+    }
+
+    private List<AssertionReplacement> assertionReplacements(
+            String userInstruction,
+            String latestOutput
+    ) {
+
+        if (
+                userInstruction == null
+                        ||
+                        userInstruction.isBlank()
+        ) {
+
+            return List.of();
+        }
+
+        List<AssertionReplacement> explicitReplacements =
+                explicitAssertionReplacements(userInstruction);
+
+        if (
+                !explicitReplacements.isEmpty()
+        ) {
+
+            return explicitReplacements;
+        }
+
+        Optional<String> actualText =
+                actualAssertionText(userInstruction);
+
+        if (
+                actualText.isEmpty()
+        ) {
+
+            return List.of();
+        }
+
+        List<String> missingTexts =
+                missingExpectedTexts(latestOutput);
+
+        if (
+                missingTexts.size() == 1
+        ) {
+
+            return List.of(
+                    new AssertionReplacement(
+                            missingTexts.get(0),
+                            actualText.get()
+                    )
+            );
+        }
+
+        Optional<String> expectedText =
+                expectedAssertionText(userInstruction);
+
+        return expectedText.map(expected -> List.of(
+                        new AssertionReplacement(
+                                expected,
+                                actualText.get()
+                        )
+                ))
+                .orElseGet(List::of);
+    }
+
+    private List<AssertionReplacement> explicitAssertionReplacements(
+            String userInstruction
+    ) {
+
+        List<AssertionReplacement> replacements =
+                new ArrayList<>();
+
+        List<Pattern> expectedThenActualPatterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)(?:expected|assertion|asserted)[^\"\\r\\n]{0,100}\"([^\"]+)\"[^\"\\r\\n]{0,140}(?:actual(?:ly)?|should|instead|but)[^\"\\r\\n]{0,100}\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:change|replace|update)[^\"\\r\\n]{0,80}\"([^\"]+)\"[^\"\\r\\n]{0,80}(?:to|with)[^\"\\r\\n]{0,80}\"([^\"]+)\""
+                        )
+                );
+
+        for (
+                Pattern pattern
+                : expectedThenActualPatterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(userInstruction);
+
+            while (
+                    matcher.find()
+            ) {
+
+                replacements.add(
+                        new AssertionReplacement(
+                                matcher.group(1)
+                                        .trim(),
+                                matcher.group(2)
+                                        .trim()
+                        )
+                );
+            }
+        }
+
+        Matcher actualInsteadOf =
+                Pattern.compile(
+                                "(?i)(?:actual(?:ly)?|should)[^\"\\r\\n]{0,100}\"([^\"]+)\"[^\"\\r\\n]{0,100}(?:instead of|not)[^\"\\r\\n]{0,80}\"([^\"]+)\""
+                        )
+                        .matcher(userInstruction);
+
+        while (
+                actualInsteadOf.find()
+        ) {
+
+            replacements.add(
+                    new AssertionReplacement(
+                            actualInsteadOf.group(2)
+                                    .trim(),
+                            actualInsteadOf.group(1)
+                                    .trim()
+                    )
+            );
+        }
+
+        return replacements.stream()
+                .filter(replacement -> !replacement.expected()
+                        .isBlank())
+                .filter(replacement -> !replacement.actual()
+                        .isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private Optional<String> actualAssertionText(
+            String userInstruction
+    ) {
+
+        List<Pattern> patterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)assertion(?:\\s+(?:sentence|text|message))?[^\"\\r\\n]{0,100}actual(?:ly)?\\s+(?:was|is)\\s+\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:actual|real)\\s+(?:assertion\\s+)?(?:text|sentence|message)?\\s*(?:was|is)\\s+\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:assertion|text|message)[^\"\\r\\n]{0,100}(?:should|must)\\s+(?:be|say|contain|show)\\s+\"([^\"]+)\""
+                        )
+                );
+
+        for (
+                Pattern pattern
+                : patterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(userInstruction);
+
+            if (
+                    matcher.find()
+            ) {
+
+                return Optional.of(
+                        matcher.group(1)
+                                .trim()
+                );
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<String> expectedAssertionText(
+            String userInstruction
+    ) {
+
+        List<Pattern> patterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)(?:expected|old|current)\\s+(?:assertion\\s+)?(?:text|sentence|message)?\\s*(?:was|is)?\\s*\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:instead of|not)\\s+\"([^\"]+)\""
+                        )
+                );
+
+        for (
+                Pattern pattern
+                : patterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(userInstruction);
+
+            if (
+                    matcher.find()
+            ) {
+
+                return Optional.of(
+                        matcher.group(1)
+                                .trim()
+                );
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private String sanitizeStepText(
+            String text
+    ) {
+
+        if (
+                text == null
+        ) {
+
+            return "";
+        }
+
+        return text.replace(
+                "\"",
+                "'"
         );
     }
 
@@ -1008,6 +1382,12 @@ public class GeneratedFeatureRepairService {
         boolean changed() {
             return !changes.isEmpty();
         }
+    }
+
+    private record AssertionReplacement(
+            String expected,
+            String actual
+    ) {
     }
 
     @Getter

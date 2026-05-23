@@ -361,6 +361,17 @@ public class GeneratedTestExecutionService {
             String sessionId
     ) {
 
+        return repairLatestFailure(
+                sessionId,
+                ""
+        );
+    }
+
+    public GeneratedTestRepairResult repairLatestFailure(
+            String sessionId,
+            String userInstruction
+    ) {
+
         Path frameworkRoot =
                 resolveFrameworkRoot(sessionId)
                         .orElseThrow(
@@ -374,7 +385,8 @@ public class GeneratedTestExecutionService {
             GeneratedFeatureRepairService.RepairResult repair =
                     generatedFeatureRepairService.repair(
                             frameworkRoot,
-                            latestQueuedExecutionOutput(sessionId)
+                            latestQueuedExecutionOutput(sessionId),
+                            userInstruction
                     );
 
             boolean learned =
@@ -1042,6 +1054,19 @@ public class GeneratedTestExecutionService {
             }
 
             if (
+                    isAssertionTextMismatchFailure(
+                            repair.getFailureSummary()
+                    )
+            ) {
+
+                message.append(
+                        "\n\nThis looks like an assertion-text mismatch, not a locator or URL problem. I did not change the feature file because I could not infer the correct UI sentence from the execution output. Tell me the actual sentence, for example: `the assertion should be \"Please enter a valid number.\"`, and I will update the generated test."
+                );
+
+                return message.toString();
+            }
+
+            if (
                     learned
             ) {
 
@@ -1120,6 +1145,21 @@ public class GeneratedTestExecutionService {
                 lower.contains("browser-runtime")
                 ||
                 lower.contains("browser downloads");
+    }
+
+    private boolean isAssertionTextMismatchFailure(
+            String summary
+    ) {
+
+        if (
+                summary == null
+        ) {
+
+            return false;
+        }
+
+        return summary.toLowerCase()
+                .contains("page did not show expected text");
     }
 
     private String buildExecutionMessage(
