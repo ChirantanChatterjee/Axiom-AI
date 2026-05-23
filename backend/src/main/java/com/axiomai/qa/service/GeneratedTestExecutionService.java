@@ -1354,6 +1354,19 @@ public class GeneratedTestExecutionService {
             String tagExpression
     ) {
 
+        List<String> tagFilters =
+                extractTags(tagExpression);
+
+        if (
+                !tagFilters.isEmpty()
+        ) {
+
+            return tagExpressionCanMatchCatalog(
+                    parseTags(frameworkRoot),
+                    tagExpression
+            );
+        }
+
         Path featureRoot =
                 frameworkRoot.resolve(
                         "src/test/resources/features"
@@ -1391,6 +1404,78 @@ public class GeneratedTestExecutionService {
         }
 
         return false;
+    }
+
+    private boolean tagExpressionCanMatchCatalog(
+            List<GeneratedTestTag> tags,
+            String tagExpression
+    ) {
+
+        if (
+                tags == null
+                        ||
+                        tags.isEmpty()
+        ) {
+
+            return false;
+        }
+
+        List<String> availableTags =
+                tags.stream()
+                        .map(GeneratedTestTag::getTag)
+                        .filter(tag -> tag != null && !tag.isBlank())
+                        .map(String::toLowerCase)
+                        .toList();
+
+        if (
+                availableTags.isEmpty()
+        ) {
+
+            return false;
+        }
+
+        String[] andClauses =
+                tagExpression.split(
+                        "(?i)\\s+and\\s+"
+                );
+
+        for (
+                String clause
+                : andClauses
+        ) {
+
+            if (
+                    clause.toLowerCase()
+                            .contains("not ")
+            ) {
+
+                continue;
+            }
+
+            List<String> clauseTags =
+                    extractTags(clause);
+
+            if (
+                    clauseTags.isEmpty()
+            ) {
+
+                continue;
+            }
+
+            boolean clauseCanMatch =
+                    clauseTags.stream()
+                            .map(String::toLowerCase)
+                            .anyMatch(availableTags::contains);
+
+            if (
+                    !clauseCanMatch
+            ) {
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private boolean hasMatchingScenarioInFile(
