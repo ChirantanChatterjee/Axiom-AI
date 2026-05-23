@@ -29,6 +29,8 @@ public class PomGeneratorService {
 
         <maven.compiler.target>17</maven.compiler.target>
 
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
     </properties>
 
     <dependencies>
@@ -96,6 +98,16 @@ public class PomGeneratorService {
                 <artifactId>maven-surefire-plugin</artifactId>
 
                 <version>3.2.5</version>
+
+                <configuration>
+
+                    <forkCount>0</forkCount>
+
+                    <reuseForks>false</reuseForks>
+
+                    <trimStackTrace>false</trimStackTrace>
+
+                </configuration>
 
             </plugin>
 

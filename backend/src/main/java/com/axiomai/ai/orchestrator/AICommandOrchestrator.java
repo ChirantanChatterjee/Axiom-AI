@@ -282,6 +282,13 @@ public class AICommandOrchestrator {
             }
         }
 
+        return missingRuntimeDataResponse(missingVariables);
+    }
+
+    private AIResponse missingRuntimeDataResponse(
+            List<String> missingVariables
+    ) {
+
         Map<String, Object> data =
                 new LinkedHashMap<>();
 
@@ -1298,6 +1305,23 @@ public class AICommandOrchestrator {
         Map<String, String> variables =
                 automationWorkspaceService
                         .getVariableValues(userId);
+
+        List<String> missingVariables =
+                generatedTestExecutionService
+                        .missingRuntimeVariables(
+                                workspace.getSessionId(),
+                                command.getTarget(),
+                                variables
+                        );
+
+        if (
+                !missingVariables.isEmpty()
+        ) {
+
+            return missingRuntimeDataResponse(
+                    missingVariables
+            );
+        }
 
         if (
                 useQueuedGeneratedTestExecution()

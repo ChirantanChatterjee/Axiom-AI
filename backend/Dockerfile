@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxfixes3 \
+    libx11-xcb1 \
     libxrandr2 \
     libgbm1 \
     libasound2 \
@@ -35,6 +36,7 @@ RUN ./mvnw -q exec:java \
 
 ENV AIF_HEADLESS=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV NO_AT_BRIDGE=1
 
 EXPOSE 10000

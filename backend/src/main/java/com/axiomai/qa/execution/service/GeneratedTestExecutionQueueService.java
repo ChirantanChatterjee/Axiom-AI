@@ -212,6 +212,44 @@ public class GeneratedTestExecutionQueueService {
         return repository.save(job);
     }
 
+    @Transactional
+    public int failStaleRunningJobs(
+            Instant cutoff,
+            String reason
+    ) {
+
+        List<GeneratedTestExecutionJobEntity> jobs =
+                repository.findStaleRunningJobsForUpdate(cutoff);
+
+        if (
+                jobs.isEmpty()
+        ) {
+
+            return 0;
+        }
+
+        Instant now =
+                Instant.now();
+
+        for (
+                GeneratedTestExecutionJobEntity job
+                : jobs
+        ) {
+
+            job.setStatus(STATUS_FAILED);
+            job.setMessage(
+                    "Generated test execution was interrupted."
+            );
+            job.setErrorMessage(reason);
+            job.setUpdatedAt(now);
+            job.setFinishedAt(now);
+        }
+
+        repository.saveAll(jobs);
+
+        return jobs.size();
+    }
+
     public Map<String, String> variablesFor(
             GeneratedTestExecutionJobEntity job
     ) {

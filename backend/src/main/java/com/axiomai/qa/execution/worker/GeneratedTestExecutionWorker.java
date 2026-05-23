@@ -3,12 +3,16 @@ package com.axiomai.qa.execution.worker;
 import com.axiomai.qa.execution.entity.GeneratedTestExecutionJobEntity;
 import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
 import com.axiomai.qa.service.GeneratedTestExecutionService;
+import com.axiomai.workspace.AutomationWorkspaceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,8 +31,20 @@ public class GeneratedTestExecutionWorker {
     private final GeneratedTestExecutionService
             generatedTestExecutionService;
 
+    private final AutomationWorkspaceService
+            automationWorkspaceService;
+
     private final AtomicBoolean running =
             new AtomicBoolean(false);
+
+    private final AtomicBoolean recoveryChecked =
+            new AtomicBoolean(false);
+
+    @Value("${aif.worker.recover-stale-running-jobs:${AIF_WORKER_RECOVER_STALE_RUNNING_JOBS:true}}")
+    private boolean recoverStaleRunningJobs;
+
+    @Value("${aif.worker.stale-running-job-seconds:${AIF_WORKER_STALE_RUNNING_JOB_SECONDS:30}}")
+    private long staleRunningJobSeconds;
 
     @Scheduled(fixedDelayString = "${aif.worker.poll-delay-ms:5000}")
     public void poll() {
@@ -44,6 +60,8 @@ public class GeneratedTestExecutionWorker {
         }
 
         try {
+
+            recoverStaleRunningJobs();
 
             queueService.claimNext()
                     .ifPresent(this::execute);
@@ -68,7 +86,7 @@ public class GeneratedTestExecutionWorker {
         try {
 
             Map<String, String> variables =
-                    queueService.variablesFor(job);
+                    variablesFor(job);
 
             GeneratedTestExecutionService.GeneratedTestRunResult result =
                     generatedTestExecutionService.runTests(
@@ -102,5 +120,61 @@ public class GeneratedTestExecutionWorker {
                     e
             );
         }
+    }
+
+    private void recoverStaleRunningJobs() {
+
+        if (
+                !recoverStaleRunningJobs
+                        ||
+                        !recoveryChecked.compareAndSet(
+                                false,
+                                true
+                        )
+        ) {
+
+            return;
+        }
+
+        long staleSeconds =
+                Math.max(
+                        0,
+                        staleRunningJobSeconds
+                );
+
+        int recoveredJobs =
+                queueService.failStaleRunningJobs(
+                        Instant.now()
+                                .minusSeconds(staleSeconds),
+                        "The worker restarted or stopped while this job was running. Please run the generated tests again."
+                );
+
+        if (
+                recoveredJobs > 0
+        ) {
+
+            log.warn(
+                    "Marked {} stale generated test execution job(s) as interrupted after worker startup.",
+                    recoveredJobs
+            );
+        }
+    }
+
+    private Map<String, String> variablesFor(
+            GeneratedTestExecutionJobEntity job
+    ) {
+
+        Map<String, String> variables =
+                new LinkedHashMap<>(
+                        automationWorkspaceService.getVariableValues(
+                                job.getSessionId()
+                        )
+                );
+
+        variables.putAll(
+                queueService.variablesFor(job)
+        );
+
+        return variables;
     }
 }

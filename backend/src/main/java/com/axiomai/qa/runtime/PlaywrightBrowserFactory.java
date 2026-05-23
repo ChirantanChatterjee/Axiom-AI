@@ -75,7 +75,7 @@ public final class PlaywrightBrowserFactory {
         BrowserType.LaunchOptions launchOptions =
                 new BrowserType.LaunchOptions()
                         .setHeadless(headless)
-                        .setTimeout(15000)
+                        .setTimeout(resolveLaunchTimeout())
                         .setArgs(VISIBLE_BROWSER_ARGS);
 
         if (
@@ -103,6 +103,30 @@ public final class PlaywrightBrowserFactory {
         }
 
         return isHostedLinuxWithoutDisplay();
+    }
+
+    private static double resolveLaunchTimeout() {
+
+        String configured =
+                normalize(
+                        System.getenv("AIF_BROWSER_LAUNCH_TIMEOUT_MS")
+                );
+
+        if (
+                configured == null
+        ) {
+
+            return 60000;
+        }
+
+        try {
+
+            return Double.parseDouble(configured);
+
+        } catch (NumberFormatException ignored) {
+
+            return 60000;
+        }
     }
 
     private static boolean isHostedLinuxWithoutDisplay() {

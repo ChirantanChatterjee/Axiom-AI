@@ -1381,6 +1381,30 @@ function StructuredMessage({
             </div>
 
             {
+              msg.data.message && (
+                <div className="db-row">
+                  <span>Message:</span>
+
+                  <strong>
+                    {msg.data.message}
+                  </strong>
+                </div>
+              )
+            }
+
+            {
+              msg.data.errorMessage && (
+                <div className="db-row">
+                  <span>Error:</span>
+
+                  <strong className="status-fail">
+                    {msg.data.errorMessage}
+                  </strong>
+                </div>
+              )
+            }
+
+            {
               msg.data.exitCode !== null &&
               msg.data.exitCode !== undefined && (
                 <div className="db-row">

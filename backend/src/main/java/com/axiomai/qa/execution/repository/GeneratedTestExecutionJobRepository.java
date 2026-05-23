@@ -6,7 +6,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,5 +32,17 @@ public interface GeneratedTestExecutionJobRepository
             """)
     List<GeneratedTestExecutionJobEntity> findQueuedJobsForUpdate(
             Pageable pageable
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select job
+            from GeneratedTestExecutionJobEntity job
+            where job.status = 'RUNNING'
+              and job.updatedAt < :cutoff
+            order by job.updatedAt asc
+            """)
+    List<GeneratedTestExecutionJobEntity> findStaleRunningJobsForUpdate(
+            @Param("cutoff") Instant cutoff
     );
 }

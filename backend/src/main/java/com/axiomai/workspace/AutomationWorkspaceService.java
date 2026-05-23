@@ -1,8 +1,12 @@
 package com.axiomai.workspace;
 
 import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.workspace.entity.WorkspaceSessionVariableEntity;
+import com.axiomai.workspace.repository.WorkspaceSessionVariableRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,6 +14,23 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 
 public class AutomationWorkspaceService {
+
+    private final WorkspaceSessionVariableRepository
+            variableRepository;
+
+    public AutomationWorkspaceService() {
+
+        this(null);
+    }
+
+    @Autowired
+    public AutomationWorkspaceService(
+            WorkspaceSessionVariableRepository variableRepository
+    ) {
+
+        this.variableRepository =
+                variableRepository;
+    }
 
     // =====================================================
     // IN MEMORY WORKSPACES
@@ -211,6 +232,15 @@ public class AutomationWorkspaceService {
 
     ) {
 
+        if (
+                key == null
+                        ||
+                        key.isBlank()
+        ) {
+
+            return;
+        }
+
         AutomationSession session =
                 getOrCreateSession(userId);
 
@@ -233,6 +263,11 @@ public class AutomationWorkspaceService {
                         key.toLowerCase(),
                         variable
                 );
+
+        persistVariable(
+                session.getSessionId(),
+                variable
+        );
 
         session.setUpdatedAt(
                 LocalDateTime.now()
@@ -281,6 +316,15 @@ public class AutomationWorkspaceService {
 
     ) {
 
+        if (
+                key == null
+                        ||
+                        key.isBlank()
+        ) {
+
+            return null;
+        }
+
         AutomationSession session =
                 getOrCreateSession(userId);
 
@@ -290,6 +334,19 @@ public class AutomationWorkspaceService {
                         .get(
                                 key.toLowerCase()
                         );
+
+        if (variable == null) {
+
+            hydrateVariables(
+                    session
+            );
+
+            variable =
+                    session.getVariables()
+                            .get(
+                                    key.toLowerCase()
+                            );
+        }
 
         if (variable == null) {
 
@@ -303,8 +360,14 @@ public class AutomationWorkspaceService {
             String userId
     ) {
 
-        return getOrCreateSession(userId)
-                .getVariables();
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        hydrateVariables(
+                session
+        );
+
+        return session.getVariables();
     }
 
     public Map<String, String> getVariableValues(
@@ -536,7 +599,141 @@ public class AutomationWorkspaceService {
             return null;
         }
 
-        return sessions.remove(userId);
+        AutomationSession removed =
+                sessions.remove(userId);
+
+        deletePersistedVariables(
+                userId
+        );
+
+        return removed;
+    }
+
+    private void persistVariable(
+            String sessionId,
+            WorkspaceVariable variable
+    ) {
+
+        if (
+                variableRepository == null
+                        ||
+                        sessionId == null
+                        ||
+                        sessionId.isBlank()
+                        ||
+                        variable == null
+                        ||
+                        variable.getKey() == null
+                        ||
+                        variable.getKey().isBlank()
+        ) {
+
+            return;
+        }
+
+        String key =
+                variable.getKey()
+                        .toLowerCase();
+
+        Instant now =
+                Instant.now();
+
+        WorkspaceSessionVariableEntity entity =
+                variableRepository.findBySessionIdAndVariableKey(
+                                sessionId,
+                                key
+                        )
+                        .orElseGet(
+                                () -> WorkspaceSessionVariableEntity.builder()
+                                        .sessionId(sessionId)
+                                        .variableKey(key)
+                                        .createdAt(now)
+                                        .build()
+                        );
+
+        entity.setVariableValue(
+                variable.getValue()
+        );
+        entity.setSensitive(
+                variable.isSensitive()
+        );
+        entity.setSource(
+                variable.getSource() == null
+                        ? "CHAT"
+                        : variable.getSource()
+        );
+        entity.setUpdatedAt(now);
+
+        variableRepository.save(entity);
+    }
+
+    private void hydrateVariables(
+            AutomationSession session
+    ) {
+
+        if (
+                variableRepository == null
+                        ||
+                        session == null
+                        ||
+                        session.getSessionId() == null
+                        ||
+                        session.getSessionId()
+                                .isBlank()
+        ) {
+
+            return;
+        }
+
+        for (
+                WorkspaceSessionVariableEntity entity
+                : variableRepository.findBySessionId(
+                        session.getSessionId()
+                )
+        ) {
+
+            if (
+                    entity.getVariableKey() == null
+                            ||
+                            entity.getVariableKey()
+                                    .isBlank()
+            ) {
+
+                continue;
+            }
+
+            session.getVariables()
+                    .put(
+                            entity.getVariableKey()
+                                    .toLowerCase(),
+                            WorkspaceVariable.builder()
+                                    .key(entity.getVariableKey())
+                                    .value(entity.getVariableValue())
+                                    .sensitive(entity.isSensitive())
+                                    .source(entity.getSource())
+                                    .build()
+                    );
+        }
+    }
+
+    private void deletePersistedVariables(
+            String sessionId
+    ) {
+
+        if (
+                variableRepository == null
+                        ||
+                        sessionId == null
+                        ||
+                        sessionId.isBlank()
+        ) {
+
+            return;
+        }
+
+        variableRepository.deleteBySessionId(
+                sessionId
+        );
     }
 
     private boolean isSensitive(

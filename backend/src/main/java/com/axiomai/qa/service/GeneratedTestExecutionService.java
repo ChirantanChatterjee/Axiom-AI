@@ -133,12 +133,9 @@ public class GeneratedTestExecutionService {
         ) {
 
             throw new RuntimeException(
-                    "Missing runtime data for generated tests: "
-                            + String.join(
-                            ", ",
+                    missingRuntimeDataMessage(
                             missingVariables
                     )
-                            + ". Provide it in chat first, for example: username is standard_user and password is secret_sauce."
             );
         }
 
@@ -1615,7 +1612,7 @@ public class GeneratedTestExecutionService {
 
         environment.putIfAbsent(
                 "MAVEN_OPTS",
-                "-Xmx384m -XX:MaxMetaspaceSize=192m -Djava.awt.headless=true"
+                "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true"
         );
 
         environment.putIfAbsent(
@@ -1940,6 +1937,46 @@ public class GeneratedTestExecutionService {
                 builder.scenarios
         )
                 + ".";
+    }
+
+    public List<String> missingRuntimeVariables(
+
+            String sessionId,
+            String tagExpression,
+            Map<String, String> variables
+
+    ) {
+
+        Path frameworkRoot =
+                resolveFrameworkRoot(sessionId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        missingFrameworkMessage()
+                                )
+                        );
+
+        String normalizedExpression =
+                normalizeTagExpression(tagExpression);
+
+        normalizeFeatureFiles(frameworkRoot);
+
+        return missingVariables(
+                frameworkRoot,
+                normalizedExpression,
+                variables
+        );
+    }
+
+    public String missingRuntimeDataMessage(
+            List<String> missingVariables
+    ) {
+
+        return "Missing runtime data for generated tests: "
+                + String.join(
+                ", ",
+                missingVariables
+        )
+                + ". Provide it in chat first, for example: username is standard_user and password is secret_sauce.";
     }
 
     private class GeneratedTestTagBuilder {
