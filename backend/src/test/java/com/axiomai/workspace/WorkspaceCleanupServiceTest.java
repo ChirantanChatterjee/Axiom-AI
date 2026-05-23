@@ -1,6 +1,8 @@
 package com.axiomai.workspace;
 
 import com.axiomai.core.memory.ExecutionMemoryService;
+import com.axiomai.qa.execution.repository.GeneratedTestExecutionJobRepository;
+import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
 import com.axiomai.qa.service.GeneratedFrameworkPersistenceService;
 import com.axiomai.qa.service.GeneratedProjectWriterService;
 import com.axiomai.qa.service.HookGeneratorService;
@@ -17,7 +19,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -81,13 +85,23 @@ class WorkspaceCleanupServiceTest {
                         archiveRepository
                 );
 
+        Set<String> deletedJobSessions =
+                new HashSet<>();
+
+        GeneratedTestExecutionQueueService generatedTestExecutionQueueService =
+                new GeneratedTestExecutionQueueService(
+                        inMemoryJobRepository(deletedJobSessions),
+                        new ObjectMapper()
+                );
+
         WorkspaceCleanupService cleanupService =
                 new WorkspaceCleanupService(
                         automationWorkspaceService,
                         executionMemoryService,
                         generatedProjectWriterService,
                         supabaseStorageCleanupService,
-                        generatedFrameworkPersistenceService
+                        generatedFrameworkPersistenceService,
+                        generatedTestExecutionQueueService
                 );
 
         Path workspaceRoot =
@@ -197,6 +211,10 @@ class WorkspaceCleanupServiceTest {
                     archiveStore.containsKey(sessionId)
             );
 
+            assertTrue(
+                    deletedJobSessions.contains(sessionId)
+            );
+
             assertNull(
                     automationWorkspaceService.getSession(sessionId)
                             .getWebsiteUrl()
@@ -269,6 +287,60 @@ class WorkspaceCleanupServiceTest {
                     ) {
 
                         return "InMemoryGeneratedFrameworkArchiveRepository";
+                    }
+
+                    if (
+                            "hashCode".equals(methodName)
+                    ) {
+
+                        return System.identityHashCode(proxy);
+                    }
+
+                    if (
+                            "equals".equals(methodName)
+                    ) {
+
+                        return proxy == args[0];
+                    }
+
+                    throw new UnsupportedOperationException(
+                            "Unexpected repository method: "
+                                    + methodName
+                    );
+                }
+        );
+    }
+
+    private static GeneratedTestExecutionJobRepository inMemoryJobRepository(
+            Set<String> deletedSessions
+    ) {
+
+        return (GeneratedTestExecutionJobRepository) Proxy.newProxyInstance(
+                GeneratedTestExecutionJobRepository.class.getClassLoader(),
+                new Class<?>[]{
+                        GeneratedTestExecutionJobRepository.class
+                },
+                (proxy, method, args) -> {
+
+                    String methodName =
+                            method.getName();
+
+                    if (
+                            "deleteForWorkspaceSession".equals(methodName)
+                    ) {
+
+                        deletedSessions.add(
+                                (String) args[0]
+                        );
+
+                        return 0;
+                    }
+
+                    if (
+                            "toString".equals(methodName)
+                    ) {
+
+                        return "InMemoryGeneratedTestExecutionJobRepository";
                     }
 
                     if (

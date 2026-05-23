@@ -146,12 +146,14 @@ public class GeneratedTestExecutionQueueService {
 
         GeneratedTestExecutionJobEntity job =
                 repository.findById(jobId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Generated test execution job not found: "
-                                                + jobId
-                                )
-                        );
+                        .orElse(null);
+
+        if (
+                job == null
+        ) {
+
+            return null;
+        }
 
         Instant now =
                 Instant.now();
@@ -189,12 +191,14 @@ public class GeneratedTestExecutionQueueService {
 
         GeneratedTestExecutionJobEntity job =
                 repository.findById(jobId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Generated test execution job not found: "
-                                                + jobId
-                                )
-                        );
+                        .orElse(null);
+
+        if (
+                job == null
+        ) {
+
+            return null;
+        }
 
         Instant now =
                 Instant.now();
@@ -248,6 +252,25 @@ public class GeneratedTestExecutionQueueService {
         repository.saveAll(jobs);
 
         return jobs.size();
+    }
+
+    @Transactional
+    public int deleteForSession(
+            String sessionId
+    ) {
+
+        if (
+                sessionId == null
+                        ||
+                        sessionId.isBlank()
+        ) {
+
+            return 0;
+        }
+
+        return repository.deleteForWorkspaceSession(
+                sessionId.trim()
+        );
     }
 
     public Map<String, String> variablesFor(

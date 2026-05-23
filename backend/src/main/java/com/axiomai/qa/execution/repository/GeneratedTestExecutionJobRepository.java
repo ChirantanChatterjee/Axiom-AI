@@ -5,8 +5,10 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -44,5 +46,19 @@ public interface GeneratedTestExecutionJobRepository
             """)
     List<GeneratedTestExecutionJobEntity> findStaleRunningJobsForUpdate(
             @Param("cutoff") Instant cutoff
+    );
+
+    @Modifying(
+            clearAutomatically = true,
+            flushAutomatically = true
+    )
+    @Transactional
+    @Query("""
+            delete from GeneratedTestExecutionJobEntity job
+            where job.sessionId = :sessionId
+               or job.userId = :sessionId
+            """)
+    int deleteForWorkspaceSession(
+            @Param("sessionId") String sessionId
     );
 }

@@ -5,6 +5,7 @@ import com.axiomai.workspace.entity.WorkspaceSessionVariableEntity;
 import com.axiomai.workspace.repository.WorkspaceSessionVariableRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -586,6 +587,7 @@ public class AutomationWorkspaceService {
         return getOrCreateSession(userId);
     }
 
+    @Transactional
     public AutomationSession removeSession(
             String userId
     ) {

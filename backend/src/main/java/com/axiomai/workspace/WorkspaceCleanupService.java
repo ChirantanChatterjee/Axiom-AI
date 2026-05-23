@@ -2,10 +2,12 @@ package com.axiomai.workspace;
 
 import com.axiomai.core.memory.ExecutionMemoryService;
 import com.axiomai.core.session.ExecutionSession;
+import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
 import com.axiomai.qa.service.GeneratedFrameworkPersistenceService;
 import com.axiomai.qa.service.GeneratedProjectWriterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,12 +32,20 @@ public class WorkspaceCleanupService {
     private final GeneratedFrameworkPersistenceService
             generatedFrameworkPersistenceService;
 
+    private final GeneratedTestExecutionQueueService
+            generatedTestExecutionQueueService;
+
+    @Transactional
     public WorkspaceCleanupResult cleanup(
             String sessionId
     ) {
 
         String normalizedSessionId =
                 normalizeSessionId(sessionId);
+
+        generatedTestExecutionQueueService.deleteForSession(
+                normalizedSessionId
+        );
 
         AutomationSession automationSession =
                 automationWorkspaceService.removeSession(
