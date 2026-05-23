@@ -1,6 +1,7 @@
 package com.axiomai.core.runtime;
 
 import com.axiomai.core.graph.ActionNode;
+import com.axiomai.security.SensitiveLogSanitizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +31,9 @@ public class RuntimeRecoveryManager {
                         + " | Action: "
                         + node.getActionType()
                         + " | Error: "
-                        + e.getMessage();
+                        + SensitiveLogSanitizer.redact(
+                        e.getMessage()
+                );
 
         log.error(recoveryEvent);
 

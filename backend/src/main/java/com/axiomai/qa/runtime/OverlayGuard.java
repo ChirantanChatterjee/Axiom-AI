@@ -1,5 +1,6 @@
 package com.axiomai.qa.runtime;
 
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 
@@ -139,7 +140,11 @@ public class OverlayGuard {
                     "[OVERLAY GUARD] FAILED"
             );
 
-            e.printStackTrace();
+            System.out.println(
+                    SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
         }
     }
 }

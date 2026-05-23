@@ -5,6 +5,7 @@ import com.axiomai.qa.ai.LLMSemanticLocatorResolver;
 import com.axiomai.qa.ai.LocalSemanticResolver;
 import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.models.PageElement;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import lombok.RequiredArgsConstructor;
@@ -251,7 +252,11 @@ public class AISemanticExecutionEngine {
                             "[LOCATOR VALIDATION] FAILED"
                     );
 
-                    e.printStackTrace();
+                    System.out.println(
+                            SensitiveLogSanitizer.redact(
+                                    e.getMessage()
+                            )
+                    );
 
                     return null;
                 }
@@ -269,7 +274,11 @@ public class AISemanticExecutionEngine {
                     "[SEMANTIC ENGINE] FAILED"
             );
 
-            e.printStackTrace();
+            System.out.println(
+                    SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             return null;
         }

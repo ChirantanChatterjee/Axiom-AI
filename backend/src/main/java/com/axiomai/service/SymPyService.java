@@ -1,6 +1,7 @@
 package com.axiomai.service;
 
 import com.axiomai.api.response.MathResponse;
+import com.axiomai.security.SensitiveLogSanitizer;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -43,7 +44,12 @@ public class SymPyService {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[SYMPY SERVICE] Request failed: "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             MathResponse error =
                     new MathResponse();

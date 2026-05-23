@@ -6,6 +6,7 @@ import com.axiomai.ai.intent.IntentParser;
 import com.axiomai.ai.orchestrator.AICommandOrchestrator;
 import com.axiomai.core.memory.ExecutionMemoryService;
 import com.axiomai.core.session.ExecutionSession;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.axiomai.workspace.AutomationSession;
 import com.axiomai.workspace.AutomationWorkspaceService;
 import lombok.RequiredArgsConstructor;
@@ -171,9 +172,12 @@ public class AIOrchestratorService {
         } catch (RuntimeException e) {
 
             log.warn(
-                    "AIF command failed: {}",
-                    e.getMessage(),
-                    e
+                    "AIF command failed: {} ({})",
+                    SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    ),
+                    e.getClass()
+                            .getSimpleName()
             );
 
             return AIResponse.builder()

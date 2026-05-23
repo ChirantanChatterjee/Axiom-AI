@@ -31,6 +31,7 @@ import com.axiomai.qa.service.GeneratedTestExecutionService;
 import com.axiomai.qa.service.GeneratedProjectWriterService;
 import com.axiomai.qa.service.RequirementTestCaseGeneratorService;
 import com.axiomai.qa.service.WebsiteCrawlerService;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.axiomai.workspace.AutomationSession;
 import com.axiomai.workspace.AutomationWorkspaceService;
 import com.axiomai.workspace.GeneratedArtifact;
@@ -218,14 +219,21 @@ public class AICommandOrchestrator {
                 return missingRuntimeDataResponse;
             }
 
-            e.printStackTrace();
+            System.out.println(
+                    "ORCHESTRATOR FAILED -> "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             return AIResponse.builder()
 
                     .success(false)
 
                     .message(
-                            e.getMessage()
+                            SensitiveLogSanitizer.redact(
+                                    e.getMessage()
+                            )
                     )
 
                     .type("error")

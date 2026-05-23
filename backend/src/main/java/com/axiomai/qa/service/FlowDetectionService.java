@@ -4,6 +4,7 @@ import com.axiomai.qa.flow.DetectedFlow;
 import com.axiomai.qa.flow.FlowDetectionEngine;
 import com.axiomai.qa.models.PageNode;
 import com.axiomai.qa.models.SiteMapResult;
+import com.axiomai.security.SensitiveLogSanitizer;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -67,7 +68,11 @@ public class FlowDetectionService {
                                 + page.getUrl()
                 );
 
-                e.printStackTrace();
+                System.out.println(
+                        SensitiveLogSanitizer.redact(
+                                e.getMessage()
+                        )
+                );
             }
         }
 

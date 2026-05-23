@@ -1,6 +1,7 @@
 package com.axiomai.ai.runtime;
 
 import com.axiomai.qa.models.PageElement;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import org.springframework.stereotype.Component;
@@ -55,7 +56,12 @@ public class RuntimePageElementExtractor {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[PAGE ELEMENT EXTRACTION FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
         }
 
         return elements;

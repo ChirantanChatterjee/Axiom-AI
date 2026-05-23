@@ -1,5 +1,6 @@
 package com.axiomai.ai.service;
 
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -90,7 +91,9 @@ public class OpenAIService {
 
             System.out.println(
                     "[OPENAI SERVICE] Request failed: "
-                            + e.getMessage()
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
             );
 
             return "OpenAI request failed.";

@@ -2,6 +2,7 @@ package com.axiomai.qa.runtime;
 
 import com.axiomai.qa.ai.LLMElementLocator;
 import com.axiomai.qa.models.FlowStep;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 
@@ -202,7 +203,11 @@ public class SelectorFallbackEngine {
                     "[AI RECOVERY FAILED]"
             );
 
-            e.printStackTrace();
+            System.out.println(
+                    SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
         }
 
         // =================================================

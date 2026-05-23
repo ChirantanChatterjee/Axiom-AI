@@ -1,6 +1,7 @@
 package com.axiomai.ai.runtime;
 
 import com.axiomai.ai.execution.RuntimeVariableContext;
+import com.axiomai.security.SensitiveLogSanitizer;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -93,7 +94,12 @@ public class RuntimeValueResolver {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[VARIABLE RESOLUTION FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             return null;
         }
@@ -188,19 +194,9 @@ public class RuntimeValueResolver {
             return value;
         }
 
-        if (
-                key.contains("password")
-                        ||
-                        key.contains("token")
-                        ||
-                        key.contains("secret")
-                        ||
-                        key.contains("otp")
-        ) {
-
-            return "<redacted>";
-        }
-
-        return value;
+        return SensitiveLogSanitizer.maskIfSensitive(
+                key,
+                value
+        );
     }
 }

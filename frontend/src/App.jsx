@@ -335,6 +335,17 @@ const normalizeBackendUrl = (url) => {
   return `${API_BASE_URL}/${url}`;
 };
 
+const filenameFromContentDisposition = (value) => {
+  if (!value) {
+    return "aif-framework.zip";
+  }
+
+  const match =
+    value.match(/filename="?([^";]+)"?/i);
+
+  return match?.[1] || "aif-framework.zip";
+};
+
 const oauthErrorFromLocation = () => {
   if (typeof window === "undefined") {
     return "";
@@ -1206,7 +1217,8 @@ function AdminView({
 }
 
 function StructuredMessage({
-  msg
+  msg,
+  onDownloadFramework
 }) {
   return (
     <>
@@ -1535,15 +1547,14 @@ function StructuredMessage({
 
       {
         msg.downloadUrl && (
-          <a
-            href={msg.downloadUrl}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="report-link"
+            onClick={() => onDownloadFramework?.(msg.downloadUrl)}
           >
             <FiExternalLink />
             Download Framework
-          </a>
+          </button>
         )
       }
 
@@ -1966,6 +1977,60 @@ function App() {
         ]
       })
     );
+  };
+
+  const downloadFramework = async (downloadUrl) => {
+    if (!downloadUrl || !activeChat) {
+      return;
+    }
+
+    try {
+      const response =
+        await axios.get(
+          normalizeBackendUrl(downloadUrl),
+          {
+            headers: {
+              "X-AIF-Session": authUser?.sessionToken || ""
+            },
+            responseType: "blob"
+          }
+        );
+
+      const objectUrl =
+        window.URL.createObjectURL(response.data);
+
+      const anchor =
+        document.createElement("a");
+
+      anchor.href =
+        objectUrl;
+
+      anchor.download =
+        filenameFromContentDisposition(
+          response.headers["content-disposition"]
+        );
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(
+        () => window.URL.revokeObjectURL(objectUrl),
+        1000
+      );
+    } catch (error) {
+      appendMessage(
+        activeChat.id,
+        {
+          sender: "ai",
+          text:
+            error.response?.data?.message ||
+            error.response?.data?.error ||
+            "Unable to download the framework for this chat.",
+          type: "error"
+        }
+      );
+    }
   };
 
   const updateQueuedExecutionMessage = (chatId, job) => {
@@ -2881,7 +2946,10 @@ function App() {
                         }
                       >
                         <div className="message-content">
-                          <StructuredMessage msg={msg} />
+                          <StructuredMessage
+                            msg={msg}
+                            onDownloadFramework={downloadFramework}
+                          />
                         </div>
                       </motion.div>
                     ))

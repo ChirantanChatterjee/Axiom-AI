@@ -2,6 +2,7 @@ package com.axiomai.qa.ai;
 
 import com.axiomai.ai.service.OpenAIService;
 import com.axiomai.qa.models.PageElement;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -40,7 +41,12 @@ public class LLMElementClassifier {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[LLM ELEMENT CLASSIFIER FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             LLMClassificationResponse fallback =
                     new LLMClassificationResponse();

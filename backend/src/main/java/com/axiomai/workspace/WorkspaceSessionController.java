@@ -25,7 +25,7 @@ public class WorkspaceSessionController {
     ) {
 
         String normalizedSessionId =
-                workspaceAccessService.requireOrBindAccess(
+                workspaceAccessService.requireAccess(
                         token,
                         sessionId
                 );

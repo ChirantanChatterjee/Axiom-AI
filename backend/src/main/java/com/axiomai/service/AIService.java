@@ -2,6 +2,7 @@ package com.axiomai.service;
 
 import com.axiomai.api.response.MathResponse;
 import com.axiomai.math.solver.MathSolver;
+import com.axiomai.security.SensitiveLogSanitizer;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,7 +22,10 @@ public class AIService {
     public MathResponse process(String input) {
 
         System.out.println("================================");
-        System.out.println("USER INPUT = " + input);
+        System.out.println(
+                "USER INPUT = "
+                        + SensitiveLogSanitizer.redact(input)
+        );
 
         try {
 
@@ -74,7 +78,12 @@ public class AIService {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[AI SERVICE] Request failed: "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             MathResponse error =
                     new MathResponse();

@@ -6,6 +6,7 @@ import com.axiomai.core.graph.FlowGraph;
 import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.runtime.AIActionExecutor;
 import com.axiomai.qa.runtime.PlaywrightBrowserFactory;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.microsoft.playwright.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -144,7 +145,12 @@ public class SemanticRuntimeExecutor {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[RUNTIME FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             ExecutionResult result =
                     executionTracker
@@ -690,25 +696,9 @@ public class SemanticRuntimeExecutor {
         String lower =
                 key.toLowerCase();
 
-        if (
-                lower.contains("password")
-                        ||
-                        lower.contains("token")
-                        ||
-                        lower.contains("secret")
-                        ||
-                        lower.contains("otp")
-                        ||
-                        lower.contains("username")
-                        ||
-                        lower.contains("email")
-                        ||
-                        lower.equals("user")
-        ) {
-
-            return "<redacted>";
-        }
-
-        return value;
+        return SensitiveLogSanitizer.maskIfSensitive(
+                lower,
+                value
+        );
     }
 }

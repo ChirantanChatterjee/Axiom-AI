@@ -986,6 +986,7 @@ textarea:disabled {
 }
 
 .report-link {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 10px;

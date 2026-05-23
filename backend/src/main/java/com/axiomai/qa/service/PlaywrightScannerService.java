@@ -6,6 +6,7 @@ import com.axiomai.qa.ai.SelectorStrategyEngine;
 import com.axiomai.qa.models.PageElement;
 import com.axiomai.qa.models.PageScanResult;
 import com.axiomai.qa.util.ElementClassifier;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.microsoft.playwright.*;
 import org.springframework.stereotype.Service;
 
@@ -183,7 +184,11 @@ public class PlaywrightScannerService {
                                 "ELEMENT EXTRACTION FAILED"
                         );
 
-                        e.printStackTrace();
+                        System.out.println(
+                                SensitiveLogSanitizer.redact(
+                                        e.getMessage()
+                                )
+                        );
                     }
                 }
             }
@@ -198,7 +203,12 @@ public class PlaywrightScannerService {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[PLAYWRIGHT SCAN FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             return new PageScanResult(
                     url,

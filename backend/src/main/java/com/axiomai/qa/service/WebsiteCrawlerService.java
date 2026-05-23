@@ -6,6 +6,7 @@ import com.axiomai.qa.models.PageNode;
 import com.axiomai.qa.models.SiteMapResult;
 import com.axiomai.qa.runtime.PlaywrightBrowserFactory;
 import com.axiomai.qa.util.ElementClassifier;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.springframework.stereotype.Service;
@@ -279,7 +280,11 @@ public class WebsiteCrawlerService {
                                     + currentUrl
                     );
 
-                    e.printStackTrace();
+                    System.out.println(
+                            SensitiveLogSanitizer.redact(
+                                    e.getMessage()
+                            )
+                    );
                 }
             }
 
@@ -287,7 +292,12 @@ public class WebsiteCrawlerService {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[WEBSITE CRAWL FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
         }
 
         return new SiteMapResult(
@@ -539,13 +549,23 @@ public class WebsiteCrawlerService {
 
                 } catch (Exception e) {
 
-                    e.printStackTrace();
+                    System.out.println(
+                            "[ELEMENT EXTRACTION FAILED] "
+                                    + SensitiveLogSanitizer.redact(
+                                    e.getMessage()
+                            )
+                    );
                 }
             }
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[ELEMENT EXTRACTION FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
         }
 
         return elements;
@@ -621,13 +641,23 @@ public class WebsiteCrawlerService {
 
                 } catch (Exception e) {
 
-                    e.printStackTrace();
+                    System.out.println(
+                            "[LINK EXTRACTION FAILED] "
+                                    + SensitiveLogSanitizer.redact(
+                                    e.getMessage()
+                            )
+                    );
                 }
             }
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[LINK EXTRACTION FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
         }
 
         return links;

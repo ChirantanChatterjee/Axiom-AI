@@ -1,6 +1,7 @@
 package com.axiomai.ai.service;
 
 import com.axiomai.ai.model.GPTIntentResponse;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -204,10 +205,11 @@ User Request:
         } catch (Exception e) {
 
             System.out.println(
-                    "OPENAI FAILED -> USING FALLBACK RULE ENGINE"
+                    "OPENAI FAILED -> USING FALLBACK RULE ENGINE: "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
             );
-
-            e.printStackTrace();
 
             return GPTIntentResponse.builder()
 

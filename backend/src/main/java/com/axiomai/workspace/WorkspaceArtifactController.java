@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.MalformedURLException;
@@ -24,18 +25,29 @@ public class WorkspaceArtifactController {
     private final GeneratedProjectWriterService
             generatedProjectWriterService;
 
+    private final WorkspaceAccessService
+            workspaceAccessService;
+
     @GetMapping("/{sessionId}/{fileName:.+}")
     public ResponseEntity<Resource> download(
 
             @PathVariable String sessionId,
 
-            @PathVariable String fileName
+            @PathVariable String fileName,
+
+            @RequestHeader("X-AIF-Session") String token
 
     ) throws MalformedURLException {
 
+        String normalizedSessionId =
+                workspaceAccessService.requireAccess(
+                        token,
+                        sessionId
+                );
+
         Path root =
                 generatedProjectWriterService
-                        .getWorkspaceRoot(sessionId)
+                        .getWorkspaceRoot(normalizedSessionId)
                         .toAbsolutePath()
                         .normalize();
 

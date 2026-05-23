@@ -1,6 +1,7 @@
 package com.axiomai.qa.ai;
 
 import com.axiomai.qa.models.PageElement;
+import com.axiomai.security.SensitiveLogSanitizer;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -158,7 +159,12 @@ public class LocalSemanticResolver {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            System.out.println(
+                    "[LOCAL SEMANTIC RESOLVER FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
 
             return null;
         }

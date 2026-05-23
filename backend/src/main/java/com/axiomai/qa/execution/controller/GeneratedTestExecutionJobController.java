@@ -32,7 +32,7 @@ public class GeneratedTestExecutionJobController {
 
         return queueService.find(jobId)
                 .map(job -> {
-                    workspaceAccessService.requireOrBindAccess(
+                    workspaceAccessService.requireAccess(
                             token,
                             job.getSessionId()
                     );
@@ -54,7 +54,7 @@ public class GeneratedTestExecutionJobController {
     ) {
 
         String normalizedSessionId =
-                workspaceAccessService.requireOrBindAccess(
+                workspaceAccessService.requireAccess(
                         token,
                         sessionId
                 );
@@ -76,7 +76,7 @@ public class GeneratedTestExecutionJobController {
     ) {
 
         String normalizedSessionId =
-                workspaceAccessService.requireOrBindAccess(
+                workspaceAccessService.requireAccess(
                         token,
                         sessionId
                 );
