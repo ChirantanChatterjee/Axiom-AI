@@ -79,6 +79,19 @@ public class IntentParser {
                     .build();
         }
 
+        AICommand compoundCommand =
+                parseCompoundCommand(
+                        message,
+                        variables
+                );
+
+        if (
+                compoundCommand != null
+        ) {
+
+            return compoundCommand;
+        }
+
         if (
                 containsGeneratedTestExecutionRequest(message)
         ) {
@@ -422,6 +435,154 @@ public class IntentParser {
     // =====================================================
     // LOCAL RULE ENGINE
     // =====================================================
+
+    private AICommand parseCompoundCommand(
+            String message,
+            Map<String, String> variables
+    ) {
+
+        List<String> clauses =
+                splitCompoundClauses(message);
+
+        if (
+                clauses.size() < 2
+        ) {
+
+            return null;
+        }
+
+        List<AICommand> commands =
+                new ArrayList<>();
+
+        for (
+                String clause
+                : clauses
+        ) {
+
+            AICommand command =
+                    parseCompoundClause(
+                            clause,
+                            variables
+                    );
+
+            if (
+                    command != null
+            ) {
+
+                commands.add(command);
+            }
+        }
+
+        if (
+                commands.size() < 2
+        ) {
+
+            return null;
+        }
+
+        return AICommand.builder()
+                .intent("COMPOUND_COMMAND")
+                .commands(commands)
+                .variables(variables)
+                .message(message)
+                .build();
+    }
+
+    private List<String> splitCompoundClauses(
+            String message
+    ) {
+
+        if (
+                message == null
+                        ||
+                        message.isBlank()
+        ) {
+
+            return List.of();
+        }
+
+        String[] parts =
+                Pattern.compile(
+                                "(?i)\\s+(?:and\\s+then|then|after\\s+that)\\s+|;\\s*|\\s+and\\s+(?=(?:can\\s+you\\s+|please\\s+)?(?:run|execute|start|create|generate|add|write|produce)\\b)"
+                        )
+                        .split(message);
+
+        List<String> clauses =
+                new ArrayList<>();
+
+        for (
+                String part
+                : parts
+        ) {
+
+            String clause =
+                    part.trim();
+
+            if (
+                    !clause.isBlank()
+            ) {
+
+                clauses.add(clause);
+            }
+        }
+
+        return clauses;
+    }
+
+    private AICommand parseCompoundClause(
+            String clause,
+            Map<String, String> variables
+    ) {
+
+        if (
+                containsFrameworkGenerationIntent(clause)
+        ) {
+
+            return AICommand.builder()
+                    .intent("GENERATE_FRAMEWORK")
+                    .url(
+                            extractUrl(clause)
+                    )
+                    .variables(variables)
+                    .message(clause)
+                    .build();
+        }
+
+        if (
+                containsFeatureGenerationIntent(clause)
+        ) {
+
+            String featureName =
+                    extractFeatureName(clause);
+
+            return AICommand.builder()
+                    .intent("GENERATE_FEATURE")
+                    .flowName(featureName)
+                    .featureName(featureName)
+                    .url(
+                            extractUrl(clause)
+                    )
+                    .variables(variables)
+                    .message(clause)
+                    .build();
+        }
+
+        if (
+                containsGeneratedTestExecutionRequest(clause)
+        ) {
+
+            return AICommand.builder()
+                    .intent("EXECUTE_GENERATED_TESTS")
+                    .target(
+                            extractTagExpression(clause)
+                    )
+                    .variables(variables)
+                    .message(clause)
+                    .build();
+        }
+
+        return null;
+    }
 
     private AICommand localRuleParse(
             String message

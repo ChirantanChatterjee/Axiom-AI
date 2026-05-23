@@ -7,6 +7,7 @@ import com.axiomai.ai.service.OpenAIIntentService;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class IntentParserTest {
 
@@ -139,6 +140,64 @@ class IntentParserTest {
         assertEquals(
                 "@checkout",
                 command.getTarget()
+        );
+    }
+
+    @Test
+    void detectsGenerateThenRunAsCompoundCommand() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "can you create tests for register and then run the test for bill pay?"
+                );
+
+        assertEquals(
+                "COMPOUND_COMMAND",
+                command.getIntent()
+        );
+
+        assertNotNull(
+                command.getCommands()
+        );
+
+        assertEquals(
+                2,
+                command.getCommands()
+                        .size()
+        );
+
+        AICommand generate =
+                command.getCommands()
+                        .get(0);
+
+        assertEquals(
+                "GENERATE_FEATURE",
+                generate.getIntent()
+        );
+
+        assertEquals(
+                "registration",
+                generate.getFeatureName()
+        );
+
+        AICommand execute =
+                command.getCommands()
+                        .get(1);
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                execute.getIntent()
+        );
+
+        assertEquals(
+                "(@bill_pay or @billpay)",
+                execute.getTarget()
         );
     }
 

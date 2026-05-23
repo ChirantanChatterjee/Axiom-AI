@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -75,5 +76,11 @@ public class AICommand {
     // =====================================================
 
     private AIExecutionPlan executionPlan;
+
+    // =====================================================
+    // COMPOUND COMMANDS
+    // =====================================================
+
+    private List<AICommand> commands;
 
 }

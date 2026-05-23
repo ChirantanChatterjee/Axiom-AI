@@ -136,6 +136,12 @@ public class AICommandOrchestrator {
                                 userId
                         );
 
+                case "COMPOUND_COMMAND" ->
+                        executeCompoundCommand(
+                                command,
+                                userId
+                        );
+
                 case "GENERATE_FEATURE" ->
                         generateFeature(
                                 command,
@@ -223,6 +229,161 @@ public class AICommandOrchestrator {
 
                     .build();
         }
+    }
+
+    private AIResponse executeCompoundCommand(
+            AICommand command,
+            String userId
+    ) {
+
+        List<AICommand> commands =
+                command.getCommands() == null
+                        ? List.of()
+                        : command.getCommands();
+
+        if (
+                commands.isEmpty()
+        ) {
+
+            return AIResponse.builder()
+                    .success(false)
+                    .message("AIF could not find executable steps in that compound request.")
+                    .type("error")
+                    .build();
+        }
+
+        List<Map<String, Object>> stepResults =
+                new ArrayList<>();
+
+        AIResponse latestResponse =
+                null;
+
+        for (
+                int i = 0;
+                i < commands.size();
+                i++
+        ) {
+
+            AICommand subCommand =
+                    commands.get(i);
+
+            subCommand.setUserId(userId);
+
+            if (
+                    subCommand.getVariables() == null
+                            ||
+                            subCommand.getVariables()
+                                    .isEmpty()
+            ) {
+
+                subCommand.setVariables(
+                        command.getVariables()
+                );
+            }
+
+            latestResponse =
+                    execute(subCommand);
+
+            stepResults.add(
+                    compoundStepResult(
+                            i + 1,
+                            subCommand,
+                            latestResponse
+                    )
+            );
+
+            if (
+                    latestResponse == null
+                            ||
+                            !latestResponse.isSuccess()
+            ) {
+
+                return compoundResponse(
+                        false,
+                        "AIF completed "
+                                + i
+                                + " of "
+                                + commands.size()
+                                + " requested actions. The next action failed: "
+                                + (
+                                latestResponse == null
+                                        ? "No response was returned."
+                                        : latestResponse.getMessage()
+                        ),
+                        stepResults,
+                        latestResponse
+                );
+            }
+        }
+
+        return compoundResponse(
+                true,
+                "AIF completed "
+                        + commands.size()
+                        + " requested actions in order.",
+                stepResults,
+                latestResponse
+        );
+    }
+
+    private Map<String, Object> compoundStepResult(
+            int index,
+            AICommand command,
+            AIResponse response
+    ) {
+
+        Map<String, Object> result =
+                new LinkedHashMap<>();
+
+        result.put("index", index);
+        result.put("intent", command.getIntent());
+        result.put("featureName", command.getFeatureName());
+        result.put("target", command.getTarget());
+        result.put("success", response != null && response.isSuccess());
+        result.put(
+                "message",
+                response == null
+                        ? null
+                        : response.getMessage()
+        );
+        result.put(
+                "type",
+                response == null
+                        ? null
+                        : response.getType()
+        );
+
+        return result;
+    }
+
+    private AIResponse compoundResponse(
+            boolean success,
+            String message,
+            List<Map<String, Object>> stepResults,
+            AIResponse latestResponse
+    ) {
+
+        Map<String, Object> data =
+                new LinkedHashMap<>();
+
+        data.put("steps", stepResults);
+
+        return AIResponse.builder()
+                .success(success)
+                .message(message)
+                .type("compound")
+                .data(data)
+                .downloadUrl(
+                        latestResponse == null
+                                ? null
+                                : latestResponse.getDownloadUrl()
+                )
+                .reportUrl(
+                        latestResponse == null
+                                ? null
+                                : latestResponse.getReportUrl()
+                )
+                .build();
     }
 
     private AIResponse missingRuntimeDataResponse(
