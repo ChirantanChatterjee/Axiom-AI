@@ -30,15 +30,19 @@ RUN apt-get update && apt-get install -y \
 
 RUN ./mvnw clean package -DskipTests
 
+RUN ./mvnw -B -ntp -f docker/generated-framework-warmup-pom.xml \
+    dependency:go-offline test-compile
+
 RUN ./mvnw -q exec:java \
     -Dexec.mainClass=com.microsoft.playwright.CLI \
     -Dexec.args="install chromium"
 
 ENV AIF_HEADLESS=true
+ENV AIF_GENERATED_TEST_MAVEN_OPTS="-Xmx192m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true"
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV NO_AT_BRIDGE=1
 
 EXPOSE 10000
 
-CMD ["java", "-jar", "target/backend-0.0.1-SNAPSHOT.jar"]
+CMD ["sh", "-c", "java ${JAVA_OPTS:-} -jar target/backend-0.0.1-SNAPSHOT.jar"]

@@ -45,6 +45,12 @@ public class GeneratedTestExecutionService {
     @Value("${aif.generated-tests.timeout-minutes:${AIF_GENERATED_TEST_TIMEOUT_MINUTES:6}}")
     private long generatedTestTimeoutMinutes;
 
+    @Value("${aif.generated-tests.maven-opts}")
+    private String generatedTestMavenOpts;
+
+    @Value("${aif.generated-tests.maven-offline:${AIF_GENERATED_TEST_MAVEN_OFFLINE:true}}")
+    private boolean generatedTestMavenOffline;
+
     private final GeneratedProjectWriterService
             generatedProjectWriterService;
 
@@ -140,51 +146,33 @@ public class GeneratedTestExecutionService {
         }
 
         List<String> command =
-                new ArrayList<>();
-
-        command.add(
-                mavenCommand()
-        );
-
-        command.add("-B");
-
-        command.add("-ntp");
-
-        command.add("-f");
-
-        command.add(
-                frameworkRoot.resolve("pom.xml")
-                        .toAbsolutePath()
-                        .normalize()
-                        .toString()
-        );
-
-        command.add("test");
-
-        if (
-                normalizedExpression != null
-                        &&
-                        !normalizedExpression.isBlank()
-        ) {
-
-            command.add(
-                    "-Dcucumber.filter.tags="
-                            + normalizedExpression
-            );
-        }
+                generatedTestCommand(
+                        frameworkRoot,
+                        normalizedExpression,
+                        shouldUseOfflineMaven()
+                );
 
         try {
+
+            boolean supportFilesChanged =
+                    false;
 
             if (
                     !frameworkLearningService
                             .hasUserUploadedFramework(sessionId)
             ) {
 
-                refreshSupportFiles(frameworkRoot);
+                supportFilesChanged =
+                        refreshSupportFiles(frameworkRoot);
             }
 
-            generatedFrameworkPersistenceService
-                    .persistFramework(sessionId);
+            if (
+                    supportFilesChanged
+            ) {
+
+                generatedFrameworkPersistenceService
+                        .persistFramework(sessionId);
+            }
 
             CommandResult testResult =
                     runCommand(
@@ -199,6 +187,43 @@ public class GeneratedTestExecutionService {
 
             String output =
                     testResult.output();
+
+            if (
+                    shouldUseOfflineMaven()
+                            &&
+                            exitCode != 0
+                            &&
+                            isMavenOfflineDependencyFailure(output)
+            ) {
+
+                CommandResult onlineRetryResult =
+                        runCommand(
+                                generatedTestCommand(
+                                        frameworkRoot,
+                                        normalizedExpression,
+                                        false
+                                ),
+                                frameworkRoot,
+                                variables,
+                                false
+                        );
+
+                exitCode =
+                        onlineRetryResult.exitCode();
+
+                output =
+                        combineOfflineRetryOutputs(
+                                output,
+                                onlineRetryResult.output()
+                        );
+
+                command =
+                        generatedTestCommand(
+                                frameworkRoot,
+                                normalizedExpression,
+                                false
+                        );
+            }
 
             if (
                     exitCode != 0
@@ -302,16 +327,25 @@ public class GeneratedTestExecutionService {
                                     repair.getChanges()
                             );
 
+            boolean supportFilesChanged =
+                    false;
+
             if (
                     !frameworkLearningService
                             .hasUserUploadedFramework(sessionId)
             ) {
 
-                refreshSupportFiles(frameworkRoot);
+                supportFilesChanged =
+                        refreshSupportFiles(frameworkRoot);
             }
 
-            generatedFrameworkPersistenceService
-                    .persistFramework(sessionId);
+            if (
+                    supportFilesChanged
+            ) {
+
+                generatedFrameworkPersistenceService
+                        .persistFramework(sessionId);
+            }
 
             return GeneratedTestRepairResult.builder()
                     .changed(
@@ -445,7 +479,7 @@ public class GeneratedTestExecutionService {
                 hasFeatureFiles(root);
     }
 
-    private void refreshSupportFiles(
+    private boolean refreshSupportFiles(
             Path frameworkRoot
     ) throws IOException {
 
@@ -474,30 +508,60 @@ public class GeneratedTestExecutionService {
         Files.createDirectories(hooksFolder);
         Files.createDirectories(runnerFolder);
 
-        Files.writeString(
+        boolean changed =
+                false;
+
+        changed |= writeStringIfChanged(
                 pageFolder.resolve("GeneratedPage.java"),
                 flowPageObjectGenerator.generate(List.of())
         );
 
-        Files.writeString(
+        changed |= writeStringIfChanged(
                 stepFolder.resolve("GeneratedSteps.java"),
                 FlowStepDefinitionGenerator.generate(List.of())
         );
 
-        Files.writeString(
+        changed |= writeStringIfChanged(
                 hooksFolder.resolve("Hooks.java"),
                 hookGeneratorService.generateHooks()
         );
 
-        Files.writeString(
+        changed |= writeStringIfChanged(
                 runnerFolder.resolve("TestRunner.java"),
                 runnerGeneratorService.generateRunner()
         );
 
-        Files.writeString(
+        changed |= writeStringIfChanged(
                 frameworkRoot.resolve("pom.xml"),
                 pomGeneratorService.generatePom()
         );
+
+        return changed;
+    }
+
+    private boolean writeStringIfChanged(
+
+            Path path,
+            String content
+
+    ) throws IOException {
+
+        if (
+                Files.exists(path)
+                        &&
+                        Files.readString(path)
+                                .equals(content)
+        ) {
+
+            return false;
+        }
+
+        Files.writeString(
+                path,
+                content
+        );
+
+        return true;
     }
 
     private boolean hasFeatureFiles(
@@ -1498,6 +1562,116 @@ public class GeneratedTestExecutionService {
         );
     }
 
+    private List<String> generatedTestCommand(
+
+            Path frameworkRoot,
+            String normalizedExpression,
+            boolean offline
+
+    ) {
+
+        List<String> command =
+                new ArrayList<>();
+
+        command.add(
+                mavenCommand()
+        );
+
+        command.add("-B");
+
+        command.add("-ntp");
+
+        if (
+                offline
+        ) {
+
+            command.add("-o");
+        }
+
+        command.add("-Dstyle.color=never");
+
+        command.add("-f");
+
+        command.add(
+                frameworkRoot.resolve("pom.xml")
+                        .toAbsolutePath()
+                        .normalize()
+                        .toString()
+        );
+
+        command.add("test");
+
+        if (
+                normalizedExpression != null
+                        &&
+                        !normalizedExpression.isBlank()
+        ) {
+
+            command.add(
+                    "-Dcucumber.filter.tags="
+                            + normalizedExpression
+            );
+        }
+
+        return command;
+    }
+
+    private boolean shouldUseOfflineMaven() {
+
+        return generatedTestMavenOffline;
+    }
+
+    private String generatedTestMavenOpts() {
+
+        if (
+                generatedTestMavenOpts == null
+                        ||
+                        generatedTestMavenOpts.isBlank()
+        ) {
+
+            return "-Xmx192m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true";
+        }
+
+        return generatedTestMavenOpts.trim();
+    }
+
+    private boolean isMavenOfflineDependencyFailure(
+            String output
+    ) {
+
+        if (
+                output == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                output.toLowerCase();
+
+        return lower.contains("cannot access central")
+                ||
+                lower.contains("offline mode")
+                ||
+                lower.contains("has not been downloaded from it before")
+                ||
+                lower.contains("missing artifact");
+    }
+
+    private String combineOfflineRetryOutputs(
+
+            String offlineOutput,
+            String onlineOutput
+
+    ) {
+
+        return (offlineOutput == null ? "" : offlineOutput)
+                + System.lineSeparator()
+                + "AIF retried generated test execution without Maven offline mode because a dependency was missing from the local image cache."
+                + System.lineSeparator()
+                + (onlineOutput == null ? "" : onlineOutput);
+    }
+
     private boolean isMissingPlaywrightBrowser(
             String output
     ) {
@@ -1612,7 +1786,7 @@ public class GeneratedTestExecutionService {
 
         environment.putIfAbsent(
                 "MAVEN_OPTS",
-                "-Xmx256m -XX:MaxMetaspaceSize=160m -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true"
+                generatedTestMavenOpts()
         );
 
         environment.putIfAbsent(
