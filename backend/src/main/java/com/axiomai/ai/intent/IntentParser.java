@@ -1371,6 +1371,38 @@ public class IntentParser {
             return true;
         }
 
+        boolean actualAssertionFollowUp =
+                (
+                        lower.contains("actual sentence")
+                                ||
+                                lower.contains("actual text")
+                                ||
+                                lower.contains("actual message")
+                                ||
+                                lower.contains("real sentence")
+                                ||
+                                lower.contains("real text")
+                                ||
+                                lower.contains("real message")
+                )
+                        &&
+                        (
+                                lower.contains(" is ")
+                                        ||
+                                        lower.contains(" was ")
+                                        ||
+                                        lower.contains("-->")
+                                        ||
+                                        lower.contains(":")
+                        );
+
+        if (
+                actualAssertionFollowUp
+        ) {
+
+            return true;
+        }
+
         boolean failureSignal =
                 lower.contains("failed")
                         ||

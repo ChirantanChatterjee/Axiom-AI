@@ -244,6 +244,85 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void updatesLikelyAccountAssertionWhenActualTextMentionsValidNumber() {
+
+        String feature =
+                """
+                        Feature: bill pay
+
+                        @bill_pay @generated
+                        Scenario: Bill pay with mismatched verify account number
+                          Then user should see "account mismatch error"
+
+                        @bill_pay @generated
+                        Scenario: Bill pay with negative amount
+                          Then user should see "amount validation error"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                """
+                                Bill pay with mismatched verify account number <<< FAILURE!
+                                java.lang.AssertionError: Expected page to contain text: account mismatch error
+                                Bill pay with negative amount <<< FAILURE!
+                                java.lang.AssertionError: Expected page to contain text: amount validation error
+                                """,
+                                "The test failed because the assertion sentence actually was \"Please enter a valid number.\", can you fix it?"
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"Please enter a valid number.\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"amount validation error\"")
+        );
+
+        assertEquals(
+                List.of("Updated assertion text from \"account mismatch error\" to \"Please enter a valid number.\"."),
+                repair.changes()
+        );
+    }
+
+    @Test
+    void updatesAssertionTextWhenUserProvidesUnquotedActualSentenceFollowUp() {
+
+        String feature =
+                """
+                        Feature: bill pay
+
+                        @bill_pay @generated
+                        Scenario: Bill pay with mismatched verify account number
+                          Then user should see "account mismatch error"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.AssertionError: Expected page to contain text: account mismatch error",
+                                "The actual sentence is --> Please enter a valid number."
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"Please enter a valid number.\"")
+        );
+    }
+
+    @Test
     void summarizesExpectedTextAssertionFailures() {
 
         String summary =

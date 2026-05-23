@@ -832,6 +832,7 @@ function HelpView({
             When the page text is different from the generated assertion, provide the actual sentence from the app or report.
           </p>
           <code>The test failed because the assertion sentence actually was "Please enter a valid number.", can you fix it?</code>
+          <code>The actual sentence is --&gt; Please enter a valid number.</code>
           <code>Replace assertion "account mismatch error" with "Please enter a valid number."</code>
           <code>The expected text should be "Bill Payment Complete".</code>
           <code>The page says "Bill Payment Complete", not "amount validation error". Please update the generated test assertion.</code>

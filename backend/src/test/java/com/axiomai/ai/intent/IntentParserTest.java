@@ -631,6 +631,36 @@ class IntentParserTest {
         );
     }
 
+    @Test
+    void detectsActualSentenceFollowUpAsGeneratedRepairRequestBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand unquotedCommand =
+                parser.parse(
+                        "The actual sentence is --> Please enter a valid number."
+                );
+
+        AICommand quotedCommand =
+                parser.parse(
+                        "The actual sentence is \"Please enter a valid number\"."
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                unquotedCommand.getIntent()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                quotedCommand.getIntent()
+        );
+    }
+
     private static class StubOpenAIIntentService
             extends OpenAIIntentService {
 

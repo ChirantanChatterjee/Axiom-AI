@@ -641,7 +641,23 @@ public class GeneratedFeatureRepairService {
         Optional<String> expectedText =
                 expectedAssertionText(userInstruction);
 
-        return expectedText.map(expected -> List.of(
+        if (
+                expectedText.isPresent()
+        ) {
+
+            return List.of(
+                    new AssertionReplacement(
+                            expectedText.get(),
+                            actualText.get()
+                    )
+            );
+        }
+
+        return inferredExpectedAssertionText(
+                actualText.get(),
+                missingTexts
+        )
+                .map(expected -> List.of(
                         new AssertionReplacement(
                                 expected,
                                 actualText.get()
@@ -749,9 +765,242 @@ public class GeneratedFeatureRepairService {
             ) {
 
                 return Optional.of(
-                        matcher.group(1)
-                                .trim()
+                                normalizeCapturedAssertionText(
+                                        matcher.group(1)
+                                )
+                        )
+                        .filter(actual -> !actual.isBlank());
+            }
+        }
+
+        List<Pattern> unquotedPatterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)assertion(?:\\s+(?:sentence|text|message))?[^\\r\\n]{0,100}actual(?:ly)?\\s+(?:was|is)\\s*(?:-->|:|-)?\\s*([^\"\\r\\n]+)"
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:actual|real)\\s+(?:assertion\\s+)?(?:text|sentence|message)\\s*(?:was|is)\\s*(?:-->|:|-)?\\s*([^\"\\r\\n]+)"
+                        )
                 );
+
+        for (
+                Pattern pattern
+                : unquotedPatterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(userInstruction);
+
+            if (
+                    matcher.find()
+            ) {
+
+                return Optional.of(
+                                normalizeCapturedAssertionText(
+                                        matcher.group(1)
+                                )
+                        )
+                        .filter(actual -> !actual.isBlank());
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private String normalizeCapturedAssertionText(
+            String text
+    ) {
+
+        if (
+                text == null
+        ) {
+
+            return "";
+        }
+
+        String normalized =
+                text.trim()
+                        .replaceFirst(
+                                "^[\\s:=\\-]+>?",
+                                ""
+                        )
+                        .trim();
+
+        normalized =
+                normalized.replaceFirst(
+                                "(?i)(?:\\s*,\\s*|\\s+)(?:can|could|would)\\s+you\\b.*$",
+                                ""
+                        )
+                        .trim();
+
+        normalized =
+                normalized.replaceFirst(
+                                "(?i)(?:\\s*,\\s*|\\s+)please\\s+(?:fix|update|repair|change)\\b.*$",
+                                ""
+                        )
+                        .trim();
+
+        return normalized;
+    }
+
+    private Optional<String> inferredExpectedAssertionText(
+            String actualText,
+            List<String> missingTexts
+    ) {
+
+        if (
+                missingTexts == null
+                        ||
+                        missingTexts.isEmpty()
+        ) {
+
+            return Optional.empty();
+        }
+
+        if (
+                missingTexts.size() == 1
+        ) {
+
+            return Optional.of(
+                    missingTexts.get(0)
+            );
+        }
+
+        String lowerActual =
+                actualText == null
+                        ? ""
+                        : actualText.toLowerCase();
+
+        if (
+                lowerActual.contains("valid number")
+                        ||
+                        lowerActual.contains("number")
+        ) {
+
+            Optional<String> accountAssertion =
+                    firstMissingTextContaining(
+                            missingTexts,
+                            "account",
+                            "mismatch",
+                            "verify"
+                    );
+
+            if (
+                    accountAssertion.isPresent()
+            ) {
+
+                return accountAssertion;
+            }
+
+            Optional<String> amountAssertion =
+                    firstMissingTextContaining(
+                            missingTexts,
+                            "amount"
+                    );
+
+            if (
+                    amountAssertion.isPresent()
+            ) {
+
+                return amountAssertion;
+            }
+        }
+
+        if (
+                lowerActual.contains("bill payment complete")
+                        ||
+                        lowerActual.contains("successful")
+        ) {
+
+            Optional<String> amountAssertion =
+                    firstMissingTextContaining(
+                            missingTexts,
+                            "amount",
+                            "validation"
+                    );
+
+            if (
+                    amountAssertion.isPresent()
+            ) {
+
+                return amountAssertion;
+            }
+        }
+
+        if (
+                lowerActual.contains("required")
+        ) {
+
+            return firstMissingTextContaining(
+                    missingTexts,
+                    "required"
+            );
+        }
+
+        if (
+                lowerActual.contains("email")
+        ) {
+
+            return firstMissingTextContaining(
+                    missingTexts,
+                    "email"
+            );
+        }
+
+        if (
+                lowerActual.contains("password")
+        ) {
+
+            return firstMissingTextContaining(
+                    missingTexts,
+                    "password"
+            );
+        }
+
+        if (
+                lowerActual.contains("username")
+                        ||
+                        lowerActual.contains("user name")
+                        ||
+                        lowerActual.contains("user")
+        ) {
+
+            return firstMissingTextContaining(
+                    missingTexts,
+                    "username",
+                    "user"
+            );
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<String> firstMissingTextContaining(
+            List<String> missingTexts,
+            String... tokens
+    ) {
+
+        for (
+                String missingText
+                : missingTexts
+        ) {
+
+            String lowerMissingText =
+                    missingText.toLowerCase();
+
+            for (
+                    String token
+                    : tokens
+            ) {
+
+                if (
+                        lowerMissingText.contains(token)
+                ) {
+
+                    return Optional.of(
+                            missingText
+                    );
+                }
             }
         }
 
