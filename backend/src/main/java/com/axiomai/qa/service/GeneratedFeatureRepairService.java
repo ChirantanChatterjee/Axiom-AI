@@ -25,9 +25,23 @@ public class GeneratedFeatureRepairService {
             Path frameworkRoot
     ) {
 
+        return repair(
+                frameworkRoot,
+                ""
+        );
+    }
+
+    public RepairResult repair(
+            Path frameworkRoot,
+            String previousExecutionOutput
+    ) {
+
         String latestOutput =
-                latestExecutionOutput(frameworkRoot)
-                        .orElse("");
+                combinedOutput(
+                        previousExecutionOutput,
+                        latestExecutionOutput(frameworkRoot)
+                                .orElse("")
+                );
 
         List<String> changedFiles =
                 new ArrayList<>();
@@ -127,6 +141,12 @@ public class GeneratedFeatureRepairService {
                                         ||
                                         lower.contains("overview.htm")
                                         ||
+                                        lower.contains("unable to resolve element: bill pay")
+                                        ||
+                                        lower.contains("unable to resolve element: billpay")
+                                        ||
+                                        lower.contains("unable to resolve element: bill payment")
+                                        ||
                                         lower.contains("unable to resolve element: send payment button")
                                         ||
                                         lower.contains("expected page to contain text: bill payment complete")
@@ -179,6 +199,35 @@ public class GeneratedFeatureRepairService {
             String line =
                     lines.get(i);
 
+            Matcher billPayClick =
+                    Pattern.compile(
+                                    "^(\\s*)(When|And) user clicks \"(?:bill\\s*pay|bill\\s*payment|billpay)\"\\s*$",
+                                    Pattern.CASE_INSENSITIVE
+                            )
+                            .matcher(line);
+
+            if (
+                    billPayClick.matches()
+            ) {
+
+                String canonicalBillPayClick =
+                        billPayClick.group(1)
+                                + billPayClick.group(2)
+                                + " user clicks \"Bill Pay\"";
+
+                if (
+                        !line.equals(canonicalBillPayClick)
+                ) {
+
+                    changes.add(
+                            "Canonicalized the ParaBank Bill Pay navigation target."
+                    );
+                }
+
+                line =
+                        canonicalBillPayClick;
+            }
+
             repaired.append(line)
                     .append(System.lineSeparator());
 
@@ -186,28 +235,76 @@ public class GeneratedFeatureRepairService {
                     line.trim()
                             .startsWith("Given user launches")
                             &&
-                            !scenarioContains(
+                            isBillPayScenario(
                                     lines,
-                                    i,
-                                    "user clicks \"Bill Pay\""
+                                    i
                             )
             ) {
 
-                repaired.append("  When user enters \"${username}\" into \"username\"")
-                        .append(System.lineSeparator());
-                repaired.append("  And user enters \"${password}\" into \"password\"")
-                        .append(System.lineSeparator());
-                repaired.append("  And user clicks \"login button\"")
-                        .append(System.lineSeparator());
-                repaired.append("  Then user should see \"Accounts Overview\"")
-                        .append(System.lineSeparator());
-                repaired.append("  When user clicks \"Bill Pay\"")
-                        .append(System.lineSeparator());
-                repaired.append("  Then user should see \"Bill Payment Service\"")
+                if (
+                        !scenarioContains(
+                                lines,
+                                i,
+                                "login button"
+                        )
+                ) {
+
+                    repaired.append("  When user enters \"${username}\" into \"username\"")
+                            .append(System.lineSeparator());
+                    repaired.append("  And user enters \"${password}\" into \"password\"")
+                            .append(System.lineSeparator());
+                    repaired.append("  And user clicks \"login button\"")
+                            .append(System.lineSeparator());
+
+                    if (
+                            !scenarioContains(
+                                    lines,
+                                    i,
+                                    "Accounts Overview"
+                            )
+                    ) {
+
+                        repaired.append("  Then user should see \"Accounts Overview\"")
+                                .append(System.lineSeparator());
+                    }
+
+                    changes.add(
+                            "Inserted ParaBank login before Bill Pay navigation."
+                    );
+                }
+
+                if (
+                        !scenarioContainsBillPayClick(
+                                lines,
+                                i
+                        )
+                ) {
+
+                    repaired.append("  When user clicks \"Bill Pay\"")
+                            .append(System.lineSeparator());
+
+                    changes.add(
+                            "Inserted ParaBank Bill Pay navigation before bill-pay form steps."
+                    );
+                }
+            }
+
+            if (
+                    billPayClick.matches()
+                            &&
+                            !scenarioContains(
+                                    lines,
+                                    i,
+                                    "Bill Payment Service"
+                            )
+            ) {
+
+                repaired.append(billPayClick.group(1))
+                        .append("Then user should see \"Bill Payment Service\"")
                         .append(System.lineSeparator());
 
                 changes.add(
-                        "Inserted ParaBank login and Bill Pay navigation before bill-pay form steps."
+                        "Added a Bill Payment Service assertion after Bill Pay navigation."
                 );
             }
 
@@ -313,6 +410,134 @@ public class GeneratedFeatureRepairService {
         }
 
         return false;
+    }
+
+    private boolean isBillPayScenario(
+            List<String> lines,
+            int index
+    ) {
+
+        return scenarioContains(
+                lines,
+                index,
+                "bill pay"
+        )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "billpay"
+                )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "bill payment"
+                )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "send payment"
+                )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "verify account"
+                );
+    }
+
+    private boolean scenarioContainsBillPayClick(
+            List<String> lines,
+            int index
+    ) {
+
+        int start =
+                index;
+
+        while (
+                start > 0
+                        &&
+                        !lines.get(start)
+                                .trim()
+                                .startsWith("Scenario:")
+        ) {
+
+            start--;
+        }
+
+        Pattern billPayClick =
+                Pattern.compile(
+                        "\\buser clicks \"(?:bill\\s*pay|bill\\s*payment|billpay)\"",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        for (
+                int i = start;
+                i < lines.size();
+                i++
+        ) {
+
+            if (
+                    i > start
+                            &&
+                            lines.get(i)
+                                    .trim()
+                                    .startsWith("Scenario:")
+            ) {
+
+                break;
+            }
+
+            if (
+                    billPayClick.matcher(
+                                    lines.get(i)
+                            )
+                            .find()
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private String combinedOutput(
+            String first,
+            String second
+    ) {
+
+        StringBuilder combined =
+                new StringBuilder();
+
+        if (
+                first != null
+                        &&
+                        !first.isBlank()
+        ) {
+
+            combined.append(first);
+        }
+
+        if (
+                second != null
+                        &&
+                        !second.isBlank()
+        ) {
+
+            if (
+                    combined.length() > 0
+            ) {
+
+                combined.append(System.lineSeparator());
+            }
+
+            combined.append(second);
+        }
+
+        return combined.toString();
     }
 
     private List<Path> featureFiles(

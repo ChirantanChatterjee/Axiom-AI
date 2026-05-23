@@ -52,6 +52,52 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void repairsParaBankBillPayNavigationFailureWithMissingLogin() {
+
+        String feature =
+                """
+                        Feature: bill pay
+
+                        @bill_pay @generated
+                        Scenario: Open bill pay
+                          Given user launches "https://parabank.parasoft.com/parabank/admin.htm"
+                          When user clicks "bill pay"
+                          Then user should see "Bill Payment Service"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.RuntimeException: Unable to resolve element: bill pay"
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("parabank/index.htm")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("user enters \"${username}\" into \"username\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("user clicks \"login button\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("user clicks \"Bill Pay\"")
+        );
+    }
+
+    @Test
     void summarizesExpectedTextAssertionFailures() {
 
         String summary =

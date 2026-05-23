@@ -1,5 +1,7 @@
 package com.axiomai.qa.service;
 
+import com.axiomai.qa.execution.entity.GeneratedTestExecutionJobEntity;
+import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
 import com.axiomai.qa.generator.flow.FlowPageObjectGenerator;
 import com.axiomai.qa.generator.flow.FlowStepDefinitionGenerator;
 import com.axiomai.reporting.service.ReportArtifactService;
@@ -77,6 +79,9 @@ public class GeneratedTestExecutionService {
 
     private final GeneratedFeatureRepairService
             generatedFeatureRepairService;
+
+    private final GeneratedTestExecutionQueueService
+            generatedTestExecutionQueueService;
 
     public GeneratedTestCatalog listTags(
             String sessionId
@@ -268,7 +273,7 @@ public class GeneratedTestExecutionService {
             }
 
             String reportUrl =
-                    publishCucumberReport(
+                    publishReportFromOutput(
                             frameworkRoot,
                             output
                     );
@@ -302,6 +307,51 @@ public class GeneratedTestExecutionService {
         }
     }
 
+    private String publishReportFromOutput(
+            Path frameworkRoot,
+            String output
+    ) throws IOException {
+
+        persistExecutionOutput(
+                frameworkRoot,
+                output
+        );
+
+        return publishCucumberReport(
+                frameworkRoot,
+                output
+        );
+    }
+
+    private void persistExecutionOutput(
+            Path frameworkRoot,
+            String output
+    ) {
+
+        try {
+
+            Path targetRoot =
+                    frameworkRoot.resolve("target");
+
+            Files.createDirectories(targetRoot);
+
+            Files.writeString(
+                    targetRoot.resolve("aif-generated-test-output.txt"),
+                    output == null
+                            ? ""
+                            : output
+            );
+
+        } catch (IOException e) {
+
+            log.warn(
+                    "Unable to persist generated test output for repair diagnostics at {}",
+                    frameworkRoot,
+                    e
+            );
+        }
+    }
+
     public GeneratedTestRepairResult repairLatestFailure(
             String sessionId
     ) {
@@ -317,7 +367,10 @@ public class GeneratedTestExecutionService {
         try {
 
             GeneratedFeatureRepairService.RepairResult repair =
-                    generatedFeatureRepairService.repair(frameworkRoot);
+                    generatedFeatureRepairService.repair(
+                            frameworkRoot,
+                            latestQueuedExecutionOutput(sessionId)
+                    );
 
             boolean learned =
                     frameworkLearningService
@@ -341,6 +394,8 @@ public class GeneratedTestExecutionService {
 
             if (
                     supportFilesChanged
+                            ||
+                            repair.isChanged()
             ) {
 
                 generatedFrameworkPersistenceService
@@ -382,6 +437,80 @@ public class GeneratedTestExecutionService {
                     e
             );
         }
+    }
+
+    private String latestQueuedExecutionOutput(
+            String sessionId
+    ) {
+
+        return generatedTestExecutionQueueService
+                .findLatestForSession(sessionId)
+                .map(this::executionOutputForRepair)
+                .orElse("");
+    }
+
+    private String executionOutputForRepair(
+            GeneratedTestExecutionJobEntity job
+    ) {
+
+        StringBuilder output =
+                new StringBuilder();
+
+        appendRepairLine(
+                output,
+                "Status",
+                job.getStatus()
+        );
+        appendRepairLine(
+                output,
+                "Message",
+                job.getMessage()
+        );
+        appendRepairLine(
+                output,
+                "Error",
+                job.getErrorMessage()
+        );
+
+        if (
+                job.getOutput() != null
+                        &&
+                        !job.getOutput()
+                                .isBlank()
+        ) {
+
+            if (
+                    output.length() > 0
+            ) {
+
+                output.append(System.lineSeparator());
+            }
+
+            output.append(job.getOutput());
+        }
+
+        return output.toString();
+    }
+
+    private void appendRepairLine(
+            StringBuilder output,
+            String label,
+            String value
+    ) {
+
+        if (
+                value == null
+                        ||
+                        value.isBlank()
+        ) {
+
+            return;
+        }
+
+        output.append(label)
+                .append(": ")
+                .append(value)
+                .append(System.lineSeparator());
     }
 
     private Optional<Path> resolveFrameworkRoot(
@@ -1310,9 +1439,23 @@ public class GeneratedTestExecutionService {
             String content =
                     Files.readString(cucumberReport);
 
-            return content.contains("testRunFinished")
-                    ||
-                    content.contains("\"testRunFinished\"");
+            boolean hasFinishedEvent =
+                    content.contains("testRunFinished")
+                            ||
+                            content.contains("\"testRunFinished\"");
+
+            boolean hasExecutedScenario =
+                    content.contains("testCaseStarted")
+                            ||
+                            content.contains("\"testCaseStarted\"")
+                            ||
+                            content.contains("testCaseFinished")
+                            ||
+                            content.contains("\"testCaseFinished\"");
+
+            return hasFinishedEvent
+                    &&
+                    hasExecutedScenario;
 
         } catch (IOException e) {
 
