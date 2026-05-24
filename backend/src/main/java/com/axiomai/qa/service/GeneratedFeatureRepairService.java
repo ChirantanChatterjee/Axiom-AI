@@ -1708,6 +1708,12 @@ public class GeneratedFeatureRepairService {
 
         private String failureSummary;
 
+        private List<String> failureDetails;
+
         private String repairGuidance;
+
+        private String repairSource;
+
+        private String fallbackReason;
     }
 }

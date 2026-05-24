@@ -405,6 +405,7 @@ class AICommandOrchestratorTest {
                     null,
                     null,
                     null,
+                    null,
                     null
             );
         }

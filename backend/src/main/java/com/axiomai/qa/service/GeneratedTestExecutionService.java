@@ -80,6 +80,9 @@ public class GeneratedTestExecutionService {
     private final GeneratedFeatureRepairService
             generatedFeatureRepairService;
 
+    private final OpenAIGeneratedTestRepairService
+            openAIGeneratedTestRepairService;
+
     private final GeneratedTestExecutionQueueService
             generatedTestExecutionQueueService;
 
@@ -382,12 +385,41 @@ public class GeneratedTestExecutionService {
 
         try {
 
-            GeneratedFeatureRepairService.RepairResult repair =
-                    generatedFeatureRepairService.repair(
-                            frameworkRoot,
-                            latestQueuedExecutionOutput(sessionId),
-                            userInstruction
-                    );
+            String latestOutput =
+                    latestQueuedExecutionOutput(sessionId);
+
+            OpenAIGeneratedTestRepairService.OpenAIRepairAttempt openAIRepair =
+                    openAIGeneratedTestRepairService
+                            .repair(
+                                    frameworkRoot,
+                                    latestOutput,
+                                    userInstruction
+                            );
+
+            GeneratedFeatureRepairService.RepairResult repair;
+
+            if (
+                    openAIRepair.isRepaired()
+            ) {
+
+                repair =
+                        openAIRepair.getRepairResult();
+
+            } else {
+
+                GeneratedFeatureRepairService.RepairResult fallbackRepair =
+                        generatedFeatureRepairService.repair(
+                                frameworkRoot,
+                                latestOutput,
+                                userInstruction
+                        );
+
+                repair =
+                        withFallbackRepairMetadata(
+                                fallbackRepair,
+                                openAIRepair.getFallbackReason()
+                        );
+            }
 
             boolean learned =
                     frameworkLearningService
@@ -437,6 +469,15 @@ public class GeneratedTestExecutionService {
                     .failureSummary(
                             repair.getFailureSummary()
                     )
+                    .failureDetails(
+                            repair.getFailureDetails()
+                    )
+                    .repairSource(
+                            repair.getRepairSource()
+                    )
+                    .fallbackReason(
+                            repair.getFallbackReason()
+                    )
                     .learned(learned)
                     .message(
                             buildRepairMessage(
@@ -454,6 +495,35 @@ public class GeneratedTestExecutionService {
                     e
             );
         }
+    }
+
+    private GeneratedFeatureRepairService.RepairResult withFallbackRepairMetadata(
+            GeneratedFeatureRepairService.RepairResult repair,
+            String fallbackReason
+    ) {
+
+        return GeneratedFeatureRepairService.RepairResult.builder()
+                .changed(
+                        repair.isChanged()
+                )
+                .changedFiles(
+                        repair.getChangedFiles()
+                )
+                .changes(
+                        repair.getChanges()
+                )
+                .failureSummary(
+                        repair.getFailureSummary()
+                )
+                .failureDetails(
+                        repair.getFailureDetails()
+                )
+                .repairGuidance(
+                        repair.getRepairGuidance()
+                )
+                .repairSource("deterministic fallback")
+                .fallbackReason(fallbackReason)
+                .build();
     }
 
     private String latestQueuedExecutionOutput(
@@ -1024,6 +1094,62 @@ public class GeneratedTestExecutionService {
         );
 
         if (
+                repair.getRepairSource() != null
+                        &&
+                        !repair.getRepairSource()
+                                .isBlank()
+        ) {
+
+            message.append(
+                    "\n\nRepair source: "
+            );
+
+            message.append(
+                    repair.getRepairSource()
+            );
+
+            message.append(".");
+        }
+
+        if (
+                repair.getFallbackReason() != null
+                        &&
+                        !repair.getFallbackReason()
+                                .isBlank()
+        ) {
+
+            message.append(
+                    "\nOpenAI repair fallback reason: "
+            );
+
+            message.append(
+                    repair.getFallbackReason()
+            );
+        }
+
+        if (
+                repair.getFailureDetails() != null
+                        &&
+                        !repair.getFailureDetails()
+                                .isEmpty()
+        ) {
+
+            message.append(
+                    "\n\nWhat was failing:\n"
+            );
+
+            for (
+                    String detail
+                    : repair.getFailureDetails()
+            ) {
+
+                message.append("- ")
+                        .append(detail)
+                        .append("\n");
+            }
+        }
+
+        if (
                 !repair.isChanged()
         ) {
 
@@ -1101,6 +1227,28 @@ public class GeneratedTestExecutionService {
             message.append("- ")
                     .append(change)
                     .append("\n");
+        }
+
+        if (
+                repair.getChangedFiles() != null
+                        &&
+                        !repair.getChangedFiles()
+                                .isEmpty()
+        ) {
+
+            message.append(
+                    "\nChanged files:\n"
+            );
+
+            for (
+                    String changedFile
+                    : repair.getChangedFiles()
+            ) {
+
+                message.append("- ")
+                        .append(changedFile)
+                        .append("\n");
+            }
         }
 
         message.append(
@@ -3117,6 +3265,12 @@ public class GeneratedTestExecutionService {
         private List<String> changes;
 
         private String failureSummary;
+
+        private List<String> failureDetails;
+
+        private String repairSource;
+
+        private String fallbackReason;
 
         private boolean learned;
 
