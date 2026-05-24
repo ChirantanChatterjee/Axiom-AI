@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -121,6 +122,120 @@ class GeneratedFrameworkPersistenceServiceTest {
                                     "src/test/resources/features/sample.feature"
                             )
                     )
+            );
+
+        } finally {
+
+            writerService.deleteWorkspace(sessionId);
+        }
+    }
+
+    @Test
+    void restoresNewerDatabaseArchiveOverStaleLocalFramework() throws Exception {
+
+        String sessionId =
+                "persist-refresh-test-"
+                        + UUID.randomUUID();
+
+        GeneratedProjectWriterService writerService =
+                new GeneratedProjectWriterService(
+                        new HookGeneratorService(),
+                        new RunnerGeneratorService(),
+                        new PomGeneratorService()
+                );
+
+        Map<String, GeneratedFrameworkArchiveEntity> archiveStore =
+                new HashMap<>();
+
+        GeneratedFrameworkArchiveRepository archiveRepository =
+                inMemoryArchiveRepository(archiveStore);
+
+        SupabaseStorageCleanupService storageService =
+                new SupabaseStorageCleanupService(
+                        new ObjectMapper(),
+                        "",
+                        "",
+                        "",
+                        "generated-frameworks/"
+                );
+
+        GeneratedFrameworkPersistenceService persistenceService =
+                new GeneratedFrameworkPersistenceService(
+                        writerService,
+                        storageService,
+                        archiveRepository
+                );
+
+        Path frameworkRoot =
+                writerService.getFrameworkRoot(sessionId);
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        Path selectFlightFeature =
+                featureRoot.resolve(
+                        "select_flight.feature"
+                );
+
+        try {
+
+            Files.createDirectories(featureRoot);
+
+            Files.writeString(
+                    frameworkRoot.resolve("pom.xml"),
+                    "<project></project>"
+            );
+
+            Files.writeString(
+                    featureRoot.resolve("login.feature"),
+                    "Feature: login"
+            );
+
+            Files.writeString(
+                    selectFlightFeature,
+                    "Feature: select flight\n\n@generated @select_flight\nScenario: User selects flight\nThen flow should complete successfully\n"
+            );
+
+            Path updatedArchive =
+                    Path.of(
+                            writerService.zipFramework(sessionId)
+                    );
+
+            GeneratedFrameworkArchiveEntity archiveEntity =
+                    GeneratedFrameworkArchiveEntity.builder()
+                            .sessionId(sessionId)
+                            .archive(
+                                    Files.readAllBytes(updatedArchive)
+                            )
+                            .archiveName("framework.zip")
+                            .sizeBytes(
+                                    Files.size(updatedArchive)
+                            )
+                            .updatedAt(
+                                    Instant.now()
+                                            .plusSeconds(60)
+                            )
+                            .build();
+
+            archiveStore.put(
+                    sessionId,
+                    archiveEntity
+            );
+
+            Files.deleteIfExists(selectFlightFeature);
+
+            assertFalse(
+                    Files.exists(selectFlightFeature)
+            );
+
+            assertTrue(
+                    persistenceService.restoreFramework(sessionId)
+            );
+
+            assertTrue(
+                    Files.exists(selectFlightFeature)
             );
 
         } finally {

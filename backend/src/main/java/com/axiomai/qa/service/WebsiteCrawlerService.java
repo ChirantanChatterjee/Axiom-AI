@@ -17,13 +17,24 @@ import java.util.*;
 @Service
 public class WebsiteCrawlerService {
 
-    private static final int MAX_PAGES = 3;
+    private static final int MAX_PAGES = 25;
 
     // =====================================================
     // MAIN CRAWLER
     // =====================================================
 
     public SiteMapResult crawl(String rootUrl) {
+
+        return crawl(
+                rootUrl,
+                Map.of()
+        );
+    }
+
+    public SiteMapResult crawl(
+            String rootUrl,
+            Map<String, String> variables
+    ) {
 
         List<PageNode> pages =
                 new ArrayList<>();
@@ -175,98 +186,73 @@ public class WebsiteCrawlerService {
 
                     pages.add(node);
 
+                    if (
+                            pages.size() < MAX_PAGES
+                                    &&
+                                    maybeSubmitLogin(
+                                            page,
+                                            variables
+                                    )
+                    ) {
+
+                        String authenticatedUrl =
+                                page.url();
+
+                        if (
+                                authenticatedUrl != null
+                                        &&
+                                        !authenticatedUrl.isBlank()
+                                        &&
+                                        !visited.contains(authenticatedUrl)
+                        ) {
+
+                            visited.add(authenticatedUrl);
+
+                            List<PageElement> authenticatedElements =
+                                    scanElements(page);
+
+                            List<PageLink> authenticatedLinks =
+                                    extractLinks(
+                                            page,
+                                            authenticatedUrl
+                                    );
+
+                            pages.add(
+                                    new PageNode(
+                                            authenticatedUrl,
+                                            page.title(),
+                                            authenticatedElements,
+                                            authenticatedLinks
+                                    )
+                            );
+
+                            for (
+                                    PageLink link
+                                    : authenticatedLinks
+                            ) {
+
+                                maybeQueueLink(
+                                        rootUrl,
+                                        link,
+                                        visited,
+                                        queue
+                                );
+                            }
+                        }
+                    }
+
                     // =============================================
                     // QUEUE NEW LINKS
                     // =============================================
 
                     for (PageLink link : links) {
 
-                        String href =
-                                link.getHref();
-
-                        if (
-
-                                href == null
-                                        ||
-                                        href.isBlank()
-
-                        ) {
-
-                            continue;
-                        }
-
-                        if (
-                                !href.startsWith("http")
-                        ) {
-
-                            continue;
-                        }
-
-                        if (
-                                visited.contains(href)
-                        ) {
-
-                            continue;
-                        }
-
-                        // =========================================
-                        // SAME DOMAIN ONLY
-                        // =========================================
-
-                        if (
-                                !isAllowedCrawlTarget(
-                                        rootUrl,
-                                        href
-                                )
-                        ) {
-
-                            continue;
-                        }
-
-                        // =========================================
-                        // SKIP NOISY LINKS
-                        // =========================================
-
-                        String lower =
-                                href.toLowerCase();
-
-                        if (
-
-                                lower.contains("privacy")
-                                        ||
-                                        lower.contains("terms")
-                                        ||
-                                        lower.contains("docs")
-                                        ||
-                                        lower.contains("support")
-                                        ||
-                                        lower.contains("features")
-                                        ||
-                                        lower.contains("enterprise")
-                                        ||
-                                        lower.contains("pricing")
-                                        ||
-                                        lower.contains("copilot")
-                                        ||
-                                        lower.contains("marketplace")
-                                        ||
-                                        lower.contains("about")
-                                        ||
-                                        lower.contains("blog")
-                                        ||
-                                        lower.contains("careers")
-
-                        ) {
-
-                            continue;
-                        }
-
-                        System.out.println(
-                                "QUEUE ADD = "
-                                        + href
+                        maybeQueueLink(
+                                rootUrl,
+                                link,
+                                visited,
+                                queue
                         );
-
-                        queue.add(href);
                     }
 
                     page.close();
@@ -304,6 +290,174 @@ public class WebsiteCrawlerService {
                 rootUrl,
                 pages
         );
+    }
+
+    private void maybeQueueLink(
+
+            String rootUrl,
+            PageLink link,
+            Set<String> visited,
+            Queue<String> queue
+
+    ) {
+
+        String href =
+                link == null
+                        ? null
+                        : link.getHref();
+
+        if (
+                href == null
+                        ||
+                        href.isBlank()
+                        ||
+                        !href.startsWith("http")
+                        ||
+                        visited.contains(href)
+        ) {
+
+            return;
+        }
+
+        if (
+                !isAllowedCrawlTarget(
+                        rootUrl,
+                        href
+                )
+        ) {
+
+            return;
+        }
+
+        String lower =
+                href.toLowerCase();
+
+        if (
+                lower.contains("privacy")
+                        ||
+                        lower.contains("terms")
+                        ||
+                        lower.contains("docs")
+                        ||
+                        lower.contains("support")
+                        ||
+                        lower.contains("features")
+                        ||
+                        lower.contains("enterprise")
+                        ||
+                        lower.contains("pricing")
+                        ||
+                        lower.contains("copilot")
+                        ||
+                        lower.contains("marketplace")
+                        ||
+                        lower.contains("about")
+                        ||
+                        lower.contains("blog")
+                        ||
+                        lower.contains("careers")
+        ) {
+
+            return;
+        }
+
+        System.out.println(
+                "QUEUE ADD = "
+                        + href
+        );
+
+        queue.add(href);
+    }
+
+    private boolean maybeSubmitLogin(
+
+            Page page,
+            Map<String, String> variables
+
+    ) {
+
+        String username =
+                variableValue(
+                        variables,
+                        "username",
+                        "user",
+                        "email",
+                        "login"
+                );
+
+        String password =
+                variableValue(
+                        variables,
+                        "password",
+                        "pass"
+                );
+
+        if (
+                username.isBlank()
+                        ||
+                        password.isBlank()
+        ) {
+
+            return false;
+        }
+
+        try {
+
+            Locator authField =
+                    page.locator(
+                                    "input[type='text'], input[type='email'], input[name*='user' i], input[id*='user' i], input[placeholder*='user' i], input[name*='email' i], input[id*='email' i], input[placeholder*='email' i]"
+                            )
+                            .first();
+
+            Locator passwordField =
+                    page.locator(
+                                    "input[type='password']"
+                            )
+                            .first();
+
+            if (
+                    authField.count() == 0
+                            ||
+                            passwordField.count() == 0
+            ) {
+
+                return false;
+            }
+
+            authField.fill(username);
+
+            passwordField.fill(password);
+
+            Locator submit =
+                    page.locator(
+                                    "input[type='submit'], button[type='submit'], button:has-text('Login'), button:has-text('Log in'), button:has-text('Sign in'), input[value*='Login' i], input[value*='Sign in' i]"
+                            )
+                            .first();
+
+            if (
+                    submit.count() == 0
+            ) {
+
+                return false;
+            }
+
+            submit.click();
+
+            page.waitForTimeout(2500);
+
+            return true;
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "[CRAWLER LOGIN CONTINUATION FAILED] "
+                            + SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    )
+            );
+
+            return false;
+        }
     }
 
     // =====================================================
@@ -1074,6 +1228,50 @@ public class WebsiteCrawlerService {
                 String value
                 : values
         ) {
+
+            if (
+                    value != null
+                            &&
+                            !value.isBlank()
+            ) {
+
+                return value;
+            }
+        }
+
+        return "";
+    }
+
+    private String variableValue(
+
+            Map<String, String> variables,
+            String... keys
+
+    ) {
+
+        if (
+                variables == null
+                        ||
+                        variables.isEmpty()
+        ) {
+
+            return "";
+        }
+
+        for (
+                String key
+                : keys
+        ) {
+
+            if (
+                    key == null
+            ) {
+
+                continue;
+            }
+
+            String value =
+                    variables.get(key.toLowerCase());
 
             if (
                     value != null

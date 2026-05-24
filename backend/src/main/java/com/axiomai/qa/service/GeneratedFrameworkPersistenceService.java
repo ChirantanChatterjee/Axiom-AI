@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.zip.ZipEntry;
@@ -164,20 +165,26 @@ public class GeneratedFrameworkPersistenceService {
                         .toAbsolutePath()
                         .normalize();
 
+        Path workspaceRoot =
+                generatedProjectWriterService
+                        .getWorkspaceRoot(sessionId)
+                        .toAbsolutePath()
+                        .normalize();
+
         if (
                 Files.exists(
                         frameworkRoot.resolve("pom.xml")
                 )
         ) {
 
+            restoreDatabaseArchiveIfNewer(
+                    sessionId,
+                    workspaceRoot,
+                    frameworkRoot
+            );
+
             return true;
         }
-
-        Path workspaceRoot =
-                generatedProjectWriterService
-                        .getWorkspaceRoot(sessionId)
-                        .toAbsolutePath()
-                        .normalize();
 
         Exception storageRestoreFailure =
                 null;
@@ -306,10 +313,116 @@ public class GeneratedFrameworkPersistenceService {
 
                     } catch (IOException e) {
 
+                        return false;
+                    }
+                })
+                .orElse(false);
+    }
+
+    private boolean restoreDatabaseArchiveIfNewer(
+
+            String sessionId,
+
+            Path workspaceRoot,
+
+            Path frameworkRoot
+
+    ) {
+
+        return generatedFrameworkArchiveRepository
+                .findById(
+                        normalizeSessionId(sessionId)
+                )
+                .map(archiveEntity -> {
+
+                    Instant localUpdatedAt =
+                            latestModifiedTime(frameworkRoot);
+
+                    if (
+                            archiveEntity.getUpdatedAt() == null
+                                    ||
+                                    !archiveEntity.getUpdatedAt()
+                                            .isAfter(localUpdatedAt)
+                    ) {
+
+                        return false;
+                    }
+
+                    try {
+
+                        Path archive =
+                                workspaceRoot.resolve(
+                                        "restored-framework-db.zip"
+                                );
+
+                        Files.createDirectories(workspaceRoot);
+
+                        Files.write(
+                                archive,
+                                archiveEntity.getArchive()
+                        );
+
+                        restoreFromArchive(
+                                archive,
+                                frameworkRoot
+                        );
+
+                        Files.deleteIfExists(archive);
+
+                        return true;
+
+                    } catch (IOException e) {
+
                         throw new RuntimeException(e);
                     }
                 })
                 .orElse(false);
+    }
+
+    private Instant latestModifiedTime(
+            Path frameworkRoot
+    ) {
+
+        if (
+                frameworkRoot == null
+                        ||
+                        !Files.exists(frameworkRoot)
+        ) {
+
+            return Instant.EPOCH;
+        }
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(frameworkRoot)
+        ) {
+
+            return paths.filter(Files::isRegularFile)
+                    .map(this::lastModifiedTime)
+                    .max(Comparator.naturalOrder())
+                    .orElse(Instant.EPOCH);
+
+        } catch (IOException e) {
+
+            return Instant.EPOCH;
+        }
+    }
+
+    private Instant lastModifiedTime(
+            Path path
+    ) {
+
+        try {
+
+            FileTime time =
+                    Files.getLastModifiedTime(path);
+
+            return time.toInstant();
+
+        } catch (IOException e) {
+
+            return Instant.EPOCH;
+        }
     }
 
     public void deletePersistedFramework(

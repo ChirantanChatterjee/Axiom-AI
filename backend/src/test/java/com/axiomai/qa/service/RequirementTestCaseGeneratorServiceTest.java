@@ -331,6 +331,45 @@ class RequirementTestCaseGeneratorServiceTest {
         );
     }
 
+    @Test
+    void travelFlightGenerationUsesExplicitRouteVariablesInsteadOfSearch() {
+
+        RequirementTestCaseGeneratorService service =
+                new RequirementTestCaseGeneratorService(
+                        new SearchOnlyFlightOpenAIService(),
+                        new StubFrameworkGeneratorService(),
+                        new EmptyFrameworkLearningService()
+                );
+
+        GeneratedFramework framework =
+                service.generate(
+                        "Can you create tests for select flight for return journey?",
+                        "select flight",
+                        "https://travel.agileway.net/login",
+                        List.of(new DetectedFlow()),
+                        "chat-one"
+                );
+
+        String feature =
+                framework.getFeatureFile();
+
+        assertTrue(
+                feature.contains("@select_flight")
+        );
+
+        assertTrue(
+                feature.contains("${from}")
+        );
+
+        assertTrue(
+                feature.contains("${to}")
+        );
+
+        assertFalse(
+                feature.contains("${search}")
+        );
+    }
+
     private int scenarioCount(
             String feature
     ) {
@@ -400,6 +439,28 @@ class RequirementTestCaseGeneratorServiceTest {
                       Given user launches "https://www.google.com"
                       When user enters "${username}" into "username"
                       And user clicks "Bill Pay"
+                      Then flow should complete successfully
+                    """;
+        }
+    }
+
+    private static class SearchOnlyFlightOpenAIService
+            extends OpenAIService {
+
+        @Override
+        public String ask(
+                String prompt
+        ) {
+
+            return """
+                    Feature: select flight
+
+                    @generated @ai_requirement @select_flight
+                    Scenario: Search for return flights
+                      Given user launches "https://travel.agileway.net/login"
+                      When user enters "${username}" into "username"
+                      And user enters "${password}" into "password"
+                      And user enters "${search}" into "search"
                       Then flow should complete successfully
                     """;
         }

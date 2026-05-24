@@ -407,6 +407,91 @@ public class AutomationWorkspaceService {
     }
 
     // =====================================================
+    // PENDING GENERATED TEST EXECUTION
+    // =====================================================
+
+    public void setPendingGeneratedTestExecution(
+
+            String userId,
+            String tagExpression
+
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        session.setPendingGeneratedTestTagExpression(
+                tagExpression
+        );
+
+        session.setUpdatedAt(
+                LocalDateTime.now()
+        );
+    }
+
+    public String consumePendingGeneratedTestExecution(
+            String userId
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        String tagExpression =
+                session.getPendingGeneratedTestTagExpression();
+
+        session.setPendingGeneratedTestTagExpression(null);
+
+        session.setUpdatedAt(
+                LocalDateTime.now()
+        );
+
+        return tagExpression;
+    }
+
+    // =====================================================
+    // PENDING FRAMEWORK GENERATION
+    // =====================================================
+
+    public void setPendingFrameworkGeneration(
+
+            String userId,
+            String url
+
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        session.setPendingFrameworkGenerationUrl(url);
+
+        session.setUpdatedAt(
+                LocalDateTime.now()
+        );
+    }
+
+    public String getPendingFrameworkGeneration(
+            String userId
+    ) {
+
+        return getOrCreateSession(userId)
+                .getPendingFrameworkGenerationUrl();
+    }
+
+    public void clearPendingFrameworkGeneration(
+            String userId
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        session.setPendingFrameworkGenerationUrl(null);
+
+        session.setUpdatedAt(
+                LocalDateTime.now()
+        );
+    }
+
+    // =====================================================
     // FIND FLOW
     // =====================================================
 

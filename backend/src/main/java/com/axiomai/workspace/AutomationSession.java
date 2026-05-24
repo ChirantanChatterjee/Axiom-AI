@@ -79,6 +79,14 @@ public class AutomationSession {
     private String activeFeature;
 
     // =====================================================
+    // PENDING ACTIONS
+    // =====================================================
+
+    private String pendingGeneratedTestTagExpression;
+
+    private String pendingFrameworkGenerationUrl;
+
+    // =====================================================
     // EXECUTION HISTORY
     // =====================================================
 

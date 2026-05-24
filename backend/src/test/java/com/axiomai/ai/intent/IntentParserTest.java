@@ -144,6 +144,56 @@ class IntentParserTest {
     }
 
     @Test
+    void detectsMultipleGeneratedTestTagsAsUnion() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Can you please run the tests with tags @abc and @def and @sdsd?"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "@abc or @def or @sdsd",
+                command.getTarget()
+        );
+    }
+
+    @Test
+    void supportsExplicitGeneratedTestTagIntersection() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Run generated tests matching all tags @smoke and @checkout"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "@smoke and @checkout",
+                command.getTarget()
+        );
+    }
+
+    @Test
     void detectsGenerateThenRunAsCompoundCommand() {
 
         IntentParser parser =

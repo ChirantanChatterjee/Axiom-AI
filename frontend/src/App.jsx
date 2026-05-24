@@ -320,6 +320,7 @@ const compactResponseData = (type, data) => {
   if (type === "missing-variables") {
     return {
       missingVariables: data.missingVariables || [],
+      variableDetails: data.variableDetails || [],
       example: data.example || ""
     };
   }
@@ -1460,6 +1461,39 @@ function StructuredMessage({
                 ))
               }
             </div>
+
+            {
+              msg.data.variableDetails &&
+              msg.data.variableDetails.length > 0 && (
+                <div className="variable-context-list">
+                  {
+                    msg.data.variableDetails.map((detail, index) => (
+                      <div
+                        key={`${detail.variable || "variable"}-${index}`}
+                        className="variable-context-row"
+                      >
+                        <strong>{detail.variable}</strong>
+                        {
+                          detail.hint && (
+                            <span>{detail.hint}</span>
+                          )
+                        }
+                        {
+                          detail.scenario && (
+                            <small>Scenario: {detail.scenario}</small>
+                          )
+                        }
+                        {
+                          detail.step && (
+                            <code>{detail.step}</code>
+                          )
+                        }
+                      </div>
+                    ))
+                  }
+                </div>
+              )
+            }
 
             {
               msg.data.example && (

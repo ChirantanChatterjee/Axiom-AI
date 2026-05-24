@@ -162,8 +162,9 @@ public class RequirementTestCaseGeneratorService {
                   Then cart should not contain "<product>"
                   Then checkout total should equal item total plus tax
                   Then flow should complete successfully
-                - Use runtime placeholders for test data when appropriate: ${username}, ${password}, ${email}, ${search}, ${product}, ${quantity}.
+                - Use runtime placeholders for test data when appropriate: ${username}, ${password}, ${email}, ${search}, ${product}, ${quantity}, ${from}, ${to}.
                 - For payment forms, use runtime placeholders when appropriate: ${payee}, ${address}, ${city}, ${state}, ${zip}, ${phone}, ${account}, ${amount}.
+                - For travel flight selection, do not use a generic ${search} placeholder. Use explicit ${from} and ${to} placeholders and tag scenarios with @select_flight.
                 - Keep targets semantic and short, for example "username", "password", "login button", "search", "add to cart".
                 - If a requested feature is behind login, include login steps before the feature steps.
                 - For ParaBank bill pay, launch the ParaBank home page, log in, click "Bill Pay", fill "verify account" with ${account}, and click "send payment button".
@@ -281,6 +282,16 @@ public class RequirementTestCaseGeneratorService {
         ) {
 
             return billPayFallbackFeature(
+                    feature,
+                    url
+            );
+        }
+
+        if (
+                isTravelFlightRequest(requestedText)
+        ) {
+
+            return travelFlightFallbackFeature(
                     feature,
                     url
             );
@@ -458,6 +469,74 @@ public class RequirementTestCaseGeneratorService {
         return feature.toString();
     }
 
+    private String travelFlightFallbackFeature(
+
+            StringBuilder feature,
+            String url
+
+    ) {
+
+        feature.append("  @generated @ai_requirement @select_flight @return_journey @positive\n")
+                .append("  Scenario: User successfully selects a return flight journey\n");
+
+        appendTravelFlightStart(
+                feature,
+                url
+        );
+
+        feature.append("    And user clicks \"outbound flight\"\n")
+                .append("    And user clicks \"return flight\"\n")
+                .append("    And user clicks \"continue\"\n")
+                .append("    Then flow should complete successfully\n\n");
+
+        feature.append("  @generated @ai_requirement @select_flight @return_journey @negative @required_field\n")
+                .append("  Scenario: User cannot continue without selecting return flight\n");
+
+        appendTravelFlightStart(
+                feature,
+                url
+        );
+
+        feature.append("    And user clicks \"outbound flight\"\n")
+                .append("    And user clicks \"continue\"\n")
+                .append("    Then user should see \"required field error\"\n\n");
+
+        feature.append("  @generated @ai_requirement @select_flight @return_journey @negative @validation\n")
+                .append("  Scenario: User cannot select the same city for origin and destination\n")
+                .append("    Given user launches \"")
+                .append(safe(url))
+                .append("\"\n")
+                .append("    When user enters \"${username}\" into \"username\"\n")
+                .append("    And user enters \"${password}\" into \"password\"\n")
+                .append("    And user clicks \"login button\"\n")
+                .append("    And user clicks \"return journey\"\n")
+                .append("    And user enters \"New York\" into \"from\"\n")
+                .append("    And user enters \"New York\" into \"to\"\n")
+                .append("    And user clicks \"search flights\"\n")
+                .append("    Then user should see \"route validation error\"\n\n");
+
+        return feature.toString();
+    }
+
+    private void appendTravelFlightStart(
+
+            StringBuilder feature,
+            String url
+
+    ) {
+
+        feature.append("    Given user launches \"")
+                .append(safe(url))
+                .append("\"\n")
+                .append("    When user enters \"${username}\" into \"username\"\n")
+                .append("    And user enters \"${password}\" into \"password\"\n")
+                .append("    And user clicks \"login button\"\n")
+                .append("    And user clicks \"return journey\"\n")
+                .append("    And user enters \"${from}\" into \"from\"\n")
+                .append("    And user enters \"${to}\" into \"to\"\n")
+                .append("    And user clicks \"search flights\"\n");
+    }
+
     private void appendBillPayStart(
 
             StringBuilder feature,
@@ -557,11 +636,14 @@ public class RequirementTestCaseGeneratorService {
             return false;
         }
 
+        String requestedText =
+                safe(requirement)
+                        + " "
+                        + safe(featureName);
+
         if (
                 isBillPayRequest(
-                        safe(requirement)
-                                + " "
-                                + safe(featureName)
+                        requestedText
                 )
         ) {
 
@@ -582,6 +664,13 @@ public class RequirementTestCaseGeneratorService {
             }
 
             return true;
+        }
+
+        if (
+                isTravelFlightRequest(requestedText)
+        ) {
+
+            return isUsableTravelFlightFeature(feature);
         }
 
         if (
@@ -620,6 +709,23 @@ public class RequirementTestCaseGeneratorService {
                 lower.contains("verify account")
                 &&
                 lower.contains("send payment");
+    }
+
+    private boolean isUsableTravelFlightFeature(
+            String feature
+    ) {
+
+        String lower =
+                safe(feature)
+                        .toLowerCase();
+
+        return lower.contains("@select_flight")
+                &&
+                lower.contains("${from}")
+                &&
+                lower.contains("${to}")
+                &&
+                !lower.contains("${search}");
     }
 
     private boolean isExpandedCoverageRequest(
@@ -715,6 +821,29 @@ public class RequirementTestCaseGeneratorService {
                 lower.contains("bill payment")
                 ||
                 lower.contains("pay bill");
+    }
+
+    private boolean isTravelFlightRequest(
+            String value
+    ) {
+
+        String lower =
+                safe(value)
+                        .toLowerCase();
+
+        return lower.contains("flight")
+                &&
+                (
+                        lower.contains("select")
+                                ||
+                                lower.contains("return")
+                                ||
+                                lower.contains("journey")
+                                ||
+                                lower.contains("booking")
+                                ||
+                                lower.contains("travel")
+                );
     }
 
     private String title(

@@ -1374,6 +1374,282 @@ public class GeneratedTestExecutionService {
         return required;
     }
 
+    private List<RuntimeVariableContext> runtimeVariableContexts(
+
+            Path frameworkRoot,
+            String tagExpression,
+            List<String> missingVariables
+
+    ) {
+
+        List<String> normalizedMissing =
+                missingVariables.stream()
+                        .map(String::toLowerCase)
+                        .toList();
+
+        List<RuntimeVariableContext> contexts =
+                new ArrayList<>();
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        Pattern placeholder =
+                Pattern.compile(
+                        "\\$\\{([A-Za-z0-9_]+)}"
+                );
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            List<Path> featureFiles =
+                    paths.filter(Files::isRegularFile)
+                            .filter(path -> path.getFileName()
+                                    .toString()
+                                    .endsWith(".feature"))
+                            .sorted()
+                            .toList();
+
+            for (
+                    Path featureFile
+                    : featureFiles
+            ) {
+
+                collectRuntimeVariableContexts(
+                        featureFile,
+                        tagExpression,
+                        normalizedMissing,
+                        placeholder,
+                        contexts
+                );
+            }
+
+        } catch (IOException ignored) {
+        }
+
+        return contexts;
+    }
+
+    private void collectRuntimeVariableContexts(
+
+            Path featureFile,
+            String tagExpression,
+            List<String> normalizedMissing,
+            Pattern placeholder,
+            List<RuntimeVariableContext> contexts
+
+    ) throws IOException {
+
+        List<String> lines =
+                Files.readAllLines(featureFile);
+
+        String featureName =
+                featureFile.getFileName()
+                        .toString();
+
+        List<String> featureTags =
+                new ArrayList<>();
+
+        List<String> pendingTags =
+                new ArrayList<>();
+
+        String scenarioName =
+                null;
+
+        boolean scenarioMatches =
+                false;
+
+        for (
+                String line
+                : lines
+        ) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTags.addAll(
+                        List.of(
+                                trimmed.split("\\s+")
+                        )
+                );
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Feature:")
+            ) {
+
+                featureName =
+                        trimmed.substring(
+                                "Feature:".length()
+                        )
+                                .trim();
+
+                featureTags.addAll(pendingTags);
+                pendingTags.clear();
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Scenario:")
+                            ||
+                            trimmed.startsWith("Scenario Outline:")
+            ) {
+
+                scenarioName =
+                        trimmed.substring(
+                                trimmed.indexOf(':') + 1
+                        )
+                                .trim();
+
+                List<String> scenarioTags =
+                        new ArrayList<>(featureTags);
+
+                scenarioTags.addAll(pendingTags);
+
+                scenarioMatches =
+                        scenarioMatchesTagExpression(
+                                scenarioTags,
+                                tagExpression
+                        );
+
+                pendingTags.clear();
+
+                continue;
+            }
+
+            if (
+                    !scenarioMatches
+                            ||
+                            scenarioName == null
+            ) {
+
+                continue;
+            }
+
+            Matcher matcher =
+                    placeholder.matcher(trimmed);
+
+            while (
+                    matcher.find()
+            ) {
+
+                String variable =
+                        matcher.group(1);
+
+                if (
+                        !normalizedMissing.contains(
+                                variable.toLowerCase()
+                        )
+                ) {
+
+                    continue;
+                }
+
+                RuntimeVariableContext context =
+                        RuntimeVariableContext.builder()
+                                .variable(variable)
+                                .feature(featureName)
+                                .scenario(scenarioName)
+                                .step(trimmed)
+                                .hint(
+                                        runtimeVariableHint(
+                                                variable,
+                                                trimmed
+                                        )
+                                )
+                                .build();
+
+                if (
+                        contexts.stream()
+                                .noneMatch(existing ->
+                                        sameRuntimeContext(
+                                                existing,
+                                                context
+                                        )
+                                )
+                ) {
+
+                    contexts.add(context);
+                }
+            }
+        }
+    }
+
+    private boolean sameRuntimeContext(
+            RuntimeVariableContext left,
+            RuntimeVariableContext right
+    ) {
+
+        return left.getVariable()
+                .equalsIgnoreCase(
+                        right.getVariable()
+                )
+                &&
+                left.getScenario()
+                        .equals(right.getScenario())
+                &&
+                left.getStep()
+                        .equals(right.getStep());
+    }
+
+    private String runtimeVariableHint(
+            String variable,
+            String step
+    ) {
+
+        String lower =
+                variable == null
+                        ? ""
+                        : variable.toLowerCase();
+
+        if (
+                "search".equals(lower)
+        ) {
+
+            return "Value used by this generated search/input step.";
+        }
+
+        if (
+                "from".equals(lower)
+                        ||
+                        "origin".equals(lower)
+        ) {
+
+            return "Departure or origin value for this scenario.";
+        }
+
+        if (
+                "to".equals(lower)
+                        ||
+                        "destination".equals(lower)
+        ) {
+
+            return "Arrival or destination value for this scenario.";
+        }
+
+        if (
+                step != null
+                        &&
+                        step.toLowerCase()
+                                .contains(" into ")
+        ) {
+
+            return "Value typed by this step.";
+        }
+
+        return "Runtime value required by this scenario.";
+    }
+
     private void requireMatchingScenarios(
             Path frameworkRoot,
             String tagExpression
@@ -2634,6 +2910,70 @@ public class GeneratedTestExecutionService {
         );
     }
 
+    public List<RuntimeVariableContext> missingRuntimeVariableContexts(
+
+            String sessionId,
+            String tagExpression,
+            Map<String, String> variables
+
+    ) {
+
+        Path frameworkRoot =
+                resolveFrameworkRoot(sessionId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        missingFrameworkMessage()
+                                )
+                        );
+
+        String normalizedExpression =
+                normalizeTagExpression(tagExpression);
+
+        normalizeFeatureFiles(frameworkRoot);
+
+        requireMatchingScenarios(
+                frameworkRoot,
+                normalizedExpression
+        );
+
+        List<String> missingVariables =
+                missingVariables(
+                        frameworkRoot,
+                        normalizedExpression,
+                        variables
+                );
+
+        if (
+                missingVariables.isEmpty()
+        ) {
+
+            return List.of();
+        }
+
+        List<RuntimeVariableContext> contexts =
+                runtimeVariableContexts(
+                frameworkRoot,
+                normalizedExpression,
+                missingVariables
+        );
+
+        if (
+                !contexts.isEmpty()
+        ) {
+
+            return contexts;
+        }
+
+        return missingVariables.stream()
+                .map(variable ->
+                        RuntimeVariableContext.builder()
+                                .variable(variable)
+                                .hint("Runtime value required by matching generated scenarios.")
+                                .build()
+                )
+                .toList();
+    }
+
     public String missingRuntimeDataMessage(
             List<String> missingVariables
     ) {
@@ -2730,6 +3070,21 @@ public class GeneratedTestExecutionService {
         private List<String> scenarios;
 
         private List<String> features;
+    }
+
+    @Getter
+    @Builder
+    public static class RuntimeVariableContext {
+
+        private String variable;
+
+        private String feature;
+
+        private String scenario;
+
+        private String step;
+
+        private String hint;
     }
 
     @Getter

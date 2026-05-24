@@ -123,6 +123,24 @@ public class AICommandOrchestrator {
             String userId =
                     userId(command);
 
+            if (
+                    (
+                            command.getIntent() == null
+                                    ||
+                                    "UNKNOWN".equalsIgnoreCase(
+                                            command.getIntent()
+                                    )
+                    )
+                            &&
+                            command.getVariables() != null
+                            &&
+                            !command.getVariables()
+                                    .isEmpty()
+            ) {
+
+                command.setIntent("UPDATE_TEST_DATA");
+            }
+
             System.out.println(
                     "ORCHESTRATOR INTENT = "
                             + command.getIntent()
@@ -512,6 +530,204 @@ public class AICommandOrchestrator {
                 .build();
     }
 
+    private AIResponse missingRuntimeDataResponseWithContexts(
+            List<GeneratedTestExecutionService.RuntimeVariableContext> contexts
+    ) {
+
+        List<String> missingVariables =
+                new ArrayList<>();
+
+        List<Map<String, Object>> variableDetails =
+                new ArrayList<>();
+
+        if (
+                contexts != null
+        ) {
+
+            for (
+                    GeneratedTestExecutionService.RuntimeVariableContext context
+                    : contexts
+            ) {
+
+                if (
+                        context == null
+                                ||
+                                context.getVariable() == null
+                                ||
+                                context.getVariable().isBlank()
+                ) {
+
+                    continue;
+                }
+
+                String variable =
+                        context.getVariable();
+
+                if (
+                        missingVariables.stream()
+                                .noneMatch(existing ->
+                                        existing.equalsIgnoreCase(variable)
+                                )
+                ) {
+
+                    missingVariables.add(variable);
+                }
+
+                Map<String, Object> detail =
+                        new LinkedHashMap<>();
+
+                detail.put(
+                        "variable",
+                        variable
+                );
+
+                detail.put(
+                        "feature",
+                        context.getFeature()
+                );
+
+                detail.put(
+                        "scenario",
+                        context.getScenario()
+                );
+
+                detail.put(
+                        "step",
+                        context.getStep()
+                );
+
+                detail.put(
+                        "hint",
+                        context.getHint()
+                );
+
+                variableDetails.add(detail);
+            }
+        }
+
+        if (
+                missingVariables.isEmpty()
+        ) {
+
+            return missingRuntimeDataResponse(
+                    missingVariables
+            );
+        }
+
+        Map<String, Object> data =
+                new LinkedHashMap<>();
+
+        data.put(
+                "missingVariables",
+                missingVariables
+        );
+
+        data.put(
+                "variableDetails",
+                variableDetails
+        );
+
+        data.put(
+                "example",
+                exampleVariableReply(missingVariables)
+        );
+
+        String contextSummary =
+                runtimeVariableContextSummary(variableDetails);
+
+        return AIResponse.builder()
+                .success(false)
+                .type("missing-variables")
+                .message(
+                        "I need a few runtime values before I can execute those generated tests. "
+                                + "Please provide: "
+                                + String.join(
+                                ", ",
+                                missingVariables
+                        )
+                                + "."
+                                + (
+                                contextSummary.isBlank()
+                                        ? ""
+                                        : " " + contextSummary
+                        )
+                )
+                .data(data)
+                .build();
+    }
+
+    private String runtimeVariableContextSummary(
+            List<Map<String, Object>> variableDetails
+    ) {
+
+        if (
+                variableDetails == null
+                        ||
+                        variableDetails.isEmpty()
+        ) {
+
+            return "";
+        }
+
+        List<String> summaries =
+                new ArrayList<>();
+
+        for (
+                Map<String, Object> detail
+                : variableDetails
+        ) {
+
+            if (
+                    summaries.size() >= 3
+            ) {
+
+                break;
+            }
+
+            Object variable =
+                    detail.get("variable");
+
+            Object scenario =
+                    detail.get("scenario");
+
+            Object step =
+                    detail.get("step");
+
+            if (
+                    variable == null
+                            ||
+                            step == null
+            ) {
+
+                continue;
+            }
+
+            summaries.add(
+                    variable
+                            + " is used"
+                            + (
+                            scenario == null
+                                    ? ""
+                                    : " in scenario \""
+                                    + scenario
+                                    + "\""
+                    )
+                            + " at step \""
+                            + step
+                            + "\""
+            );
+        }
+
+        return summaries.isEmpty()
+                ? ""
+                : "Context: "
+                + String.join(
+                "; ",
+                summaries
+        )
+                + ".";
+    }
+
     private String exampleVariableReply(
             List<String> missingVariables
     ) {
@@ -637,6 +853,11 @@ public class AICommandOrchestrator {
 
         if (
                 sessionGuard != null
+                        &&
+                        !isPendingFrameworkResume(
+                                userId,
+                                command.getUrl()
+                        )
         ) {
 
             return sessionGuard;
@@ -654,6 +875,23 @@ public class AICommandOrchestrator {
                         allFlows,
                         userId
                 );
+
+        if (
+                requiresCrawlerCredentials(allFlows)
+                        &&
+                        missingCrawlerCredentials(userId)
+        ) {
+
+            automationWorkspaceService
+                    .setPendingFrameworkGeneration(
+                            userId,
+                            command.getUrl()
+                    );
+
+            return missingCrawlerDataResponse(
+                    command.getUrl()
+            );
+        }
 
         if (
                 allFlows.isEmpty()
@@ -693,6 +931,9 @@ public class AICommandOrchestrator {
                         workspace.getSessionId(),
                         userId
                 );
+
+        automationWorkspaceService
+                .clearPendingFrameworkGeneration(userId);
 
         DetectedFlow primaryFlow =
                 allFlows.get(0);
@@ -781,12 +1022,37 @@ public class AICommandOrchestrator {
                 command.getUrl();
 
         if (
-                isBlank(currentWebsite)
-                        ||
-                        isBlank(requestedWebsite)
+                isBlank(requestedWebsite)
         ) {
 
             return null;
+        }
+
+        if (
+                isBlank(currentWebsite)
+        ) {
+
+            Map<String, Object> data =
+                    new LinkedHashMap<>();
+
+            data.put(
+                    "requestedWebsite",
+                    requestedWebsite
+            );
+
+            data.put(
+                    "requestedDomain",
+                    extractDomain(requestedWebsite)
+            );
+
+            return AIResponse.builder()
+                    .success(false)
+                    .message(
+                            "This chat already has an active framework context. Create a new chat from the left sidebar when you need another framework."
+                    )
+                    .type("session_guard")
+                    .data(data)
+                    .build();
         }
 
         String currentDomain =
@@ -861,16 +1127,16 @@ public class AICommandOrchestrator {
 
         if (
                 workspace == null
-                        ||
-                        isBlank(
-                                workspace.getWebsiteUrl()
-                        )
         ) {
 
             return false;
         }
 
-        return hasFrameworkArtifact(workspace)
+        return !isBlank(
+                workspace.getWebsiteUrl()
+        )
+                ||
+                hasFrameworkArtifact(workspace)
                 ||
                 generatedFrameworkExists(workspace)
                 ||
@@ -887,6 +1153,92 @@ public class AICommandOrchestrator {
                                 !workspace.getGeneratedFeatures()
                                         .isEmpty()
                 );
+    }
+
+    private boolean isPendingFrameworkResume(
+            String userId,
+            String requestedUrl
+    ) {
+
+        String pendingUrl =
+                automationWorkspaceService
+                        .getPendingFrameworkGeneration(userId);
+
+        return !isBlank(pendingUrl)
+                &&
+                sameText(
+                        extractDomain(pendingUrl),
+                        extractDomain(requestedUrl)
+                );
+    }
+
+    private boolean requiresCrawlerCredentials(
+            List<DetectedFlow> flows
+    ) {
+
+        if (
+                flows == null
+        ) {
+
+            return false;
+        }
+
+        return flows.stream()
+                .anyMatch(flow ->
+                        flow != null
+                                &&
+                                "LOGIN".equalsIgnoreCase(
+                                        flow.getFlowType()
+                                )
+                );
+    }
+
+    private boolean missingCrawlerCredentials(
+            String userId
+    ) {
+
+        Map<String, String> variables =
+                automationWorkspaceService
+                        .getVariableValues(userId);
+
+        return isBlank(variables.get("username"))
+                ||
+                isBlank(variables.get("password"));
+    }
+
+    private AIResponse missingCrawlerDataResponse(
+            String url
+    ) {
+
+        List<GeneratedTestExecutionService.RuntimeVariableContext> contexts =
+                List.of(
+                        GeneratedTestExecutionService.RuntimeVariableContext
+                                .builder()
+                                .variable("username")
+                                .feature("Crawler")
+                                .scenario("Continue crawling authenticated pages")
+                                .step("Enter username into the login form for " + url)
+                                .hint("Username required to move past this login gate.")
+                                .build(),
+                        GeneratedTestExecutionService.RuntimeVariableContext
+                                .builder()
+                                .variable("password")
+                                .feature("Crawler")
+                                .scenario("Continue crawling authenticated pages")
+                                .step("Enter password into the login form for " + url)
+                                .hint("Password required to move past this login gate.")
+                                .build()
+                );
+
+        AIResponse response =
+                missingRuntimeDataResponseWithContexts(contexts);
+
+        response.setMessage(
+                "I found a login gate while crawling this website. "
+                        + "Please provide username and password so I can continue crawling authenticated pages before generating the framework."
+        );
+
+        return response;
     }
 
     private boolean generatedFrameworkExists(
@@ -1134,7 +1486,27 @@ public class AICommandOrchestrator {
                 isBlank(currentWebsite)
         ) {
 
-            return null;
+            Map<String, Object> data =
+                    new LinkedHashMap<>();
+
+            data.put(
+                    "requestedWebsite",
+                    command.getUrl()
+            );
+
+            data.put(
+                    "requestedDomain",
+                    extractDomain(command.getUrl())
+            );
+
+            return AIResponse.builder()
+                    .success(false)
+                    .message(
+                            "This chat already has an active framework context. Create a new chat from the left sidebar when you need to work with another website."
+                    )
+                    .type("session_guard")
+                    .data(data)
+                    .build();
         }
 
         String currentDomain =
@@ -1222,6 +1594,46 @@ public class AICommandOrchestrator {
                             userId,
                             graph
                     );
+        }
+
+        String pendingGeneratedTestTarget =
+                automationWorkspaceService
+                        .consumePendingGeneratedTestExecution(userId);
+
+        if (
+                pendingGeneratedTestTarget != null
+                        &&
+                        !pendingGeneratedTestTarget.isBlank()
+        ) {
+
+            return executeGeneratedTests(
+                    AICommand.builder()
+                            .intent("EXECUTE_GENERATED_TESTS")
+                            .target(pendingGeneratedTestTarget)
+                            .userId(userId)
+                            .build(),
+                    userId
+            );
+        }
+
+        String pendingFrameworkUrl =
+                automationWorkspaceService
+                        .getPendingFrameworkGeneration(userId);
+
+        if (
+                pendingFrameworkUrl != null
+                        &&
+                        !pendingFrameworkUrl.isBlank()
+        ) {
+
+            return generateFramework(
+                    AICommand.builder()
+                            .intent("GENERATE_FRAMEWORK")
+                            .url(pendingFrameworkUrl)
+                            .userId(userId)
+                            .build(),
+                    userId
+            );
         }
 
         return AIResponse.builder()
@@ -1500,20 +1912,26 @@ public class AICommandOrchestrator {
                 automationWorkspaceService
                         .getVariableValues(userId);
 
-        List<String> missingVariables =
+        List<GeneratedTestExecutionService.RuntimeVariableContext> missingVariableContexts =
                 generatedTestExecutionService
-                        .missingRuntimeVariables(
+                        .missingRuntimeVariableContexts(
                                 workspace.getSessionId(),
                                 command.getTarget(),
                                 variables
                         );
 
         if (
-                !missingVariables.isEmpty()
+                !missingVariableContexts.isEmpty()
         ) {
 
-            return missingRuntimeDataResponse(
-                    missingVariables
+            automationWorkspaceService
+                    .setPendingGeneratedTestExecution(
+                            userId,
+                            command.getTarget()
+                    );
+
+            return missingRuntimeDataResponseWithContexts(
+                    missingVariableContexts
             );
         }
 
@@ -1783,7 +2201,11 @@ public class AICommandOrchestrator {
 
         SiteMapResult siteMap =
                 websiteCrawlerService
-                        .crawl(url);
+                        .crawl(
+                                url,
+                                automationWorkspaceService
+                                        .getVariableValues(userId)
+                        );
 
         List<DetectedFlow> allFlows =
                 new ArrayList<>();

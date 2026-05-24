@@ -994,9 +994,7 @@ public class IntentParser {
         }
 
         String operator =
-                lower.contains(" or ")
-                        ? " or "
-                        : " and ";
+                explicitTagOperator(lower);
 
         return String.join(
                 operator,
@@ -1038,9 +1036,7 @@ public class IntentParser {
         ) {
 
             String operator =
-                    lower.contains(" or ")
-                            ? " or "
-                            : " and ";
+                    explicitTagOperator(lower);
 
             return String.join(
                     operator,
@@ -1060,6 +1056,44 @@ public class IntentParser {
 
         return "@"
                 + tagName;
+    }
+
+    private String explicitTagOperator(
+            String lower
+    ) {
+
+        if (
+                lower == null
+        ) {
+
+            return " or ";
+        }
+
+        if (
+                lower.contains("must have all")
+                        ||
+                        lower.contains("matching all")
+                        ||
+                        lower.contains("with all tags")
+                        ||
+                        lower.contains("containing all tags")
+        ) {
+
+            return " and ";
+        }
+
+        if (
+                lower.contains(" or ")
+                        ||
+                        lower.contains(" and ")
+                        ||
+                        lower.contains(",")
+        ) {
+
+            return " or ";
+        }
+
+        return " and ";
     }
 
     private boolean containsGeneratedTestFeatureTarget(

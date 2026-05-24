@@ -985,6 +985,36 @@ textarea:disabled {
   overflow-wrap: anywhere;
 }
 
+.variable-context-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.variable-context-row {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(78, 103, 112, 0.10);
+}
+
+.variable-context-row strong {
+  color: #24313a;
+}
+
+.variable-context-row span,
+.variable-context-row small {
+  color: #536972;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.variable-context-row code {
+  margin-top: 2px;
+}
+
 .report-link {
   appearance: none;
   display: inline-flex;
@@ -1864,6 +1894,17 @@ body {
   color: #ffffff;
   background: rgba(0, 0, 0, 0.34);
   border-color: rgba(255, 255, 255, 0.10);
+}
+
+.variable-context-row {
+  background: rgba(0, 0, 0, 0.22);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.variable-context-row strong,
+.variable-context-row span,
+.variable-context-row small {
+  color: #ffffff;
 }
 
 .user .message-content {
