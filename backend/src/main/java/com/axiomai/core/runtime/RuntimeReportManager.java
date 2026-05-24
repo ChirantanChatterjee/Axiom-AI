@@ -1,8 +1,9 @@
 package com.axiomai.core.runtime;
 
+import com.axiomai.config.PublicBaseUrlResolver;
 import com.axiomai.core.execution.ExecutionResult;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
@@ -13,11 +14,12 @@ import java.util.Base64;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 
 public class RuntimeReportManager {
 
-    @Value("${aif.public-base-url:http://localhost:8080}")
-    private String publicBaseUrl;
+    private final PublicBaseUrlResolver
+            publicBaseUrlResolver;
 
     // =====================================================
     // GENERATE REPORT
@@ -47,9 +49,10 @@ public class RuntimeReportManager {
             );
 
             String reportUrl =
-                    publicBaseUrl
-                            + "/api/reports/"
-                            + fileName;
+                    publicBaseUrlResolver.url(
+                            "/api/reports/"
+                                    + fileName
+                    );
 
             log.info(
                     "Generated runtime report: {}",

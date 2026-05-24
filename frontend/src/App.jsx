@@ -46,9 +46,45 @@ const TERMINAL_EXECUTION_STATUSES =
     "CANCELLED"
   ]);
 
+const DEFAULT_API_BASE_URL =
+  "https://axiom-ai-production-1ab3.up.railway.app";
+
+const LOCAL_BACKEND_HOSTS =
+  new Set([
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0"
+  ]);
+
+const configuredApiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ||
+  DEFAULT_API_BASE_URL;
+
+const isLocalBrowserHost = () => {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  return LOCAL_BACKEND_HOSTS.has(
+    window.location.hostname
+  );
+};
+
+const isLocalBackendUrl = (value) => {
+  try {
+    return LOCAL_BACKEND_HOSTS.has(
+      new URL(value).hostname
+    );
+  } catch (_error) {
+    return false;
+  }
+};
+
 const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL ||
-    "https://aif-fpj8.onrender.com";
+  !isLocalBrowserHost() &&
+  isLocalBackendUrl(configuredApiBaseUrl)
+    ? DEFAULT_API_BASE_URL
+    : configuredApiBaseUrl;
 
 const welcomeMessage = {
   sender: "ai",
@@ -321,6 +357,23 @@ const normalizeBackendUrl = (url) => {
     url.startsWith("http://") ||
     url.startsWith("https://")
   ) {
+    try {
+      const parsedUrl =
+        new URL(url);
+
+      if (
+        parsedUrl.pathname.startsWith("/api/") &&
+        LOCAL_BACKEND_HOSTS.has(parsedUrl.hostname)
+      ) {
+        const apiBaseUrl =
+          new URL(API_BASE_URL);
+
+        return `${apiBaseUrl.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+      }
+    } catch (_error) {
+      return url;
+    }
+
     return url;
   }
 
@@ -1985,9 +2038,12 @@ function App() {
     }
 
     try {
+      const resolvedDownloadUrl =
+        normalizeBackendUrl(downloadUrl);
+
       const response =
         await axios.get(
-          normalizeBackendUrl(downloadUrl),
+          resolvedDownloadUrl,
           {
             headers: {
               "X-AIF-Session": authUser?.sessionToken || ""
@@ -2026,7 +2082,11 @@ function App() {
           text:
             error.response?.data?.message ||
             error.response?.data?.error ||
-            "Unable to download the framework for this chat.",
+            (
+              error.message
+                ? `Unable to download the framework for this chat: ${error.message}.`
+                : "Unable to download the framework for this chat."
+            ),
           type: "error"
         }
       );

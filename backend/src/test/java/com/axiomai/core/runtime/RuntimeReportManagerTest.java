@@ -1,5 +1,6 @@
 package com.axiomai.core.runtime;
 
+import com.axiomai.config.PublicBaseUrlResolver;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -15,14 +16,19 @@ class RuntimeReportManagerTest {
     @Test
     void reportTemplateAllowsCssPercentValues() throws Exception {
 
-        RuntimeReportManager manager =
-                new RuntimeReportManager();
+        PublicBaseUrlResolver publicBaseUrlResolver =
+                new PublicBaseUrlResolver();
 
         ReflectionTestUtils.setField(
-                manager,
-                "publicBaseUrl",
+                publicBaseUrlResolver,
+                "configuredBaseUrl",
                 "http://localhost:8080"
         );
+
+        RuntimeReportManager manager =
+                new RuntimeReportManager(
+                        publicBaseUrlResolver
+                );
 
         UnifiedRuntimeContext context =
                 UnifiedRuntimeContext.builder()

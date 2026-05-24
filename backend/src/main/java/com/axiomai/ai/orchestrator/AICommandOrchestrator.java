@@ -3,6 +3,7 @@ package com.axiomai.ai.orchestrator;
 import com.axiomai.ai.dto.AICommand;
 import com.axiomai.ai.dto.AIResponse;
 import com.axiomai.ai.runtime.AIExecutionRuntimeExecutor;
+import com.axiomai.config.PublicBaseUrlResolver;
 import com.axiomai.core.adapter.DetectedFlowAdapter;
 import com.axiomai.core.adapter.ScenarioPlanAdapter;
 import com.axiomai.core.execution.ExecutionResult;
@@ -102,6 +103,9 @@ public class AICommandOrchestrator {
 
     private final GraphExecutionBridge
             graphExecutionBridge;
+
+    private final PublicBaseUrlResolver
+            publicBaseUrlResolver;
 
     @Value("${aif.generated-tests.execution-mode:${AIF_GENERATED_TEST_EXECUTION_MODE:worker}}")
     private String generatedTestExecutionMode;
@@ -2395,9 +2399,11 @@ public class AICommandOrchestrator {
                         .path(zipPath)
 
                         .downloadUrl(
-                                "http://localhost:8080/api/workspace/artifacts/"
-                                        + sessionId
-                                        + "/framework.zip"
+                                publicBaseUrlResolver.url(
+                                        "/api/workspace/artifacts/"
+                                                + sessionId
+                                                + "/framework.zip"
+                                )
                         )
 
                         .build();

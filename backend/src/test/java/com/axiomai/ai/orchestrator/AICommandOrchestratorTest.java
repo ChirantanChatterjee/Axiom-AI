@@ -2,6 +2,7 @@ package com.axiomai.ai.orchestrator;
 
 import com.axiomai.ai.dto.AICommand;
 import com.axiomai.ai.dto.AIResponse;
+import com.axiomai.config.PublicBaseUrlResolver;
 import com.axiomai.core.memory.ExecutionMemoryService;
 import com.axiomai.qa.models.SiteMapResult;
 import com.axiomai.qa.service.WebsiteCrawlerService;
@@ -57,7 +58,8 @@ class AICommandOrchestratorTest {
                         workspaceService,
                         null,
                         null,
-                        null
+                        null,
+                        new PublicBaseUrlResolver()
                 );
 
         AIResponse response =
@@ -122,7 +124,8 @@ class AICommandOrchestratorTest {
                         workspaceService,
                         null,
                         null,
-                        null
+                        null,
+                        new PublicBaseUrlResolver()
                 );
 
         AIResponse response =
