@@ -189,6 +189,14 @@ public class FlowPageObjectGenerator {
                             return;
                         }
 
+                        Locator optionControl = resolveOptionControl(target);
+
+                        if (optionControl != null) {
+                            checkOrClickOption(optionControl);
+                            waitAfterClick(target);
+                            return;
+                        }
+
                         Locator special = resolveSpecialClick(target);
 
                         if (special != null) {
@@ -1557,6 +1565,154 @@ public class FlowPageObjectGenerator {
                         return null;
                     }
 
+                    private Locator resolveOptionControl(String target) {
+
+                        List<String> terms = optionTerms(target);
+
+                        if (terms.isEmpty()) {
+                            return null;
+                        }
+
+                        for (String term : terms) {
+
+                            String escaped = cssText(term);
+                            String termSlug = slug(term);
+                            String compact = termSlug.replace("-", "");
+
+                            Locator explicit = firstExisting(
+                                    "input[type='radio'][value=\\"" + escaped + "\\" i]",
+                                    "input[type='checkbox'][value=\\"" + escaped + "\\" i]",
+                                    "input[type='radio'][value*=\\"" + escaped + "\\" i]",
+                                    "input[type='checkbox'][value*=\\"" + escaped + "\\" i]",
+                                    "input[type='radio'][id=\\"" + termSlug + "\\" i]",
+                                    "input[type='checkbox'][id=\\"" + termSlug + "\\" i]",
+                                    "input[type='radio'][id*=\\"" + termSlug + "\\" i]",
+                                    "input[type='checkbox'][id*=\\"" + termSlug + "\\" i]",
+                                    "input[type='radio'][name*=\\"" + escaped + "\\" i]",
+                                    "input[type='checkbox'][name*=\\"" + escaped + "\\" i]",
+                                    "input[type='radio'][aria-label*=\\"" + escaped + "\\" i]",
+                                    "input[type='checkbox'][aria-label*=\\"" + escaped + "\\" i]"
+                            );
+
+                            if (explicit != null) {
+                                return explicit;
+                            }
+
+                            if (!compact.isBlank() && !compact.equals(termSlug)) {
+                                explicit = firstExisting(
+                                        "input[type='radio'][value=\\"" + compact + "\\" i]",
+                                        "input[type='checkbox'][value=\\"" + compact + "\\" i]",
+                                        "input[type='radio'][value*=\\"" + compact + "\\" i]",
+                                        "input[type='checkbox'][value*=\\"" + compact + "\\" i]",
+                                        "input[type='radio'][id*=\\"" + compact + "\\" i]",
+                                        "input[type='checkbox'][id*=\\"" + compact + "\\" i]",
+                                        "input[type='radio'][name*=\\"" + compact + "\\" i]",
+                                        "input[type='checkbox'][name*=\\"" + compact + "\\" i]"
+                                );
+
+                                if (explicit != null) {
+                                    return explicit;
+                                }
+                            }
+
+                            Locator labelled = firstVisibleSoon(
+                                    1000,
+                                    "label:has-text(\\"" + escaped + "\\") input[type='radio']",
+                                    "label:has-text(\\"" + escaped + "\\") input[type='checkbox']",
+                                    "input[type='radio'] + label:has-text(\\"" + escaped + "\\")",
+                                    "input[type='checkbox'] + label:has-text(\\"" + escaped + "\\")",
+                                    "[role='radio']:has-text(\\"" + escaped + "\\")",
+                                    "[role='checkbox']:has-text(\\"" + escaped + "\\")",
+                                    "[aria-label*=\\"" + escaped + "\\" i][role='radio']",
+                                    "[aria-label*=\\"" + escaped + "\\" i][role='checkbox']",
+                                    "label:has-text(\\"" + escaped + "\\")"
+                            );
+
+                            if (labelled != null) {
+                                return labelled;
+                            }
+                        }
+
+                        return null;
+                    }
+
+                    private List<String> optionTerms(String target) {
+
+                        List<String> terms = new ArrayList<>();
+                        String action = actionText(target);
+                        String lower = action.toLowerCase(Locale.ROOT)
+                                .replace("-", " ")
+                                .replace("_", " ")
+                                .replaceAll("\\\\s+", " ")
+                                .trim();
+
+                        addOptionTerm(terms, action);
+
+                        String stripped = lower
+                                .replaceAll("\\\\b(journey|trip|flight|option|radio|checkbox|selection|select|choose|click)\\\\b", " ")
+                                .replaceAll("\\\\s+", " ")
+                                .trim();
+
+                        addOptionTerm(terms, stripped);
+
+                        if (lower.contains("return") || lower.contains("round trip") || lower.contains("roundtrip")) {
+                            addOptionTerm(terms, "return");
+                            addOptionTerm(terms, "round trip");
+                            addOptionTerm(terms, "roundtrip");
+                            addOptionTerm(terms, "return trip");
+                        }
+
+                        if (lower.contains("one way") || lower.contains("oneway") || lower.contains("single")) {
+                            addOptionTerm(terms, "one way");
+                            addOptionTerm(terms, "oneway");
+                            addOptionTerm(terms, "single");
+                        }
+
+                        for (String token : stripped.split("\\\\s+")) {
+
+                            if (token.length() >= 3 && !isOptionStopWord(token)) {
+                                addOptionTerm(terms, token);
+                            }
+                        }
+
+                        return terms;
+                    }
+
+                    private void addOptionTerm(List<String> terms, String term) {
+
+                        if (term == null) {
+                            return;
+                        }
+
+                        String normalized = term
+                                .replace("${", "")
+                                .replace("}", "")
+                                .replace("-", " ")
+                                .replace("_", " ")
+                                .replaceAll("\\\\s+", " ")
+                                .trim();
+
+                        if (normalized.isBlank() || terms.contains(normalized)) {
+                            return;
+                        }
+
+                        terms.add(normalized);
+                    }
+
+                    private boolean isOptionStopWord(String token) {
+
+                        return Set.of(
+                                "the",
+                                "and",
+                                "for",
+                                "with",
+                                "button",
+                                "link",
+                                "field",
+                                "input"
+                        ).contains(token);
+                    }
+
                     private boolean isAddProductCommand(String lower) {
 
                         return lower != null
@@ -2076,6 +2232,29 @@ public class FlowPageObjectGenerator {
                         }
                     }
 
+                    private void checkOrClickOption(Locator locator) {
+
+                        try {
+                            locator.check(new Locator.CheckOptions().setForce(true));
+                            return;
+                        } catch (RuntimeException ignored) {
+                            // Labels and ARIA options are clicked rather than checked directly.
+                        }
+
+                        try {
+                            clickWithFallback(locator);
+                            return;
+                        } catch (RuntimeException clickFailure) {
+                            try {
+                                locator.evaluate(
+                                        "el => { if (el instanceof HTMLInputElement && (el.type === 'radio' || el.type === 'checkbox')) { el.checked = true; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } else { el.click(); } }"
+                                );
+                            } catch (RuntimeException ignored) {
+                                throw clickFailure;
+                            }
+                        }
+                    }
+
                     private void waitAfterClick(String target) {
 
                         String lower = target == null ? "" : target.toLowerCase();
@@ -2227,6 +2406,28 @@ public class FlowPageObjectGenerator {
                         } catch (RuntimeException ignored) {
                             return false;
                         }
+                    }
+
+                    private Locator firstExisting(String... candidates) {
+
+                        for (String selector : candidates) {
+
+                            if (selector == null || selector.isBlank()) {
+                                continue;
+                            }
+
+                            try {
+                                Locator locator = page.locator(selector);
+
+                                if (locator.count() > 0) {
+                                    return locator.first();
+                                }
+                            } catch (RuntimeException ignored) {
+                                // Keep trying lower-confidence option selectors.
+                            }
+                        }
+
+                        return null;
                     }
 
                     private Locator firstVisible(String... candidates) {

@@ -145,6 +145,22 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                page.contains("resolveOptionControl(target)")
+        );
+
+        assertTrue(
+                page.contains("input[type='radio'][value=")
+        );
+
+        assertTrue(
+                page.contains("checkOrClickOption")
+        );
+
+        assertTrue(
+                page.contains("optionTerms")
+        );
+
+        assertTrue(
                 page.contains("handleGenericNavigationClick")
         );
 
