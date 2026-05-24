@@ -14,7 +14,7 @@ class RequirementDocumentAnalyzer {
 
     private static final Pattern STORY_HEADER =
             Pattern.compile(
-                    "\\b(US[-_]?\\d+)\\s*:",
+                    "\\b(?:(US[-_]?\\d+)\\s*:|User\\s+Story\\s+(\\d+)\\s*(?::|[-\\u2013\\u2014])?)",
                     Pattern.CASE_INSENSITIVE
             );
 
@@ -70,11 +70,19 @@ class RequirementDocumentAnalyzer {
                 matcher.find()
         ) {
 
+            String storyId =
+                    matcher.group(1) != null
+                            ? matcher.group(1)
+                            : numberedStoryId(
+                                    matcher.group(2)
+                            );
+
             matches.add(
                     new StoryMatch(
-                            matcher.group(1),
+                            storyId,
                             matcher.end(),
-                            matcher.start()
+                            matcher.start(),
+                            matcher.group(2) != null
                     )
             );
         }
@@ -95,7 +103,8 @@ class RequirementDocumentAnalyzer {
                                     ? "Requirement"
                                     : title,
                             requirement,
-                            extractCriteria(requirement)
+                            extractCriteria(requirement),
+                            false
                     )
             );
         }
@@ -145,7 +154,8 @@ class RequirementDocumentAnalyzer {
                                     ? normalizeStoryId(current.id())
                                     : title,
                             content,
-                            extractCriteria(content)
+                            extractCriteria(content),
+                            current.narrativeStory()
                     )
             );
         }
@@ -399,6 +409,18 @@ class RequirementDocumentAnalyzer {
 
             int before =
                     testCases.size();
+
+            if (
+                    story.narrativeStory()
+            ) {
+
+                addNarrativeStoryCase(
+                        testCases,
+                        story
+                );
+
+                continue;
+            }
 
             if (
                     containsAny(
@@ -788,6 +810,296 @@ class RequirementDocumentAnalyzer {
         return testCases;
     }
 
+    private void addNarrativeStoryCase(
+            List<RequirementTestCase> testCases,
+            RequirementStory story
+    ) {
+
+        String lower =
+                story.searchText();
+
+        if (
+                containsAny(
+                        lower,
+                        "successful login",
+                        "valid credentials",
+                        "inventory page"
+                )
+                        &&
+                        containsAny(
+                                lower,
+                                "login",
+                                "log in"
+                        )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Successful login redirects to inventory",
+                    "standard_user / secret_sauce",
+                    "Inventory page and shopping cart are available after login",
+                    "positive",
+                    "login"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "invalid login",
+                        "incorrect",
+                        "invalid username",
+                        "invalid password",
+                        "empty username",
+                        "empty password",
+                        "both fields empty"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Invalid login shows credential validation",
+                    "Invalid and empty credentials",
+                    "Error message is visible and user remains on login page",
+                    "negative",
+                    "validation",
+                    "login"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "locked user",
+                        "locked out",
+                        "locked users cannot"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Locked user cannot access inventory",
+                    "locked_out_user / secret_sauce",
+                    "Locked user error appears and inventory is not accessible",
+                    "negative",
+                    "security",
+                    "login"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "product sorting",
+                        "sort products",
+                        "name a-z",
+                        "price low-high"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Sort products by name and price",
+                    "Sort options: az, za, lohi, hilo",
+                    "Product order matches the selected sort option",
+                    "positive",
+                    "sorting",
+                    "inventory"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "view product list",
+                        "browse available products",
+                        "product name visible",
+                        "product image visible"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "View product inventory list",
+                    "Logged-in customer",
+                    "Product names, descriptions, prices, images, and add-to-cart controls are visible",
+                    "positive",
+                    "inventory"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "remove product",
+                        "remove unwanted products",
+                        "cart count decreases"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Remove product from cart",
+                    "Cart with one product",
+                    "Removed product is no longer in cart and cart count decreases",
+                    "positive",
+                    "cart"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "add product to cart",
+                        "add products into cart",
+                        "clicking add to cart"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Add product to cart",
+                    "Sauce Labs Backpack",
+                    "Cart badge updates and selected product is present in cart",
+                    "positive",
+                    "cart"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "cart persistence",
+                        "cart data to persist",
+                        "refresh should not clear cart"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Cart persists during navigation and refresh",
+                    "Cart with one product",
+                    "Cart item remains after navigation and refresh",
+                    "positive",
+                    "cart",
+                    "persistence"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "checkout overview",
+                        "review my order",
+                        "tax calculation",
+                        "total price"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Checkout overview shows accurate totals",
+                    "One product in cart and valid checkout information",
+                    "Overview lists product, tax, and accurate total price",
+                    "positive",
+                    "checkout"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "checkout information",
+                        "shipping information",
+                        "first name mandatory",
+                        "postal code mandatory",
+                        "missing fields"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Checkout information validates required fields",
+                    "Blank and valid checkout information",
+                    "Missing field validation appears before checkout can continue",
+                    "negative",
+                    "required_field",
+                    "checkout"
+            );
+
+            return;
+        }
+
+        if (
+                containsAny(
+                        lower,
+                        "logout",
+                        "log out"
+                )
+        ) {
+
+            addCase(
+                    testCases,
+                    story.id(),
+                    "Logout ends the active session",
+                    "Logged-in user",
+                    "User returns to login page",
+                    "positive",
+                    "logout"
+            );
+
+            return;
+        }
+
+        addCase(
+                testCases,
+                story.id(),
+                "Validate " + concise(story.title()),
+                "Requirement-derived data",
+                story.title() + " behavior is available",
+                containsAny(
+                        lower,
+                        "invalid",
+                        "empty",
+                        "cannot",
+                        "not able",
+                        "locked",
+                        "mandatory",
+                        "missing"
+                )
+                        ? "negative"
+                        : "positive"
+        );
+    }
+
     private void addRegistrationCases(
             List<RequirementTestCase> testCases,
             RequirementStory story
@@ -1155,6 +1467,149 @@ class RequirementDocumentAnalyzer {
         );
 
         if (
+                scenario.contains("successful login redirects to inventory")
+        ) {
+
+            appendSauceLoginStart(
+                    feature,
+                    "standard_user",
+                    "secret_sauce"
+            );
+            feature.append("    Then user should see \"Products\"\n")
+                    .append("    And user clicks \"cart\"\n")
+                    .append("    Then user should see \"Your Cart\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("invalid login shows credential validation")
+        ) {
+
+            appendSauceLoginStart(
+                    feature,
+                    "invalid_user",
+                    "wrong_password"
+            );
+            feature.append("    Then user should see \"Epic sadface\"\n")
+                    .append("    Then user should see \"Username and password do not match\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("locked user cannot access inventory")
+        ) {
+
+            appendSauceLoginStart(
+                    feature,
+                    "locked_out_user",
+                    "secret_sauce"
+            );
+            feature.append("    Then user should see \"locked out\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("view product inventory list")
+        ) {
+
+            appendSauceLoggedInInventory(feature);
+            feature.append("    Then user should see \"Sauce Labs Backpack\"\n")
+                    .append("    Then user should see \"Sauce Labs Bike Light\"\n")
+                    .append("    Then user should see \"$29.99\"\n")
+                    .append("    Then user should see \"Add to cart\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("sort products by name and price")
+        ) {
+
+            appendSauceLoggedInInventory(feature);
+            feature.append("    When user enters \"az\" into \"sort\"\n")
+                    .append("    Then product list should be sorted by \"name ascending\"\n")
+                    .append("    When user enters \"za\" into \"sort\"\n")
+                    .append("    Then product list should be sorted by \"name descending\"\n")
+                    .append("    When user enters \"lohi\" into \"sort\"\n")
+                    .append("    Then product list should be sorted by \"price ascending\"\n")
+                    .append("    When user enters \"hilo\" into \"sort\"\n")
+                    .append("    Then product list should be sorted by \"price descending\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("add product to cart")
+        ) {
+
+            appendSauceLoggedInInventory(feature);
+            feature.append("    When user clicks \"add Sauce Labs Backpack to cart\"\n")
+                    .append("    Then cart badge should show \"1\"\n")
+                    .append("    Then user should see \"Remove\"\n")
+                    .append("    And user clicks \"cart\"\n")
+                    .append("    Then cart should contain \"Sauce Labs Backpack\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("remove product from cart")
+        ) {
+
+            appendSauceLoggedInInventory(feature);
+            feature.append("    When user clicks \"add Sauce Labs Backpack to cart\"\n")
+                    .append("    Then cart badge should show \"1\"\n")
+                    .append("    When user clicks \"remove Sauce Labs Backpack\"\n")
+                    .append("    Then cart badge should show \"0\"\n")
+                    .append("    And user clicks \"cart\"\n")
+                    .append("    Then cart should not contain \"Sauce Labs Backpack\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("cart persists during navigation and refresh")
+        ) {
+
+            appendSauceLoggedInInventory(feature);
+            feature.append("    When user clicks \"add Sauce Labs Backpack to cart\"\n")
+                    .append("    Then cart badge should show \"1\"\n")
+                    .append("    And user clicks \"cart\"\n")
+                    .append("    Then cart should contain \"Sauce Labs Backpack\"\n")
+                    .append("    When user refreshes page\n")
+                    .append("    Then cart should contain \"Sauce Labs Backpack\"\n")
+                    .append("    And user clicks \"continue shopping\"\n")
+                    .append("    Then user should see \"Products\"\n")
+                    .append("    And user clicks \"cart\"\n")
+                    .append("    Then cart should contain \"Sauce Labs Backpack\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("checkout information validates required fields")
+        ) {
+
+            appendSauceCheckoutStart(feature);
+            feature.append("    And user clicks \"continue\"\n")
+                    .append("    Then user should see \"First Name is required\"\n")
+                    .append("    And user enters \"AIF\" into \"first name\"\n")
+                    .append("    And user enters \"User\" into \"last name\"\n")
+                    .append("    And user enters \"94105\" into \"postal code\"\n")
+                    .append("    And user clicks \"continue\"\n")
+                    .append("    Then user should see \"Checkout: Overview\"\n");
+            return;
+        }
+
+        if (
+                scenario.contains("checkout overview shows accurate totals")
+        ) {
+
+            appendSauceCheckoutOverviewStart(feature);
+            feature.append("    Then user should see \"Checkout: Overview\"\n")
+                    .append("    Then cart should contain \"Sauce Labs Backpack\"\n")
+                    .append("    Then user should see \"Item total:\"\n")
+                    .append("    Then user should see \"Tax:\"\n")
+                    .append("    Then checkout total should equal item total plus tax\n");
+            return;
+        }
+
+        if (
                 scenario.contains("field label")
                         ||
                         scenario.contains("labels")
@@ -1279,6 +1734,56 @@ class RequirementDocumentAnalyzer {
         }
 
         feature.append("    Then flow should complete successfully\n");
+    }
+
+    private void appendSauceLoggedInInventory(
+            StringBuilder feature
+    ) {
+
+        appendSauceLoginStart(
+                feature,
+                "standard_user",
+                "secret_sauce"
+        );
+        feature.append("    Then user should see \"Products\"\n");
+    }
+
+    private void appendSauceCheckoutStart(
+            StringBuilder feature
+    ) {
+
+        appendSauceLoggedInInventory(feature);
+        feature.append("    When user clicks \"add Sauce Labs Backpack to cart\"\n")
+                .append("    And user clicks \"cart\"\n")
+                .append("    Then cart should contain \"Sauce Labs Backpack\"\n")
+                .append("    And user clicks \"checkout\"\n")
+                .append("    Then user should see \"Checkout: Your Information\"\n");
+    }
+
+    private void appendSauceCheckoutOverviewStart(
+            StringBuilder feature
+    ) {
+
+        appendSauceCheckoutStart(feature);
+        feature.append("    And user enters \"AIF\" into \"first name\"\n")
+                .append("    And user enters \"User\" into \"last name\"\n")
+                .append("    And user enters \"94105\" into \"postal code\"\n")
+                .append("    And user clicks \"continue\"\n");
+    }
+
+    private void appendSauceLoginStart(
+            StringBuilder feature,
+            String username,
+            String password
+    ) {
+
+        feature.append("    When user enters \"")
+                .append(username)
+                .append("\" into \"username\"\n")
+                .append("    And user enters \"")
+                .append(password)
+                .append("\" into \"password\"\n")
+                .append("    And user clicks \"login button\"\n");
     }
 
     private void appendLaunch(
@@ -1628,6 +2133,34 @@ class RequirementDocumentAnalyzer {
                 .replace("_", "-");
     }
 
+    private String numberedStoryId(
+            String number
+    ) {
+
+        String cleaned =
+                safe(number)
+                        .replaceAll("[^0-9]", "");
+
+        if (
+                cleaned.isBlank()
+        ) {
+
+            return "US-000";
+        }
+
+        try {
+            return "US-%03d".formatted(
+                    Integer.parseInt(cleaned)
+            );
+
+        } catch (
+                NumberFormatException ignored
+        ) {
+
+            return "US-" + cleaned;
+        }
+    }
+
     private boolean containsAny(
             String value,
             String... needles
@@ -1796,7 +2329,8 @@ class RequirementDocumentAnalyzer {
             String id,
             String title,
             String content,
-            List<String> criteria
+            List<String> criteria,
+            boolean narrativeStory
     ) {
 
         private String searchText() {
@@ -1825,7 +2359,8 @@ class RequirementDocumentAnalyzer {
     private record StoryMatch(
             String id,
             int contentStart,
-            int start
+            int start,
+            boolean narrativeStory
     ) {
     }
 }

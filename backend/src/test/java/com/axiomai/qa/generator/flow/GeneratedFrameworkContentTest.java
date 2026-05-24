@@ -169,6 +169,22 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                page.contains("productListShouldBeSortedBy")
+        );
+
+        assertTrue(
+                page.contains("checkoutTotalShouldEqualItemTotalPlusTax")
+        );
+
+        assertTrue(
+                steps.contains("@Then(\"product list should be sorted by {string}\")")
+        );
+
+        assertTrue(
+                steps.contains("@Then(\"checkout total should equal item total plus tax\")")
+        );
+
+        assertTrue(
                 page.contains("input[name='customer.firstName']")
         );
 

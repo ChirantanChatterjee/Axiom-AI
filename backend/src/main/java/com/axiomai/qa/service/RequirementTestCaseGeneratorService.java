@@ -154,7 +154,13 @@ public class RequirementTestCaseGeneratorService {
                   And user enters "<value>" into "<target>"
                   When user clicks "<target>"
                   And user clicks "<target>"
+                  When user refreshes page
                   Then user should see "<expected text>"
+                  Then product list should be sorted by "<name ascending|name descending|price ascending|price descending>"
+                  Then cart badge should show "<count>"
+                  Then cart should contain "<product>"
+                  Then cart should not contain "<product>"
+                  Then checkout total should equal item total plus tax
                   Then flow should complete successfully
                 - Use runtime placeholders for test data when appropriate: ${username}, ${password}, ${email}, ${search}, ${product}, ${quantity}.
                 - For payment forms, use runtime placeholders when appropriate: ${payee}, ${address}, ${city}, ${state}, ${zip}, ${phone}, ${account}, ${amount}.

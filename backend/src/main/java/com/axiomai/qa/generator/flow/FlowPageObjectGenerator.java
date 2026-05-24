@@ -100,6 +100,23 @@ public class FlowPageObjectGenerator {
                         dismissCookieBanner();
                     }
 
+                    public void refresh() {
+
+                        page.reload();
+
+                        try {
+                            page.waitForLoadState(
+                                    LoadState.DOMCONTENTLOADED,
+                                    new Page.WaitForLoadStateOptions()
+                                            .setTimeout(3000)
+                            );
+                        } catch (RuntimeException ignored) {
+                            // Some apps preserve state without another domcontentloaded event.
+                        }
+
+                        dismissCookieBanner();
+                    }
+
                     public void enter(String target, String value) {
 
                         dismissCookieBanner();
@@ -211,6 +228,112 @@ public class FlowPageObjectGenerator {
                         }
                     }
 
+                    public void productListShouldBeSortedBy(String order) {
+
+                        String lower = order == null ? "" : order.toLowerCase();
+
+                        if (lower.contains("price")) {
+                            List<Double> prices = visibleTexts(
+                                    ".inventory_item_price, [data-test='inventory-item-price']"
+                            )
+                                    .stream()
+                                    .map(this::parseMoney)
+                                    .toList();
+
+                            assertOrderedNumbers(
+                                    prices,
+                                    lower.contains("desc") || lower.contains("high")
+                            );
+                            return;
+                        }
+
+                        List<String> names = visibleTexts(
+                                ".inventory_item_name, [data-test='inventory-item-name']"
+                        );
+
+                        assertOrderedText(
+                                names,
+                                lower.contains("desc") || lower.contains("z-a")
+                        );
+                    }
+
+                    public void cartBadgeShouldShow(String count) {
+
+                        int expected = parseInteger(count, -1);
+                        Locator badge = firstVisible(
+                                ".shopping_cart_badge",
+                                "[data-test='shopping-cart-badge']"
+                        );
+
+                        if (expected <= 0) {
+                            if (badge != null) {
+                                throw new AssertionError("Expected cart badge to be absent or zero");
+                            }
+                            return;
+                        }
+
+                        if (badge == null) {
+                            throw new AssertionError("Expected cart badge to show " + expected);
+                        }
+
+                        int actual = parseInteger(badge.innerText(), -1);
+
+                        if (actual != expected) {
+                            throw new AssertionError(
+                                    "Expected cart badge " + expected + " but found " + actual
+                            );
+                        }
+                    }
+
+                    public void cartShouldContain(String product) {
+
+                        if (containsVisibleProduct(product)) {
+                            return;
+                        }
+
+                        throw new AssertionError("Expected cart to contain: " + product);
+                    }
+
+                    public void cartShouldNotContain(String product) {
+
+                        if (!containsVisibleProduct(product)) {
+                            return;
+                        }
+
+                        throw new AssertionError("Expected cart not to contain: " + product);
+                    }
+
+                    public void checkoutTotalShouldEqualItemTotalPlusTax() {
+
+                        double subtotal = firstMoney(
+                                ".summary_subtotal_label, [data-test='subtotal-label']"
+                        );
+                        double tax = firstMoney(
+                                ".summary_tax_label, [data-test='tax-label']"
+                        );
+                        double total = firstMoney(
+                                ".summary_total_label, [data-test='total-label']"
+                        );
+
+                        if (
+                                Double.isNaN(subtotal)
+                                        ||
+                                        Double.isNaN(tax)
+                                        ||
+                                        Double.isNaN(total)
+                        ) {
+                            throw new AssertionError("Unable to read checkout subtotal, tax, or total");
+                        }
+
+                        double expected = Math.round((subtotal + tax) * 100.0) / 100.0;
+
+                        if (Math.abs(expected - total) > 0.011) {
+                            throw new AssertionError(
+                                    "Expected checkout total " + expected + " but found " + total
+                            );
+                        }
+                    }
+
                     private String waitForExpectedText(String expectedText) {
 
                         long deadline = System.currentTimeMillis() + 6500;
@@ -280,6 +403,130 @@ public class FlowPageObjectGenerator {
                             return page.locator("body").innerText();
                         } catch (RuntimeException ignored) {
                             return "";
+                        }
+                    }
+
+                    private List<String> visibleTexts(String selector) {
+
+                        try {
+                            return page.locator(selector)
+                                    .allTextContents()
+                                    .stream()
+                                    .map(String::trim)
+                                    .filter(value -> !value.isBlank())
+                                    .toList();
+                        } catch (RuntimeException ignored) {
+                            return List.of();
+                        }
+                    }
+
+                    private void assertOrderedText(List<String> values, boolean descending) {
+
+                        if (values == null || values.size() < 2) {
+                            throw new AssertionError("Expected at least two products to validate sort order");
+                        }
+
+                        List<String> expected = new ArrayList<>(values);
+                        expected.sort(String.CASE_INSENSITIVE_ORDER);
+
+                        if (descending) {
+                            Collections.reverse(expected);
+                        }
+
+                        if (!values.equals(expected)) {
+                            throw new AssertionError(
+                                    "Expected sorted products " + expected + " but found " + values
+                            );
+                        }
+                    }
+
+                    private void assertOrderedNumbers(List<Double> values, boolean descending) {
+
+                        if (values == null || values.size() < 2) {
+                            throw new AssertionError("Expected at least two prices to validate sort order");
+                        }
+
+                        List<Double> expected = new ArrayList<>(values);
+                        expected.sort(Double::compareTo);
+
+                        if (descending) {
+                            Collections.reverse(expected);
+                        }
+
+                        if (!values.equals(expected)) {
+                            throw new AssertionError(
+                                    "Expected sorted prices " + expected + " but found " + values
+                            );
+                        }
+                    }
+
+                    private boolean containsVisibleProduct(String product) {
+
+                        String expected = product == null ? "" : product.trim().toLowerCase();
+
+                        if (expected.isBlank()) {
+                            return false;
+                        }
+
+                        for (String text : visibleTexts(".cart_item, .inventory_item_name, [data-test='inventory-item-name']")) {
+                            if (text.toLowerCase().contains(expected)) {
+                                return true;
+                            }
+                        }
+
+                        return bodyText().toLowerCase().contains(expected);
+                    }
+
+                    private double firstMoney(String selector) {
+
+                        try {
+                            Locator locator = page.locator(selector);
+
+                            if (locator.count() == 0) {
+                                return Double.NaN;
+                            }
+
+                            return parseMoney(locator.first().innerText());
+                        } catch (RuntimeException ignored) {
+                            return Double.NaN;
+                        }
+                    }
+
+                    private double parseMoney(String value) {
+
+                        if (value == null) {
+                            return Double.NaN;
+                        }
+
+                        String cleaned = value.replaceAll("[^0-9.\\\\-]", "");
+
+                        if (cleaned.isBlank()) {
+                            return Double.NaN;
+                        }
+
+                        try {
+                            return Double.parseDouble(cleaned);
+                        } catch (NumberFormatException ignored) {
+                            return Double.NaN;
+                        }
+                    }
+
+                    private int parseInteger(String value, int fallback) {
+
+                        if (value == null) {
+                            return fallback;
+                        }
+
+                        String cleaned = value.replaceAll("[^0-9\\\\-]", "");
+
+                        if (cleaned.isBlank()) {
+                            return fallback;
+                        }
+
+                        try {
+                            return Integer.parseInt(cleaned);
+                        } catch (NumberFormatException ignored) {
+                            return fallback;
                         }
                     }
 
@@ -1557,11 +1804,20 @@ public class FlowPageObjectGenerator {
 
                     private Locator resolveSpecialEditable(String target) {
 
+                        String lower = target == null ? "" : target.toLowerCase();
+
+                        if (lower.contains("sort")) {
+                            return firstVisible(
+                                    "select[data-test*='sort' i]",
+                                    "select[class*='sort' i]",
+                                    ".product_sort_container",
+                                    "select:visible"
+                            );
+                        }
+
                         if (!isParaBankPage()) {
                             return null;
                         }
-
-                        String lower = target == null ? "" : target.toLowerCase();
 
                         if (lower.contains("first") && lower.contains("name")) {
                             return firstVisible("input[name='customer.firstName']");

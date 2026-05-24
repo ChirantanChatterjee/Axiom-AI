@@ -142,6 +142,113 @@ class RequirementTestCaseGeneratorServiceTest {
     }
 
     @Test
+    void numberedNarrativeUserStoriesGenerateDistinctExecutableScenarios() {
+
+        RequirementTestCaseGeneratorService service =
+                new RequirementTestCaseGeneratorService(
+                        new FailingOpenAIService(),
+                        new StubFrameworkGeneratorService(),
+                        new EmptyFrameworkLearningService()
+                );
+
+        GeneratedFramework framework =
+                service.generate(
+                        sauceDemoRequirementDocument(),
+                        "requirements",
+                        "https://www.saucedemo.com",
+                        List.of(new DetectedFlow()),
+                        "chat-one"
+                );
+
+        List<RequirementTestCase> testCases =
+                framework.getTestCases();
+
+        assertEquals(
+                10,
+                testCases.size()
+        );
+
+        assertEquals(
+                "Sort products by name and price",
+                testCases.get(4)
+                        .getScenario()
+        );
+
+        assertEquals(
+                "Add product to cart",
+                testCases.get(5)
+                        .getScenario()
+        );
+
+        assertEquals(
+                "Cart persists during navigation and refresh",
+                testCases.get(7)
+                        .getScenario()
+        );
+
+        assertEquals(
+                "Checkout overview shows accurate totals",
+                testCases.get(9)
+                        .getScenario()
+        );
+
+        String feature =
+                framework.getFeatureFile();
+
+        String sortingScenario =
+                scenarioBlock(
+                        feature,
+                        "Scenario: TC-005"
+                );
+
+        String overviewScenario =
+                scenarioBlock(
+                        feature,
+                        "Scenario: TC-010"
+                );
+
+        assertTrue(
+                feature.contains("@generated @ai_requirement @requirements @tc_005 @us_005 @positive @sorting @inventory")
+        );
+
+        assertTrue(
+                feature.contains("@generated @ai_requirement @requirements @tc_009 @us_009 @negative @required_field @checkout")
+        );
+
+        assertTrue(
+                sortingScenario.contains("When user enters \"az\" into \"sort\"")
+        );
+
+        assertTrue(
+                sortingScenario.contains("Then product list should be sorted by \"name ascending\"")
+        );
+
+        assertTrue(
+                sortingScenario.contains("Then product list should be sorted by \"price descending\"")
+        );
+
+        assertTrue(
+                overviewScenario.contains("And user clicks \"checkout\"")
+        );
+
+        assertTrue(
+                overviewScenario.contains("And user enters \"94105\" into \"postal code\"")
+        );
+
+        assertTrue(
+                overviewScenario.contains("Then checkout total should equal item total plus tax")
+        );
+
+        assertFalse(
+                sortingScenario.equals(overviewScenario)
+        );
+
+        assertFalse(
+                feature.contains("Then flow should complete successfully")
+        );
+    }
+
+    @Test
     void billPayFallbackGeneratesExpandedCoverage() {
 
         RequirementTestCaseGeneratorService service =
@@ -248,6 +355,35 @@ class RequirementTestCaseGeneratorServiceTest {
         return count;
     }
 
+    private String scenarioBlock(
+            String feature,
+            String scenarioHeader
+    ) {
+
+        int start =
+                feature.indexOf(scenarioHeader);
+
+        if (
+                start < 0
+        ) {
+
+            return "";
+        }
+
+        int next =
+                feature.indexOf(
+                        "\n  @",
+                        start + scenarioHeader.length()
+                );
+
+        return next < 0
+                ? feature.substring(start)
+                : feature.substring(
+                        start,
+                        next
+                );
+    }
+
     private static class StubOpenAIService
             extends OpenAIService {
 
@@ -344,6 +480,149 @@ class RequirementTestCaseGeneratorServiceTest {
                 Acceptance Criteria User can search by transaction ID, date, date range, or amount. Matching transactions are displayed. No-match scenario is handled gracefully.
                 US-010: Logout As a logged-in customer, I want to log out securely, so that my banking session is closed.
                 Acceptance Criteria Logout link is available. Clicking logout ends the session. User is returned to login page.
+                """;
+    }
+
+    private String sauceDemoRequirementDocument() {
+
+        return """
+                Module 1: User Authentication
+                Requirement
+
+                System should allow registered users to securely log into the platform using valid credentials.
+
+                User Story 1 — Successful Login
+
+                As a registered user,
+                I want to log into the application using valid credentials,
+                So that I can access the inventory page.
+
+                Acceptance Criteria
+                User enters valid username
+                User enters valid password
+                User clicks Login button
+                User should be redirected to Inventory page
+                Shopping cart icon should be visible
+                Session should remain active until logout
+
+                User Story 2 — Invalid Login
+
+                As a user,
+                I want to see proper validation messages when credentials are incorrect,
+                So that I understand why login failed.
+
+                Acceptance Criteria
+                Invalid username/password should show error
+                Error message should be visible
+                User should remain on login page
+                Password field should remain masked
+
+                Negative Scenarios
+                Invalid username
+                Invalid password
+                Empty username
+                Empty password
+                Both fields empty
+
+                User Story 3 — Locked User Restriction
+
+                As a locked user,
+                I should not be able to access the application,
+                So that security restrictions are enforced.
+
+                Acceptance Criteria
+                Locked users cannot log in
+                Proper error message displayed
+                No session should be created
+
+                Module 2: Product Inventory
+                User Story 4 — View Product List
+
+                As a customer,
+                I want to browse available products,
+                So that I can decide what to purchase.
+
+                Acceptance Criteria
+                Product name visible
+                Product image visible
+                Product description visible
+                Product price visible
+                Add to Cart button visible
+
+                User Story 5 — Product Sorting
+
+                As a customer,
+                I want to sort products,
+                So that I can find products easily.
+
+                Acceptance Criteria
+                Sort dropdown should be visible
+                Products sortable by:
+                Name A-Z
+                Name Z-A
+                Price Low-High
+                Price High-Low
+                Sorted order should be accurate
+
+                Module 3: Cart Management
+                User Story 6 — Add Product to Cart
+
+                As a customer,
+                I want to add products into cart,
+                So that I can purchase them later.
+
+                Acceptance Criteria
+                Clicking Add to Cart updates cart count
+                Correct product added
+                Button changes to Remove
+                Cart persists during session
+
+                User Story 7 — Remove Product from Cart
+
+                As a customer,
+                I want to remove unwanted products,
+                So that my cart only contains required items.
+
+                Acceptance Criteria
+                Remove button removes product
+                Cart count decreases
+                Removed product no longer visible
+
+                User Story 8 — Cart Persistence
+
+                As a user,
+                I want cart data to persist during navigation,
+                So that I do not lose selected products.
+
+                Acceptance Criteria
+                Navigate between pages
+                Cart items should remain intact
+                Refresh should not clear cart
+
+                Module 4: Checkout Flow
+                User Story 9 — Checkout Information
+
+                As a customer,
+                I want to enter shipping information,
+                So that I can continue purchase process.
+
+                Acceptance Criteria
+                First name mandatory
+                Last name mandatory
+                Postal code mandatory
+                Validation shown for missing fields
+
+                User Story 10 — Checkout Overview
+
+                As a customer,
+                I want to review my order before purchase,
+                So that I can confirm details.
+
+                Acceptance Criteria
+                Product list visible
+                Correct pricing visible
+                Tax calculation visible
+                Total price accurate
                 """;
     }
 }
