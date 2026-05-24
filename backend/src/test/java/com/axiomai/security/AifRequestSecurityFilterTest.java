@@ -1,13 +1,20 @@
 package com.axiomai.security;
 
+import com.axiomai.audit.AuditLogService;
+import com.axiomai.audit.entity.AuditLogEntity;
+import com.axiomai.audit.repository.AuditLogRepository;
 import com.axiomai.auth.entity.AifUserEntity;
 import com.axiomai.auth.service.AuthService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.lang.reflect.Proxy;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -122,6 +129,16 @@ class AifRequestSecurityFilterTest {
     void adminEndpointRequiresAdminSession()
             throws Exception {
 
+        AtomicReference<AuditLogEntity> savedAudit =
+                new AtomicReference<>();
+
+        filter.setAuditLogService(
+                new AuditLogService(
+                        auditRepository(savedAudit),
+                        new ObjectMapper()
+                )
+        );
+
         authService.requireAdminException =
                 new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
@@ -156,6 +173,22 @@ class AifRequestSecurityFilterTest {
         assertEquals(
                 "user-session",
                 authService.lastRequireAdminToken
+        );
+
+        assertEquals(
+                "api.access",
+                savedAudit.get()
+                        .getAction()
+        );
+        assertEquals(
+                AuditLogService.OUTCOME_DENIED,
+                savedAudit.get()
+                        .getOutcome()
+        );
+        assertEquals(
+                "/api/admin/metrics",
+                savedAudit.get()
+                        .getResourceId()
         );
     }
 
@@ -200,6 +233,43 @@ class AifRequestSecurityFilterTest {
         request.setServletPath(path);
 
         return request;
+    }
+
+    private AuditLogRepository auditRepository(
+            AtomicReference<AuditLogEntity> savedAudit
+    ) {
+
+        return (AuditLogRepository) Proxy.newProxyInstance(
+                AuditLogRepository.class.getClassLoader(),
+                new Class<?>[]{
+                        AuditLogRepository.class
+                },
+                (proxy, method, args) -> {
+
+                    if (
+                            "save".equals(method.getName())
+                    ) {
+
+                        AuditLogEntity audit =
+                                (AuditLogEntity) args[0];
+
+                        savedAudit.set(audit);
+
+                        return audit;
+                    }
+
+                    if (
+                            "toString".equals(method.getName())
+                    ) {
+
+                        return "StubAuditLogRepository";
+                    }
+
+                    throw new UnsupportedOperationException(
+                            method.getName()
+                    );
+                }
+        );
     }
 
     private AifUserEntity user() {

@@ -1,11 +1,13 @@
 package com.axiomai.security;
 
+import com.axiomai.audit.AuditLogService;
 import com.axiomai.auth.service.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -32,6 +35,17 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
             );
 
     private final AuthService authService;
+
+    private AuditLogService auditLogService;
+
+    @Autowired(required = false)
+    public void setAuditLogService(
+            AuditLogService auditLogService
+    ) {
+
+        this.auditLogService =
+                auditLogService;
+    }
 
     @Override
     protected void doFilterInternal(
@@ -83,6 +97,14 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
 
         } catch (ResponseStatusException e) {
 
+            auditAccessDenied(
+                    request,
+                    path,
+                    e.getStatusCode()
+                            .value(),
+                    safeReason(e)
+            );
+
             writeError(
                     response,
                     e.getStatusCode()
@@ -93,6 +115,13 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
             return;
 
         } catch (RuntimeException e) {
+
+            auditAccessDenied(
+                    request,
+                    path,
+                    HttpStatus.UNAUTHORIZED.value(),
+                    "Unauthorized"
+            );
 
             writeError(
                     response,
@@ -323,5 +352,38 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
 
         return value.replace("\\", "\\\\")
                 .replace("\"", "\\\"");
+    }
+
+    private void auditAccessDenied(
+            HttpServletRequest request,
+            String path,
+            int status,
+            String reason
+    ) {
+
+        if (
+                auditLogService == null
+        ) {
+
+            return;
+        }
+
+        auditLogService.recordDenied(
+                null,
+                null,
+                "api.access",
+                "HTTP_ENDPOINT",
+                path,
+                Map.of(
+                        "method",
+                        request.getMethod(),
+                        "status",
+                        status,
+                        "reason",
+                        reason,
+                        "adminEndpoint",
+                        path.startsWith("/api/admin/")
+                )
+        );
     }
 }

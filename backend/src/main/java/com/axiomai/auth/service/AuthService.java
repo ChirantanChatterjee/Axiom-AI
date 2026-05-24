@@ -1,5 +1,6 @@
 package com.axiomai.auth.service;
 
+import com.axiomai.audit.AuditLogService;
 import com.axiomai.auth.dto.AuthRequest;
 import com.axiomai.auth.dto.AuthResponse;
 import com.axiomai.auth.dto.OAuthLoginRequest;
@@ -8,6 +9,7 @@ import com.axiomai.auth.entity.AifUserEntity;
 import com.axiomai.auth.repository.AifAuthSessionRepository;
 import com.axiomai.auth.repository.AifUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -33,8 +36,19 @@ public class AuthService {
 
     private final PasswordHashService passwordHashService;
 
+    private AuditLogService auditLogService;
+
     @Value("${aif.admin.emails:}")
     private String adminEmails;
+
+    @Autowired(required = false)
+    public void setAuditLogService(
+            AuditLogService auditLogService
+    ) {
+
+        this.auditLogService =
+                auditLogService;
+    }
 
     @Transactional
     public AuthResponse signup(
@@ -71,9 +85,19 @@ public class AuthService {
                         .lastLoginAt(now)
                         .build();
 
-        return createSession(
-                userRepository.save(user)
+        AifUserEntity savedUser =
+                userRepository.save(user);
+
+        AuthResponse response =
+                createSession(savedUser);
+
+        auditSuccess(
+                savedUser,
+                "auth.signup",
+                Map.of("provider", "email")
         );
+
+        return response;
     }
 
     @Transactional
@@ -137,9 +161,24 @@ public class AuthService {
 
         user.setLastLoginAt(now);
 
-        return createSession(
-                userRepository.save(user)
+        AifUserEntity savedUser =
+                userRepository.save(user);
+
+        AuthResponse response =
+                createSession(savedUser);
+
+        auditSuccess(
+                savedUser,
+                "auth.login",
+                Map.of(
+                        "provider",
+                        savedUser.getProvider() == null
+                                ? "oauth"
+                                : savedUser.getProvider()
+                )
         );
+
+        return response;
     }
 
     @Transactional
@@ -177,9 +216,19 @@ public class AuthService {
                 Instant.now()
         );
 
-        return createSession(
-                userRepository.save(user)
+        AifUserEntity savedUser =
+                userRepository.save(user);
+
+        AuthResponse response =
+                createSession(savedUser);
+
+        auditSuccess(
+                savedUser,
+                "auth.login",
+                Map.of("provider", "email")
         );
+
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -308,6 +357,31 @@ public class AuthService {
                 .role(roleFor(user))
                 .sessionToken(token)
                 .build();
+    }
+
+    private void auditSuccess(
+            AifUserEntity user,
+            String action,
+            Map<String, ?> details
+    ) {
+
+        if (
+                auditLogService == null
+                        ||
+                        user == null
+        ) {
+
+            return;
+        }
+
+        auditLogService.recordSuccess(
+                String.valueOf(user.getId()),
+                null,
+                action,
+                "USER",
+                String.valueOf(user.getId()),
+                details
+        );
     }
 
     private String normalizeEmail(

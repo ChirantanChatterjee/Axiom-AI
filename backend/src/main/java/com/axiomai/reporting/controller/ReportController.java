@@ -1,7 +1,9 @@
 package com.axiomai.reporting.controller;
 
+import com.axiomai.audit.AuditLogService;
 import com.axiomai.reporting.service.ReportArtifactService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
@@ -15,6 +17,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -23,6 +26,18 @@ public class ReportController {
 
     private final ReportArtifactService
             reportArtifactService;
+
+    private AuditLogService
+            auditLogService;
+
+    @Autowired(required = false)
+    public void setAuditLogService(
+            AuditLogService auditLogService
+    ) {
+
+        this.auditLogService =
+                auditLogService;
+    }
 
     @GetMapping("/{fileName:.+}")
     public ResponseEntity<?> openReport(
@@ -45,17 +60,28 @@ public class ReportController {
         ) {
 
             return reportArtifactService.find(fileName)
-                    .map(artifact -> ResponseEntity.ok()
+                    .map(artifact -> {
+                        auditReportAccess(
+                                fileName,
+                                "artifact_store"
+                        );
+
+                        return ResponseEntity.ok()
                             .contentType(
                                     MediaType.parseMediaType(
                                             artifact.getContentType()
                                     )
                             )
-                            .body(artifact.getContent()))
+                            .body(artifact.getContent());
+                    })
                     .orElseGet(
-                            () -> ResponseEntity
-                                    .notFound()
-                                    .build()
+                            () -> {
+                                auditReportMissing(fileName);
+
+                                return ResponseEntity
+                                        .notFound()
+                                        .build();
+                            }
                     );
         }
 
@@ -64,6 +90,11 @@ public class ReportController {
                         target.toUri()
                 );
 
+        auditReportAccess(
+                fileName,
+                "local_filesystem"
+        );
+
         return ResponseEntity.ok()
 
                 .contentType(
@@ -71,5 +102,48 @@ public class ReportController {
                 )
 
                 .body(resource);
+    }
+
+    private void auditReportAccess(
+            String fileName,
+            String source
+    ) {
+
+        if (
+                auditLogService == null
+        ) {
+
+            return;
+        }
+
+        auditLogService.recordSuccess(
+                null,
+                null,
+                "report.access",
+                "REPORT",
+                fileName,
+                Map.of("source", source)
+        );
+    }
+
+    private void auditReportMissing(
+            String fileName
+    ) {
+
+        if (
+                auditLogService == null
+        ) {
+
+            return;
+        }
+
+        auditLogService.recordFailure(
+                null,
+                null,
+                "report.access",
+                "REPORT",
+                fileName,
+                Map.of("reason", "not_found")
+        );
     }
 }

@@ -1,12 +1,15 @@
 package com.axiomai.qa.execution.service;
 
+import com.axiomai.audit.AuditLogService;
 import com.axiomai.qa.execution.entity.GeneratedTestExecutionJobEntity;
 import com.axiomai.qa.execution.repository.GeneratedTestExecutionJobRepository;
 import com.axiomai.qa.service.GeneratedTestExecutionService;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +46,18 @@ public class GeneratedTestExecutionQueueService {
     private final ObjectMapper
             objectMapper;
 
+    private AuditLogService
+            auditLogService;
+
+    @Autowired(required = false)
+    public void setAuditLogService(
+            AuditLogService auditLogService
+    ) {
+
+        this.auditLogService =
+                auditLogService;
+    }
+
     @Transactional
     public GeneratedTestExecutionJobEntity enqueue(
             String sessionId,
@@ -71,7 +86,17 @@ public class GeneratedTestExecutionQueueService {
                         .updatedAt(now)
                         .build();
 
-        return repository.save(job);
+        GeneratedTestExecutionJobEntity savedJob =
+                repository.save(job);
+
+        auditJob(
+                savedJob,
+                "worker.job.queued",
+                AuditLogService.OUTCOME_SUCCESS,
+                null
+        );
+
+        return savedJob;
     }
 
     @Transactional
@@ -105,9 +130,17 @@ public class GeneratedTestExecutionQueueService {
                 "Generated test execution is running."
         );
 
-        return Optional.of(
-                repository.save(job)
+        GeneratedTestExecutionJobEntity savedJob =
+                repository.save(job);
+
+        auditJob(
+                savedJob,
+                "worker.job.started",
+                AuditLogService.OUTCOME_SUCCESS,
+                null
         );
+
+        return Optional.of(savedJob);
     }
 
     @Transactional(readOnly = true)
@@ -180,7 +213,21 @@ public class GeneratedTestExecutionQueueService {
         job.setUpdatedAt(now);
         job.setFinishedAt(now);
 
-        return repository.save(job);
+        GeneratedTestExecutionJobEntity savedJob =
+                repository.save(job);
+
+        auditJob(
+                savedJob,
+                result.isSuccess()
+                        ? "worker.job.completed"
+                        : "worker.job.failed",
+                result.isSuccess()
+                        ? AuditLogService.OUTCOME_SUCCESS
+                        : AuditLogService.OUTCOME_FAILURE,
+                null
+        );
+
+        return savedJob;
     }
 
     @Transactional
@@ -213,7 +260,17 @@ public class GeneratedTestExecutionQueueService {
         job.setUpdatedAt(now);
         job.setFinishedAt(now);
 
-        return repository.save(job);
+        GeneratedTestExecutionJobEntity savedJob =
+                repository.save(job);
+
+        auditJob(
+                savedJob,
+                "worker.job.failed",
+                AuditLogService.OUTCOME_FAILURE,
+                exception
+        );
+
+        return savedJob;
     }
 
     @Transactional
@@ -250,6 +307,19 @@ public class GeneratedTestExecutionQueueService {
         }
 
         repository.saveAll(jobs);
+
+        for (
+                GeneratedTestExecutionJobEntity job
+                : jobs
+        ) {
+
+            auditJob(
+                    job,
+                    "worker.job.stale_recovered",
+                    AuditLogService.OUTCOME_FAILURE,
+                    null
+            );
+        }
 
         return jobs.size();
     }
@@ -364,5 +434,119 @@ public class GeneratedTestExecutionQueueService {
         return output.substring(
                 output.length() - MAX_STORED_OUTPUT_CHARS
         );
+    }
+
+    private void auditJob(
+            GeneratedTestExecutionJobEntity job,
+            String action,
+            String outcome,
+            Exception exception
+    ) {
+
+        if (
+                auditLogService == null
+                        ||
+                        job == null
+        ) {
+
+            return;
+        }
+
+        Map<String, Object> details =
+                new LinkedHashMap<>();
+
+        putIfPresent(
+                details,
+                "status",
+                job.getStatus()
+        );
+        putIfPresent(
+                details,
+                "tagExpression",
+                job.getTagExpression()
+        );
+        putIfPresent(
+                details,
+                "message",
+                job.getMessage()
+        );
+        putIfPresent(
+                details,
+                "reportUrl",
+                job.getReportUrl()
+        );
+
+        if (
+                job.getExitCode() != null
+        ) {
+
+            details.put(
+                    "exitCode",
+                    job.getExitCode()
+            );
+        }
+
+        if (
+                exception != null
+        ) {
+
+            putIfPresent(
+                    details,
+                    "errorType",
+                    exception.getClass()
+                            .getSimpleName()
+            );
+            putIfPresent(
+                    details,
+                    "errorMessage",
+                    SensitiveLogSanitizer.redact(
+                            exception.getMessage()
+                    )
+            );
+
+        } else if (
+                job.getErrorMessage() != null
+                        &&
+                        !job.getErrorMessage()
+                                .isBlank()
+        ) {
+
+            putIfPresent(
+                    details,
+                    "errorMessage",
+                    SensitiveLogSanitizer.redact(
+                            job.getErrorMessage()
+                    )
+            );
+        }
+
+        auditLogService.record(
+                job.getUserId(),
+                job.getSessionId(),
+                action,
+                "GENERATED_TEST_EXECUTION_JOB",
+                job.getId(),
+                outcome,
+                details
+        );
+    }
+
+    private void putIfPresent(
+            Map<String, Object> details,
+            String key,
+            String value
+    ) {
+
+        if (
+                value != null
+                        &&
+                        !value.isBlank()
+        ) {
+
+            details.put(
+                    key,
+                    value
+            );
+        }
     }
 }

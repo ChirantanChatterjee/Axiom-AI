@@ -3,6 +3,7 @@ package com.axiomai.qa.execution.worker;
 import com.axiomai.qa.execution.entity.GeneratedTestExecutionJobEntity;
 import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
 import com.axiomai.qa.service.GeneratedTestExecutionService;
+import com.axiomai.security.SensitiveLogSanitizer;
 import com.axiomai.workspace.AutomationWorkspaceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -114,10 +115,13 @@ public class GeneratedTestExecutionWorker {
             );
 
             log.warn(
-                    "Generated test execution job {} failed: {}",
+                    "Generated test execution job {} failed: {} ({})",
                     job.getId(),
-                    e.getMessage(),
-                    e
+                    SensitiveLogSanitizer.redact(
+                            e.getMessage()
+                    ),
+                    e.getClass()
+                            .getSimpleName()
             );
         }
     }

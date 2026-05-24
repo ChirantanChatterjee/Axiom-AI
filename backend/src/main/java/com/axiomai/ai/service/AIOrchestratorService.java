@@ -1,5 +1,6 @@
 package com.axiomai.ai.service;
 
+import com.axiomai.audit.AuditLogService;
 import com.axiomai.ai.dto.AICommand;
 import com.axiomai.ai.dto.AIResponse;
 import com.axiomai.ai.intent.IntentParser;
@@ -11,7 +12,11 @@ import com.axiomai.workspace.AutomationSession;
 import com.axiomai.workspace.AutomationWorkspaceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +35,18 @@ public class AIOrchestratorService {
 
     private final AutomationWorkspaceService
             automationWorkspaceService;
+
+    private AuditLogService
+            auditLogService;
+
+    @Autowired(required = false)
+    public void setAuditLogService(
+            AuditLogService auditLogService
+    ) {
+
+        this.auditLogService =
+                auditLogService;
+    }
 
     // =====================================================
     // PROCESS MESSAGE
@@ -163,11 +180,30 @@ public class AIOrchestratorService {
         // EXECUTE
         // =================================================
 
+        String auditAction =
+                auditAction(command);
+
+        auditAiRequested(
+                userId,
+                command,
+                auditAction
+        );
+
         try {
 
-            return orchestrator.execute(
-                    command
+            AIResponse response =
+                    orchestrator.execute(
+                            command
+                    );
+
+            auditAiCompleted(
+                    userId,
+                    command,
+                    response,
+                    auditAction
             );
+
+            return response;
 
         } catch (RuntimeException e) {
 
@@ -180,6 +216,13 @@ public class AIOrchestratorService {
                             .getSimpleName()
             );
 
+            auditAiFailed(
+                    userId,
+                    command,
+                    e,
+                    auditAction
+            );
+
             return AIResponse.builder()
                     .success(false)
                     .type("error")
@@ -187,6 +230,240 @@ public class AIOrchestratorService {
                             userFriendlyMessage(e)
                     )
                     .build();
+        }
+    }
+
+    private String auditAction(
+            AICommand command
+    ) {
+
+        if (
+                command == null
+                        ||
+                        command.getIntent() == null
+        ) {
+
+            return null;
+        }
+
+        return switch (
+                command.getIntent()
+                        .trim()
+                        .toUpperCase()
+        ) {
+            case "GENERATE_FRAMEWORK" -> "ai.framework_generation";
+            case "GENERATE_FEATURE" -> "ai.feature_generation";
+            case "UPDATE_TEST_DATA" -> "ai.test_data_update";
+            case "EXECUTE_GENERATED_TESTS" -> "ai.generated_test_execution";
+            default -> null;
+        };
+    }
+
+    private void auditAiRequested(
+            String userId,
+            AICommand command,
+            String action
+    ) {
+
+        if (
+                auditLogService == null
+                        ||
+                        action == null
+        ) {
+
+            return;
+        }
+
+        auditLogService.recordSuccess(
+                userId,
+                userId,
+                action + ".requested",
+                "AI_COMMAND",
+                userId,
+                auditDetails(
+                        command,
+                        null,
+                        null
+                )
+        );
+    }
+
+    private void auditAiCompleted(
+            String userId,
+            AICommand command,
+            AIResponse response,
+            String action
+    ) {
+
+        if (
+                auditLogService == null
+                        ||
+                        action == null
+        ) {
+
+            return;
+        }
+
+        Map<String, ?> details =
+                auditDetails(
+                        command,
+                        response,
+                        null
+                );
+
+        if (
+                response != null
+                        &&
+                        response.isSuccess()
+        ) {
+
+            auditLogService.recordSuccess(
+                    userId,
+                    userId,
+                    action + ".completed",
+                    "AI_COMMAND",
+                    userId,
+                    details
+            );
+
+            return;
+        }
+
+        auditLogService.recordFailure(
+                userId,
+                userId,
+                action + ".failed",
+                "AI_COMMAND",
+                userId,
+                details
+        );
+    }
+
+    private void auditAiFailed(
+            String userId,
+            AICommand command,
+            RuntimeException exception,
+            String action
+    ) {
+
+        if (
+                auditLogService == null
+                        ||
+                        action == null
+        ) {
+
+            return;
+        }
+
+        auditLogService.recordFailure(
+                userId,
+                userId,
+                action + ".failed",
+                "AI_COMMAND",
+                userId,
+                auditDetails(
+                        command,
+                        null,
+                        exception
+                )
+        );
+    }
+
+    private Map<String, Object> auditDetails(
+            AICommand command,
+            AIResponse response,
+            RuntimeException exception
+    ) {
+
+        Map<String, Object> details =
+                new LinkedHashMap<>();
+
+        if (
+                command != null
+        ) {
+
+            putIfPresent(
+                    details,
+                    "intent",
+                    command.getIntent()
+            );
+            putIfPresent(
+                    details,
+                    "target",
+                    command.getTarget()
+            );
+            putIfPresent(
+                    details,
+                    "featureName",
+                    command.getFeatureName()
+            );
+            putIfPresent(
+                    details,
+                    "artifactName",
+                    command.getArtifactName()
+            );
+            putIfPresent(
+                    details,
+                    "domain",
+                    extractDomain(command.getUrl())
+            );
+
+            details.put(
+                    "hasVariables",
+                    command.getVariables() != null
+                            &&
+                            !command.getVariables()
+                                    .isEmpty()
+            );
+        }
+
+        if (
+                response != null
+        ) {
+
+            putIfPresent(
+                    details,
+                    "responseType",
+                    response.getType()
+            );
+
+            details.put(
+                    "success",
+                    response.isSuccess()
+            );
+        }
+
+        if (
+                exception != null
+        ) {
+
+            putIfPresent(
+                    details,
+                    "errorType",
+                    exception.getClass()
+                            .getSimpleName()
+            );
+        }
+
+        return details;
+    }
+
+    private void putIfPresent(
+            Map<String, Object> details,
+            String key,
+            String value
+    ) {
+
+        if (
+                value != null
+                        &&
+                        !value.isBlank()
+        ) {
+
+            details.put(
+                    key,
+                    value
+            );
         }
     }
 
