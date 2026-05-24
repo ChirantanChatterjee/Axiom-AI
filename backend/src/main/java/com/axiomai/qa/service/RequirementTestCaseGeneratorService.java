@@ -2,6 +2,7 @@ package com.axiomai.qa.service;
 
 import com.axiomai.ai.service.OpenAIService;
 import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.models.GeneratedFramework;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -72,6 +73,7 @@ public class RequirementTestCaseGeneratorService {
                         requirement,
                         featureName,
                         launchUrl,
+                        flows,
                         sessionId
                 );
 
@@ -85,6 +87,7 @@ public class RequirementTestCaseGeneratorService {
             String requirement,
             String featureName,
             String url,
+            List<DetectedFlow> flows,
             String sessionId
 
     ) {
@@ -101,6 +104,7 @@ public class RequirementTestCaseGeneratorService {
                         requirement,
                         featureName,
                         launchUrl,
+                        flows,
                         sessionId
                 );
 
@@ -121,7 +125,8 @@ public class RequirementTestCaseGeneratorService {
         return fallbackFeature(
                 requirement,
                 featureName,
-                launchUrl
+                launchUrl,
+                flows
         );
     }
 
@@ -130,6 +135,7 @@ public class RequirementTestCaseGeneratorService {
             String requirement,
             String featureName,
             String url,
+            List<DetectedFlow> flows,
             String sessionId
 
     ) {
@@ -165,6 +171,8 @@ public class RequirementTestCaseGeneratorService {
                 - Use runtime placeholders for test data when appropriate: ${username}, ${password}, ${email}, ${search}, ${product}, ${quantity}, ${from}, ${to}.
                 - For payment forms, use runtime placeholders when appropriate: ${payee}, ${address}, ${city}, ${state}, ${zip}, ${phone}, ${account}, ${amount}.
                 - For travel flight selection, do not use a generic ${search} placeholder. Use explicit ${from} and ${to} placeholders and tag scenarios with @select_flight.
+                - Prefer crawler-observed controls and exact visible action labels. Do not invent buttons such as "search flights" unless the crawler observed that label.
+                - If the crawler shows a submit action such as "Continue", click "continue" rather than a guessed domain phrase.
                 - Keep targets semantic and short, for example "username", "password", "login button", "search", "add to cart".
                 - If a requested feature is behind login, include login steps before the feature steps.
                 - For ParaBank bill pay, launch the ParaBank home page, log in, click "Bill Pay", fill "verify account" with ${account}, and click "send payment button".
@@ -176,6 +184,8 @@ public class RequirementTestCaseGeneratorService {
                 - Today's date is %s. Convert partial dates into explicit dates and never output YYYY placeholders.
                 - The launch URL is: %s
                 - The requested feature name is: %s
+                - Crawler-observed flows and controls:
+                %s
                 - Session learning from user uploads and runtime repair outcomes:
                 %s
 
@@ -185,6 +195,7 @@ public class RequirementTestCaseGeneratorService {
                         LocalDate.now(),
                         safe(url),
                         safe(featureName),
+                        crawlerContext(flows),
                         safe(learningSummary).isBlank()
                                 ? "No user-uploaded framework modifications have been observed yet."
                                 : safe(learningSummary),
@@ -195,6 +206,60 @@ public class RequirementTestCaseGeneratorService {
                 openAIService.ask(prompt);
 
         return extractFeature(response);
+    }
+
+    private String crawlerContext(
+            List<DetectedFlow> flows
+    ) {
+
+        if (
+                flows == null
+                        ||
+                        flows.isEmpty()
+        ) {
+
+            return "No crawler-observed flows were available.";
+        }
+
+        StringBuilder context =
+                new StringBuilder();
+
+        int count =
+                0;
+
+        for (DetectedFlow flow : flows) {
+
+            context.append("- Flow ")
+                    .append(safe(flow.getFlowType()))
+                    .append(" at ")
+                    .append(safe(flow.getPageUrl()))
+                    .append("\n");
+
+            for (FlowStep step : safeSteps(flow)) {
+
+                context.append("  - ")
+                        .append(safe(step.getAction()))
+                        .append(" target=")
+                        .append(safe(step.getTarget()))
+                        .append(", role=")
+                        .append(safe(step.getBusinessRole()))
+                        .append(", selector=")
+                        .append(safe(step.getSelector()))
+                        .append("\n");
+
+                count++;
+
+                if (
+                        count >= 40
+                ) {
+
+                    context.append("  - ... additional crawler controls omitted\n");
+                    return context.toString();
+                }
+            }
+        }
+
+        return context.toString();
     }
 
     private String normalizeLaunchUrlForFeature(
@@ -252,7 +317,8 @@ public class RequirementTestCaseGeneratorService {
 
             String requirement,
             String featureName,
-            String url
+            String url,
+            List<DetectedFlow> flows
 
     ) {
 
@@ -293,7 +359,8 @@ public class RequirementTestCaseGeneratorService {
 
             return travelFlightFallbackFeature(
                     feature,
-                    url
+                    url,
+                    flows
             );
         }
 
@@ -472,16 +539,21 @@ public class RequirementTestCaseGeneratorService {
     private String travelFlightFallbackFeature(
 
             StringBuilder feature,
-            String url
+            String url,
+            List<DetectedFlow> flows
 
     ) {
+
+        String flightSubmitAction =
+                travelFlightSubmitActionTarget(flows);
 
         feature.append("  @generated @ai_requirement @select_flight @return_journey @positive\n")
                 .append("  Scenario: User successfully selects a return flight journey\n");
 
         appendTravelFlightStart(
                 feature,
-                url
+                url,
+                flightSubmitAction
         );
 
         feature.append("    And user clicks \"outbound flight\"\n")
@@ -494,7 +566,8 @@ public class RequirementTestCaseGeneratorService {
 
         appendTravelFlightStart(
                 feature,
-                url
+                url,
+                flightSubmitAction
         );
 
         feature.append("    And user clicks \"outbound flight\"\n")
@@ -512,7 +585,9 @@ public class RequirementTestCaseGeneratorService {
                 .append("    And user clicks \"return journey\"\n")
                 .append("    And user enters \"New York\" into \"from\"\n")
                 .append("    And user enters \"New York\" into \"to\"\n")
-                .append("    And user clicks \"search flights\"\n")
+                .append("    And user clicks \"")
+                .append(safe(flightSubmitAction))
+                .append("\"\n")
                 .append("    Then user should see \"route validation error\"\n\n");
 
         return feature.toString();
@@ -521,7 +596,8 @@ public class RequirementTestCaseGeneratorService {
     private void appendTravelFlightStart(
 
             StringBuilder feature,
-            String url
+            String url,
+            String flightSubmitAction
 
     ) {
 
@@ -534,7 +610,371 @@ public class RequirementTestCaseGeneratorService {
                 .append("    And user clicks \"return journey\"\n")
                 .append("    And user enters \"${from}\" into \"from\"\n")
                 .append("    And user enters \"${to}\" into \"to\"\n")
-                .append("    And user clicks \"search flights\"\n");
+                .append("    And user clicks \"")
+                .append(safe(flightSubmitAction))
+                .append("\"\n");
+    }
+
+    private String travelFlightSubmitActionTarget(
+            List<DetectedFlow> flows
+    ) {
+
+        String observed =
+                firstObservedActionTarget(
+                        flows,
+                        true
+                );
+
+        if (
+                !isBlank(observed)
+        ) {
+
+            return observed;
+        }
+
+        observed =
+                firstObservedActionTarget(
+                        flows,
+                        false
+                );
+
+        if (
+                !isBlank(observed)
+        ) {
+
+            return observed;
+        }
+
+        return "continue";
+    }
+
+    private String firstObservedActionTarget(
+            List<DetectedFlow> flows,
+            boolean featureFlowsOnly
+    ) {
+
+        if (
+                flows == null
+        ) {
+
+            return "";
+        }
+
+        for (DetectedFlow flow : flows) {
+
+            String flowType =
+                    safe(
+                            flow.getFlowType()
+                    )
+                            .toUpperCase();
+
+            if (
+                    featureFlowsOnly
+                            &&
+                            !flowType.equals("FORM_SUBMISSION")
+                            &&
+                            !flowType.equals("SEARCH")
+            ) {
+
+                continue;
+            }
+
+            if (
+                    flowType.equals("LOGIN")
+            ) {
+
+                continue;
+            }
+
+            for (FlowStep step : safeSteps(flow)) {
+
+                if (
+                        !"CLICK".equalsIgnoreCase(
+                                safe(step.getAction())
+                        )
+                ) {
+
+                    continue;
+                }
+
+                String target =
+                        observedActionTarget(step);
+
+                if (
+                        !isBlank(target)
+                ) {
+
+                    return target;
+                }
+            }
+        }
+
+        return "";
+    }
+
+    private List<FlowStep> safeSteps(
+            DetectedFlow flow
+    ) {
+
+        if (
+                flow == null
+                        ||
+                        flow.getSteps() == null
+        ) {
+
+            return List.of();
+        }
+
+        return flow.getSteps();
+    }
+
+    private String observedActionTarget(
+            FlowStep step
+    ) {
+
+        String role =
+                safe(step.getBusinessRole())
+                        .toUpperCase();
+
+        String target =
+                normalizeActionTarget(
+                        step.getTarget()
+                );
+
+        if (
+                !isGenericActionTarget(target)
+        ) {
+
+            return target;
+        }
+
+        String selectorLabel =
+                actionLabelFromSelectors(step);
+
+        if (
+                !isBlank(selectorLabel)
+        ) {
+
+            return selectorLabel;
+        }
+
+        if (
+                role.equals("NEXT_BUTTON")
+        ) {
+
+            return "continue";
+        }
+
+        if (
+                role.equals("SEARCH_BUTTON")
+        ) {
+
+            return "search button";
+        }
+
+        return "";
+    }
+
+    private String actionLabelFromSelectors(
+            FlowStep step
+    ) {
+
+        String label =
+                actionLabelFromSelector(
+                        step.getSelector()
+                );
+
+        if (
+                !isBlank(label)
+        ) {
+
+            return label;
+        }
+
+        if (
+                step.getFallbackSelectors() == null
+        ) {
+
+            return "";
+        }
+
+        for (String selector : step.getFallbackSelectors()) {
+
+            label =
+                    actionLabelFromSelector(selector);
+
+            if (
+                    !isBlank(label)
+            ) {
+
+                return label;
+            }
+        }
+
+        return "";
+    }
+
+    private String actionLabelFromSelector(
+            String selector
+    ) {
+
+        String valueLabel =
+                normalizeActionTarget(
+                        quotedSelectorValue(
+                                selector,
+                                "value="
+                        )
+                );
+
+        if (
+                !isGenericActionTarget(valueLabel)
+        ) {
+
+            return valueLabel;
+        }
+
+        String textLabel =
+                normalizeActionTarget(
+                        quotedSelectorValue(
+                                selector,
+                                "has-text("
+                        )
+                );
+
+        if (
+                !isGenericActionTarget(textLabel)
+        ) {
+
+            return textLabel;
+        }
+
+        String lower =
+                safe(selector)
+                        .toLowerCase();
+
+        if (
+                lower.contains("continue")
+                        ||
+                        lower.contains("next")
+        ) {
+
+            return "continue";
+        }
+
+        if (
+                lower.contains("search")
+        ) {
+
+            return "search button";
+        }
+
+        return "";
+    }
+
+    private String quotedSelectorValue(
+            String selector,
+            String marker
+    ) {
+
+        String source =
+                safe(selector);
+
+        int markerIndex =
+                source.indexOf(marker);
+
+        if (
+                markerIndex < 0
+        ) {
+
+            return "";
+        }
+
+        int start =
+                markerIndex + marker.length();
+
+        while (
+                start < source.length()
+                        &&
+                        Character.isWhitespace(
+                                source.charAt(start)
+                        )
+        ) {
+
+            start++;
+        }
+
+        if (
+                start >= source.length()
+        ) {
+
+            return "";
+        }
+
+        char quote =
+                source.charAt(start);
+
+        if (
+                quote != '\''
+                        &&
+                        quote != '"'
+        ) {
+
+            return "";
+        }
+
+        int end =
+                source.indexOf(
+                        quote,
+                        start + 1
+                );
+
+        if (
+                end < 0
+        ) {
+
+            return "";
+        }
+
+        return source.substring(
+                start + 1,
+                end
+        );
+    }
+
+    private String normalizeActionTarget(
+            String target
+    ) {
+
+        return safe(target)
+                .replace("${", "")
+                .replace("}", "")
+                .replace("_", " ")
+                .replace("-", " ")
+                .replaceAll("\\s+", " ")
+                .trim()
+                .toLowerCase();
+    }
+
+    private boolean isGenericActionTarget(
+            String target
+    ) {
+
+        String normalized =
+                safe(target)
+                        .replaceAll("[^a-z0-9]+", "_")
+                        .replaceAll("^_+|_+$", "");
+
+        return normalized.isBlank()
+                ||
+                normalized.equals("submit_button")
+                ||
+                normalized.equals("primary_action_button")
+                ||
+                normalized.equals("button")
+                ||
+                normalized.equals("login_button")
+                ||
+                normalized.equals("search_button");
     }
 
     private void appendBillPayStart(

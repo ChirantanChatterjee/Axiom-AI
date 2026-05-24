@@ -525,6 +525,12 @@ public class WebsiteCrawlerService {
                                     "type"
                             );
 
+                    String value =
+                            safeAttr(
+                                    handle,
+                                    "value"
+                            );
+
                     String placeholder =
                             safeAttr(
                                     handle,
@@ -553,6 +559,15 @@ public class WebsiteCrawlerService {
                             safeAttr(
                                     handle,
                                     "data-cy"
+                            );
+
+                    text =
+                            effectiveElementText(
+                                    tag,
+                                    type,
+                                    text,
+                                    value,
+                                    ariaLabel
                             );
 
                     boolean visible =
@@ -593,6 +608,7 @@ public class WebsiteCrawlerService {
                                     tag,
                                     id,
                                     name,
+                                    type,
                                     ariaLabel,
                                     text
                             );
@@ -910,6 +926,20 @@ public class WebsiteCrawlerService {
         }
 
         if (
+                isValueSelectableInput(tag, type)
+                        &&
+                        !selectorText(text).isBlank()
+        ) {
+
+            return tag
+                    + "[type='"
+                    + cssAttr(type)
+                    + "'][value='"
+                    + cssAttr(selectorText(text))
+                    + "']";
+        }
+
+        if (
 
                 !safe(type).isBlank()
 
@@ -933,6 +963,7 @@ public class WebsiteCrawlerService {
             String tag,
             String id,
             String name,
+            String type,
             String ariaLabel,
             String text
 
@@ -988,6 +1019,19 @@ public class WebsiteCrawlerService {
             return "//"
                     + tag
                     + "[normalize-space()='"
+                    + xpathAttr(selectorText(text))
+                    + "']";
+        }
+
+        if (
+                isValueSelectableInput(tag, type)
+                        &&
+                        !selectorText(text).isBlank()
+        ) {
+
+            return "//"
+                    + tag
+                    + "[@value='"
                     + xpathAttr(selectorText(text))
                     + "']";
         }
@@ -1170,6 +1214,70 @@ public class WebsiteCrawlerService {
         return "button".equals(tag)
                 ||
                 "a".equals(tag);
+    }
+
+    private boolean isValueSelectableInput(
+            String tag,
+            String type
+    ) {
+
+        String normalizedTag =
+                safe(tag)
+                        .toLowerCase();
+
+        String normalizedType =
+                safe(type)
+                        .toLowerCase();
+
+        return normalizedTag.equals("input")
+                &&
+                (
+                        normalizedType.equals("submit")
+                                ||
+                                normalizedType.equals("button")
+                                ||
+                                normalizedType.equals("reset")
+                );
+    }
+
+    private String effectiveElementText(
+            String tag,
+            String type,
+            String text,
+            String value,
+            String ariaLabel
+    ) {
+
+        String visibleText =
+                safe(text)
+                        .trim();
+
+        if (
+                !visibleText.isBlank()
+        ) {
+
+            return visibleText;
+        }
+
+        if (
+                isValueSelectableInput(tag, type)
+                        &&
+                        !safe(value).isBlank()
+        ) {
+
+            return safe(value).trim();
+        }
+
+        if (
+                safe(tag).equalsIgnoreCase("button")
+                        &&
+                        !safe(ariaLabel).isBlank()
+        ) {
+
+            return safe(ariaLabel).trim();
+        }
+
+        return "";
     }
 
     private String selectorText(

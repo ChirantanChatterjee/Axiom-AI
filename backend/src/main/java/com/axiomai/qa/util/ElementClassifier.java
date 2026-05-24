@@ -23,6 +23,9 @@ public class ElementClassifier {
                 safe(element.getType())
                         .toLowerCase();
 
+        String id =
+                safe(element.getId());
+
         String name =
                 safe(element.getName());
 
@@ -40,6 +43,18 @@ public class ElementClassifier {
                 tag + " "
                         + text + " "
                         + type + " "
+                        + id + " "
+                        + name + " "
+                        + placeholder + " "
+                        + ariaLabel + " "
+                        + dataTestId
+
+        ).toLowerCase();
+
+        String actionDescriptor = (
+
+                text + " "
+                        + id + " "
                         + name + " "
                         + placeholder + " "
                         + ariaLabel + " "
@@ -132,7 +147,7 @@ public class ElementClassifier {
 
                 actionLike
                         &&
-                        combined.contains("search")
+                        actionDescriptor.contains("search")
 
         ) {
 
@@ -154,9 +169,9 @@ public class ElementClassifier {
                 actionLike
                         &&
                         (
-                                combined.contains("next")
+                                actionDescriptor.contains("next")
                                         ||
-                                        combined.contains("continue")
+                                        actionDescriptor.contains("continue")
                         )
 
         ) {
@@ -179,15 +194,13 @@ public class ElementClassifier {
                 actionLike
                         &&
                         (
-                                combined.contains("login")
+                                actionDescriptor.contains("login")
                                         ||
-                                        combined.contains("log in")
+                                        actionDescriptor.contains("log in")
                                         ||
-                                        combined.contains("sign in")
+                                        actionDescriptor.contains("sign in")
                                         ||
-                                        combined.contains("signin")
-                                        ||
-                                        combined.contains("submit")
+                                        actionDescriptor.contains("signin")
                         )
 
         ) {

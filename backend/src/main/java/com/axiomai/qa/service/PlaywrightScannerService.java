@@ -243,6 +243,9 @@ public class PlaywrightScannerService {
         String type =
                 safeAttribute(handle, "type");
 
+        String value =
+                safeAttribute(handle, "value");
+
         String placeholder =
                 safeAttribute(handle, "placeholder");
 
@@ -251,6 +254,15 @@ public class PlaywrightScannerService {
 
         String dataTestId =
                 safeAttribute(handle, "data-testid");
+
+        text =
+                effectiveElementText(
+                        tag,
+                        type,
+                        text,
+                        value,
+                        ariaLabel
+                );
 
         boolean visible =
                 handle.isVisible();
@@ -266,7 +278,9 @@ public class PlaywrightScannerService {
                 buildCssSelector(
                         tag,
                         id,
-                        name
+                        name,
+                        type,
+                        text
                 );
 
         String xpath =
@@ -421,7 +435,9 @@ public class PlaywrightScannerService {
     private String buildCssSelector(
             String tag,
             String id,
-            String name
+            String name,
+            String type,
+            String text
     ) {
 
         tag =
@@ -450,7 +466,106 @@ public class PlaywrightScannerService {
                     + "']";
         }
 
+        if (
+                isValueSelectableInput(tag, type)
+                        &&
+                        text != null
+                        &&
+                        !text.isBlank()
+        ) {
+
+            return tag
+                    + "[type='"
+                    + cssAttr(type)
+                    + "'][value='"
+                    + cssAttr(text)
+                    + "']";
+        }
+
         return tag;
+    }
+
+    private boolean isValueSelectableInput(
+            String tag,
+            String type
+    ) {
+
+        String normalizedTag =
+                tag == null
+                        ? ""
+                        : tag.toLowerCase();
+
+        String normalizedType =
+                type == null
+                        ? ""
+                        : type.toLowerCase();
+
+        return normalizedTag.equals("input")
+                &&
+                (
+                        normalizedType.equals("submit")
+                                ||
+                                normalizedType.equals("button")
+                                ||
+                                normalizedType.equals("reset")
+                );
+    }
+
+    private String effectiveElementText(
+            String tag,
+            String type,
+            String text,
+            String value,
+            String ariaLabel
+    ) {
+
+        String visibleText =
+                text == null
+                        ? ""
+                        : text.trim();
+
+        if (
+                !visibleText.isBlank()
+        ) {
+
+            return visibleText;
+        }
+
+        if (
+                isValueSelectableInput(tag, type)
+                        &&
+                        value != null
+                        &&
+                        !value.isBlank()
+        ) {
+
+            return value.trim();
+        }
+
+        if (
+                tag != null
+                        &&
+                        tag.equalsIgnoreCase("button")
+                        &&
+                        ariaLabel != null
+                        &&
+                        !ariaLabel.isBlank()
+        ) {
+
+            return ariaLabel.trim();
+        }
+
+        return "";
+    }
+
+    private String cssAttr(
+            String value
+    ) {
+
+        return value == null
+                ? ""
+                : value.replace("\\", "\\\\")
+                .replace("'", "\\'");
     }
 
     // =====================================================

@@ -2,6 +2,7 @@ package com.axiomai.qa.service;
 
 import com.axiomai.ai.service.OpenAIService;
 import com.axiomai.qa.flow.DetectedFlow;
+import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.models.GeneratedFramework;
 import com.axiomai.qa.models.RequirementTestCase;
 import org.junit.jupiter.api.Test;
@@ -262,7 +263,8 @@ class RequirementTestCaseGeneratorServiceTest {
                 service.fallbackFeature(
                         "Can you generate more tests for bill pay?",
                         "bill pay",
-                        "https://parabank.parasoft.com/parabank/index.htm"
+                        "https://parabank.parasoft.com/parabank/index.htm",
+                        List.of()
                 );
 
         assertEquals(
@@ -346,7 +348,7 @@ class RequirementTestCaseGeneratorServiceTest {
                         "Can you create tests for select flight for return journey?",
                         "select flight",
                         "https://travel.agileway.net/login",
-                        List.of(new DetectedFlow()),
+                        List.of(travelFlightFormFlow()),
                         "chat-one"
                 );
 
@@ -367,6 +369,50 @@ class RequirementTestCaseGeneratorServiceTest {
 
         assertFalse(
                 feature.contains("${search}")
+        );
+
+        assertFalse(
+                feature.contains("user clicks \"search flights\"")
+        );
+
+        assertTrue(
+                feature.contains("user clicks \"continue\"")
+        );
+    }
+
+    private DetectedFlow travelFlightFormFlow() {
+
+        FlowStep from =
+                new FlowStep(
+                        "TYPE",
+                        "from",
+                        "select[name='fromPort']"
+                );
+
+        FlowStep to =
+                new FlowStep(
+                        "TYPE",
+                        "to",
+                        "select[name='toPort']"
+                );
+
+        FlowStep submit =
+                new FlowStep(
+                        "CLICK",
+                        "SUBMIT_BUTTON",
+                        "input[type='submit'][value='Continue']"
+                );
+
+        submit.setBusinessRole("NEXT_BUTTON");
+
+        return new DetectedFlow(
+                "FORM_SUBMISSION",
+                "https://travel.agileway.net/flights",
+                List.of(
+                        from,
+                        to,
+                        submit
+                )
         );
     }
 

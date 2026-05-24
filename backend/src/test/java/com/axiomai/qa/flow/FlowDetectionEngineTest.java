@@ -186,6 +186,75 @@ class FlowDetectionEngineTest {
         );
     }
 
+    @Test
+    void submitInputWithContinueIsFormActionNotLoginButton() {
+
+        PageElement origin =
+                element(
+                        "SELECT",
+                        "Origin",
+                        "",
+                        "fromPort",
+                        "",
+                        "",
+                        "select[name='fromPort']"
+                );
+
+        PageElement destination =
+                element(
+                        "SELECT",
+                        "Destination",
+                        "",
+                        "toPort",
+                        "",
+                        "",
+                        "select[name='toPort']"
+                );
+
+        PageElement continueButton =
+                element(
+                        "INPUT",
+                        "Continue",
+                        "submit",
+                        "",
+                        "",
+                        "",
+                        "input[type='submit'][value='Continue']"
+                );
+
+        ElementClassifier.classify(origin);
+        ElementClassifier.classify(destination);
+        ElementClassifier.classify(continueButton);
+
+        assertEquals(
+                "NEXT_BUTTON",
+                continueButton.getBusinessRole()
+        );
+
+        List<DetectedFlow> flows =
+                FlowDetectionEngine.detectFlows(
+                        "https://travel.agileway.net/flights",
+                        List.of(
+                                origin,
+                                destination,
+                                continueButton
+                        )
+                );
+
+        DetectedFlow formFlow =
+                flows.stream()
+                        .filter(flow -> "FORM_SUBMISSION".equals(flow.getFlowType()))
+                        .findFirst()
+                        .orElseThrow();
+
+        assertEquals(
+                "Continue",
+                formFlow.getSteps()
+                        .get(2)
+                        .getTarget()
+        );
+    }
+
     private PageElement element(
 
             String tag,

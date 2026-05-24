@@ -336,6 +336,14 @@ public class FlowDetectionEngine {
                     role.equals(
                             "PRIMARY_ACTION_BUTTON"
                     )
+                            ||
+                            role.equals(
+                                    "NEXT_BUTTON"
+                            )
+                            ||
+                            role.equals(
+                                    "SEARCH_BUTTON"
+                            )
 
             ) {
 
@@ -397,7 +405,12 @@ public class FlowDetectionEngine {
 
             submitStep.setAction("CLICK");
 
-            submitStep.setTarget("SUBMIT_BUTTON");
+            submitStep.setTarget(
+                    actionTarget(
+                            submitButton,
+                            "SUBMIT_BUTTON"
+                    )
+            );
 
             submitStep.setSelector(
                     submitButton.getBestSelector()
@@ -567,6 +580,116 @@ public class FlowDetectionEngine {
         step.setConfidenceScore(
                 element.getImportanceScore()
         );
+    }
+
+    private static String actionTarget(
+            PageElement element,
+            String fallback
+    ) {
+
+        String label =
+                firstNonBlank(
+                        element.getText(),
+                        element.getAriaLabel(),
+                        element.getName(),
+                        element.getDataTestId()
+                );
+
+        if (
+                !isGenericActionLabel(label)
+        ) {
+
+            return label.trim();
+        }
+
+        String selector =
+                safe(element.getBestSelector())
+                        .toLowerCase();
+
+        if (
+                selector.contains("continue")
+                        ||
+                        selector.contains("next")
+        ) {
+
+            return "Continue";
+        }
+
+        if (
+                selector.contains("search")
+        ) {
+
+            return "Search";
+        }
+
+        String role =
+                safe(element.getBusinessRole());
+
+        if (
+                role.equals("NEXT_BUTTON")
+        ) {
+
+            return "Continue";
+        }
+
+        if (
+                role.equals("SEARCH_BUTTON")
+        ) {
+
+            return "Search";
+        }
+
+        return fallback;
+    }
+
+    private static String firstNonBlank(
+            String... values
+    ) {
+
+        if (
+                values == null
+        ) {
+
+            return "";
+        }
+
+        for (String value : values) {
+
+            if (
+                    value != null
+                            &&
+                            !value.isBlank()
+            ) {
+
+                return value;
+            }
+        }
+
+        return "";
+    }
+
+    private static boolean isGenericActionLabel(
+            String label
+    ) {
+
+        String normalized =
+                safe(label)
+                        .trim()
+                        .toLowerCase()
+                        .replaceAll("[^a-z0-9]+", " ")
+                        .trim();
+
+        return normalized.isBlank()
+                ||
+                normalized.equals("submit")
+                ||
+                normalized.equals("commit")
+                ||
+                normalized.equals("button")
+                ||
+                normalized.equals("primary action button")
+                ||
+                normalized.equals("submit button");
     }
 
     private static boolean isBetterSearchButton(
