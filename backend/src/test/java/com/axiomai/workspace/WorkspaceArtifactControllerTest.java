@@ -70,7 +70,7 @@ class WorkspaceArtifactControllerTest {
     }
 
     @Test
-    void downloadPropagatesOwnershipFailure() {
+    void userACannotAccessUserBGeneratedArtifact() {
 
         workspaceAccessService.exception =
                 new ResponseStatusException(
@@ -125,6 +125,7 @@ class WorkspaceArtifactControllerTest {
         private StubWorkspaceAccessService() {
 
             super(
+                    null,
                     null,
                     null
             );

@@ -22,6 +22,9 @@ public class WorkspaceAccessService {
     private final WorkspaceSessionOwnershipRepository
             ownershipRepository;
 
+    private final WorkspaceSessionPresenceService
+            sessionPresenceService;
+
     @Transactional
     public String bindToCurrentUser(
             String token,
@@ -41,6 +44,20 @@ public class WorkspaceAccessService {
         if (
                 ownership == null
         ) {
+
+            if (
+                    sessionPresenceService != null
+                            &&
+                            sessionPresenceService.hasExistingSessionState(
+                                    normalizedSessionId
+                            )
+            ) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "This existing workspace is not assigned to the current user."
+                );
+            }
 
             ownershipRepository.save(
                     createOwnership(

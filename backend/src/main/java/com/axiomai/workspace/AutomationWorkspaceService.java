@@ -82,6 +82,19 @@ public class AutomationWorkspaceService {
         return session;
     }
 
+    public boolean hasSession(
+            String userId
+    ) {
+
+        return userId != null
+                &&
+                !userId.isBlank()
+                &&
+                sessions.containsKey(
+                        sessionIdFor(userId)
+                );
+    }
+
     private String sessionIdFor(
             String userId
     ) {

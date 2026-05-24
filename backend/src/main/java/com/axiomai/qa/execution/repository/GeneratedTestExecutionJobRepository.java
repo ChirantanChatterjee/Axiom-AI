@@ -25,6 +25,10 @@ public interface GeneratedTestExecutionJobRepository
             String sessionId
     );
 
+    boolean existsBySessionId(
+            String sessionId
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select job

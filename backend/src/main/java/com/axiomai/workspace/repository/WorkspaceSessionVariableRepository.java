@@ -22,6 +22,10 @@ public interface WorkspaceSessionVariableRepository
             String variableKey
     );
 
+    boolean existsBySessionId(
+            String sessionId
+    );
+
     @Modifying(
             clearAutomatically = true,
             flushAutomatically = true
