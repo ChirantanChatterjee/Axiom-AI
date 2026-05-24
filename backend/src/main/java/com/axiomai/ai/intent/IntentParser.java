@@ -35,7 +35,7 @@ public class IntentParser {
     ) {
 
         Map<String, String> variables =
-                extractVariables(message);
+                extractRuntimeVariables(message);
 
         if (
                 containsRequirementDocument(message)
@@ -103,6 +103,23 @@ public class IntentParser {
                     .target(
                             extractTagExpression(message)
                     )
+
+                    .variables(variables)
+
+                    .message(message)
+
+                    .build();
+        }
+
+        if (
+                isVariableUpdateOnlyMessage(message)
+                        &&
+                        !variables.isEmpty()
+        ) {
+
+            return AICommand.builder()
+
+                    .intent("UPDATE_TEST_DATA")
 
                     .variables(variables)
 
@@ -592,7 +609,7 @@ public class IntentParser {
                 message.toLowerCase();
 
         Map<String, String> variables =
-                extractVariables(message);
+                extractRuntimeVariables(message);
 
         // =====================================================
         // DOWNLOAD FRAMEWORK
@@ -1695,6 +1712,25 @@ public class IntentParser {
     // VARIABLE EXTRACTION
     // =====================================================
 
+    private Map<String, String> extractRuntimeVariables(
+            String message
+    ) {
+
+        Map<String, String> variables =
+                extractVariables(message);
+
+        if (
+                variables.isEmpty()
+                        &&
+                        isVariableUpdateOnlyMessage(message)
+        ) {
+
+            return extractGenericVariables(message);
+        }
+
+        return variables;
+    }
+
     private Map<String, String> extractVariables(
             String message
     ) {
@@ -1724,7 +1760,7 @@ public class IntentParser {
 
         Pattern unquoted =
                 Pattern.compile(
-                        "\\b(username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp)\\s*(?:=|:|is|as)\\s*([^,;]+?)(?=\\s+(?:and\\s+)?(?:username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp)\\s*(?:=|:|is|as)\\s*|$|[,;])",
+                        "\\b(username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp|from|to|origin|destination|journey type|journey)\\s*(?:=|:|is|as)\\s*([^,;]+?)(?=\\s+(?:and\\s+)?(?:username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp|from|to|origin|destination|journey type|journey)\\s*(?:=|:|is|as)\\s*|$|[,;])",
                         Pattern.CASE_INSENSITIVE
                 );
 
@@ -1745,6 +1781,77 @@ public class IntentParser {
         return variables;
     }
 
+    private Map<String, String> extractGenericVariables(
+            String message
+    ) {
+
+        Map<String, String> variables =
+                new HashMap<>();
+
+        Pattern generic =
+                Pattern.compile(
+                        "\\b([A-Za-z][A-Za-z0-9_-]{0,40})\\s*(?:=|:|\\bis\\b|\\bas\\b)\\s*([^,;]+?)(?=\\s*(?:[,;]|\\band\\b)?\\s*[A-Za-z][A-Za-z0-9_-]{0,40}\\s*(?:=|:|\\bis\\b|\\bas\\b)\\s*|$|[,;])",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        Matcher matcher =
+                generic.matcher(message);
+
+        while (
+                matcher.find()
+        ) {
+
+            putGenericVariable(
+                    variables,
+                    matcher.group(1),
+                    matcher.group(2)
+            );
+        }
+
+        return variables;
+    }
+
+    private boolean isVariableUpdateOnlyMessage(
+            String message
+    ) {
+
+        if (
+                message == null
+                        ||
+                        message.isBlank()
+        ) {
+
+            return false;
+        }
+
+        Matcher assignment =
+                Pattern.compile(
+                        "\\b[A-Za-z][A-Za-z0-9_ -]{0,40}\\s*(?:=|:|\\bis\\b|\\bas\\b)",
+                        Pattern.CASE_INSENSITIVE
+                )
+                        .matcher(message);
+
+        if (
+                !assignment.find()
+        ) {
+
+            return false;
+        }
+
+        String prefix =
+                message.substring(
+                                0,
+                                assignment.start()
+                        )
+                        .toLowerCase();
+
+        return !Pattern.compile(
+                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags)\\b"
+                )
+                .matcher(prefix)
+                .find();
+    }
+
     private void putVariable(
 
             Map<String, String> variables,
@@ -1757,6 +1864,36 @@ public class IntentParser {
 
         String normalizedKey =
                 normalizeVariableKey(key);
+
+        if (
+                normalizedKey == null
+                        ||
+                        value == null
+                        ||
+                        value.isBlank()
+        ) {
+
+            return;
+        }
+
+        variables.put(
+                normalizedKey,
+                cleanToken(value)
+        );
+    }
+
+    private void putGenericVariable(
+
+            Map<String, String> variables,
+
+            String key,
+
+            String value
+
+    ) {
+
+        String normalizedKey =
+                normalizeGenericVariableKey(key);
 
         if (
                 normalizedKey == null
@@ -1819,6 +1956,12 @@ public class IntentParser {
 
             case "search term" -> "search";
 
+            case "origin" -> "from";
+
+            case "destination" -> "to";
+
+            case "journey type" -> "journeyType";
+
             case "first name" -> "firstName";
 
             case "last name" -> "lastName";
@@ -1830,6 +1973,191 @@ public class IntentParser {
             case "verify account" -> "account";
 
             default -> normalized.replace(" ", "");
+        };
+    }
+
+    private String normalizeGenericVariableKey(
+            String key
+    ) {
+
+        if (
+                key == null
+        ) {
+
+            return null;
+        }
+
+        String known =
+                normalizeVariableKey(key);
+
+        String cleaned =
+                key.trim()
+                        .replace("-", " ")
+                        .replace("_", " ")
+                        .replaceAll("[^A-Za-z0-9 ]", "")
+                        .trim();
+
+        if (
+                cleaned.isBlank()
+        ) {
+
+            return null;
+        }
+
+        String genericKey =
+                toVariableKey(cleaned);
+
+        if (
+                isDeniedGenericVariableKey(genericKey)
+        ) {
+
+            return null;
+        }
+
+        if (
+                isKnownRuntimeVariableKey(known)
+        ) {
+
+            return known;
+        }
+
+        return genericKey;
+    }
+
+    private boolean isKnownRuntimeVariableKey(
+            String key
+    ) {
+
+        if (
+                key == null
+        ) {
+
+            return false;
+        }
+
+        return switch (key) {
+            case "username",
+                 "password",
+                 "confirmPassword",
+                 "email",
+                 "ssn",
+                 "search",
+                 "firstName",
+                 "lastName",
+                 "phone",
+                 "payee",
+                 "address",
+                 "city",
+                 "state",
+                 "zip",
+                 "account",
+                 "amount",
+                 "product",
+                 "quantity",
+                 "token",
+                 "otp",
+                 "from",
+                 "to",
+                 "journeyType",
+                 "journey" -> true;
+            default -> false;
+        };
+    }
+
+    private String toVariableKey(
+            String cleaned
+    ) {
+
+        String[] parts =
+                cleaned.split("\\s+");
+
+        if (
+                parts.length == 1
+        ) {
+
+            String part =
+                    parts[0];
+
+            if (
+                    part.length() > 1
+                            &&
+                            Character.isUpperCase(part.charAt(0))
+                            &&
+                            Character.isLowerCase(part.charAt(1))
+            ) {
+
+                return Character.toLowerCase(part.charAt(0))
+                        + part.substring(1);
+            }
+
+            return part;
+        }
+
+        StringBuilder key =
+                new StringBuilder(
+                        parts[0].toLowerCase()
+                );
+
+        for (
+                int i = 1;
+                i < parts.length;
+                i++
+        ) {
+
+            if (
+                    parts[i].isBlank()
+            ) {
+
+                continue;
+            }
+
+            key.append(
+                    Character.toUpperCase(parts[i].charAt(0))
+            );
+
+            if (
+                    parts[i].length() > 1
+            ) {
+
+                key.append(
+                        parts[i].substring(1)
+                                .toLowerCase()
+                );
+            }
+        }
+
+        return key.toString();
+    }
+
+    private boolean isDeniedGenericVariableKey(
+            String key
+    ) {
+
+        if (
+                key == null
+                        ||
+                        key.isBlank()
+        ) {
+
+            return true;
+        }
+
+        return switch (key.toLowerCase()) {
+            case "url",
+                 "uri",
+                 "link",
+                 "website",
+                 "site",
+                 "report",
+                 "framework",
+                 "feature",
+                 "scenario",
+                 "test",
+                 "tests",
+                 "tag",
+                 "tags",
+                 "generated" -> true;
+            default -> false;
         };
     }
 

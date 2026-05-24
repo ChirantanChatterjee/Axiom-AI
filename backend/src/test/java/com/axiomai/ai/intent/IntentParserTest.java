@@ -194,6 +194,134 @@ class IntentParserTest {
     }
 
     @Test
+    void parsesColonSeparatedRuntimeValuesWithoutOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "From: New York To: Sydney"
+                );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "New York",
+                command.getVariables()
+                        .get("from")
+        );
+
+        assertEquals(
+                "Sydney",
+                command.getVariables()
+                        .get("to")
+        );
+    }
+
+    @Test
+    void parsesEqualsSeparatedRuntimeValuesWithoutOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "from = New York, To = Sydney"
+                );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "New York",
+                command.getVariables()
+                        .get("from")
+        );
+
+        assertEquals(
+                "Sydney",
+                command.getVariables()
+                        .get("to")
+        );
+    }
+
+    @Test
+    void parsesNaturalLanguageRuntimeValuesWithoutOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "from is New York and to is Sydney"
+                );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "New York",
+                command.getVariables()
+                        .get("from")
+        );
+
+        assertEquals(
+                "Sydney",
+                command.getVariables()
+                        .get("to")
+        );
+    }
+
+    @Test
+    void parsesGenericRuntimePlaceholderValuesWithoutOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "departDay is 12 and returnMonth is June 2026"
+                );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "12",
+                command.getVariables()
+                        .get("departDay")
+        );
+
+        assertEquals(
+                "June 2026",
+                command.getVariables()
+                        .get("returnMonth")
+        );
+    }
+
+    @Test
     void detectsGenerateThenRunAsCompoundCommand() {
 
         IntentParser parser =
@@ -742,6 +870,20 @@ class IntentParserTest {
 
             throw new AssertionError(
                     "Requirement documents should be detected before OpenAI intent parsing."
+            );
+        }
+    }
+
+    private static class UnexpectedOpenAIIntentService
+            extends OpenAIIntentService {
+
+        @Override
+        public GPTIntentResponse interpret(
+                String userMessage
+        ) {
+
+            throw new AssertionError(
+                    "Runtime variable replies should be parsed without OpenAI intent inference."
             );
         }
     }
