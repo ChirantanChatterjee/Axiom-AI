@@ -83,6 +83,161 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void repairsSelectFlightScenarioFlowAfterContinueAsPassengerDetailsPage() {
+
+        String feature =
+                """
+                        Feature: select flight for return journey
+
+                        @select_flight @generated @positive
+                        Scenario: User successfully selects a return flight journey
+                          Given user launches "https://travel.agileway.net/login"
+                          When user enters "${username}" into "username"
+                          And user enters "${password}" into "password"
+                          And user clicks "login button"
+                          And user clicks "return journey"
+                          And user enters "New York" into "from"
+                          And user enters "Sydney" into "to"
+                          And user clicks "search flights"
+                          Then user should see "Select your departure flight"
+                          And user clicks "outbound flight"
+                          And user clicks "return flight"
+                          And user clicks "continue"
+                          Then flow should complete successfully
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.RuntimeException: Unable to resolve element: search flights",
+                                "The actual button says \"continue\". After continue the page asks for passenger details - First Name and Last Name. Use First Name = Chirantan and Last Name = Chatterjee."
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user clicks \"continue\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"First Name\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user should see \"Last Name\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"Chirantan\" into \"First Name\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"Chatterjee\" into \"Last Name\"")
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("search flights"))
+                        .count()
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("Select your departure flight"))
+                        .count()
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("outbound flight"))
+                        .count()
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("return flight\""))
+                        .count()
+        );
+    }
+
+    @Test
+    void updatesExistingPassengerDetailsAndRemovesInvalidSelectFlightSteps() {
+
+        String feature =
+                """
+                        Feature: select flight
+
+                        @select_flight @generated @positive
+                        Scenario: User successfully selects a return flight journey
+                          Given user launches "https://travel.agileway.net/login"
+                          When user clicks "continue"
+                          Then user should see "Select your departure flight"
+                          And user enters "John" into "First Name"
+                          And user enters "Doe" into "Last Name"
+                          And user clicks "outbound flight"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.AssertionError: Expected page to contain text: Select your departure flight",
+                                "The page actually needs First Name and Last Name after continue. Use First Name = Chirantan and Last Name = Chatterjee."
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"Chirantan\" into \"First Name\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"Chatterjee\" into \"Last Name\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user clicks \"continue\"")
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("Select your departure flight"))
+                        .count()
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("outbound flight"))
+                        .count()
+        );
+    }
+
+    @Test
     void doesNotReplaceNonActionControlWithObservedContinueButton() {
 
         String feature =

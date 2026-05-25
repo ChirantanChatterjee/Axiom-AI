@@ -378,6 +378,22 @@ class RequirementTestCaseGeneratorServiceTest {
         assertTrue(
                 feature.contains("user clicks \"continue\"")
         );
+
+        assertTrue(
+                feature.contains("user enters \"${firstName}\" into \"First Name\"")
+        );
+
+        assertTrue(
+                feature.contains("user enters \"${lastName}\" into \"Last Name\"")
+        );
+
+        assertFalse(
+                feature.contains("user clicks \"outbound flight\"")
+        );
+
+        assertFalse(
+                feature.contains("user clicks \"return flight\"")
+        );
     }
 
     private DetectedFlow travelFlightFormFlow() {

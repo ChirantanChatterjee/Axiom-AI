@@ -156,9 +156,15 @@ public class GeneratedFeatureRepairService {
             );
         }
 
+        String repairedContent =
+                content;
+
+        List<String> allChanges =
+                new ArrayList<>();
+
         FeatureRepair actionTargetRepair =
                 repairIncorrectGeneratedActionTarget(
-                        content,
+                        repairedContent,
                         latestOutput,
                         userInstruction
                 );
@@ -167,12 +173,36 @@ public class GeneratedFeatureRepairService {
                 actionTargetRepair.changed()
         ) {
 
-            return actionTargetRepair;
+            repairedContent =
+                    actionTargetRepair.content();
+
+            allChanges.addAll(
+                    actionTargetRepair.changes()
+            );
+        }
+
+        FeatureRepair passengerDetailsRepair =
+                repairTravelPassengerDetailsFlow(
+                        repairedContent,
+                        latestOutput,
+                        userInstruction
+                );
+
+        if (
+                passengerDetailsRepair.changed()
+        ) {
+
+            repairedContent =
+                    passengerDetailsRepair.content();
+
+            allChanges.addAll(
+                    passengerDetailsRepair.changes()
+            );
         }
 
         FeatureRepair assertionTextRepair =
                 repairUserProvidedAssertionText(
-                        content,
+                        repairedContent,
                         latestOutput,
                         userInstruction
                 );
@@ -181,22 +211,26 @@ public class GeneratedFeatureRepairService {
                 assertionTextRepair.changed()
         ) {
 
-            return assertionTextRepair;
+            repairedContent =
+                    assertionTextRepair.content();
+
+            allChanges.addAll(
+                    assertionTextRepair.changes()
+            );
         }
 
         FeatureRepair genericRepair =
                 repairMissingIntermediateAssertions(
-                        content,
+                        repairedContent,
                         latestOutput
                 );
 
-        String repairedContent =
+        repairedContent =
                 genericRepair.content();
 
-        List<String> allChanges =
-                new ArrayList<>(
-                        genericRepair.changes()
-                );
+        allChanges.addAll(
+                genericRepair.changes()
+        );
 
         if (
                 shouldRepairParaBankBillPay(
@@ -358,6 +392,29 @@ public class GeneratedFeatureRepairService {
                                         ))
         ) {
 
+            explicitActualActionTarget(userInstruction)
+                    .filter(observed -> shouldReplaceGeneratedActionTarget(
+                            failedTarget.get(),
+                            observed
+                    ))
+                    .ifPresent(observed -> replacements.add(
+                            new ActionTargetReplacement(
+                                    failedTarget.get(),
+                                    observed
+                            )
+                    ));
+        }
+
+        if (
+                failedTarget.isPresent()
+                        &&
+                        replacements.stream()
+                                .noneMatch(replacement -> replacement.from()
+                                        .equalsIgnoreCase(
+                                                failedTarget.get()
+                                        ))
+        ) {
+
             observedActionTarget(
                     combinedOutput(
                             latestOutput,
@@ -470,6 +527,52 @@ public class GeneratedFeatureRepairService {
                         .isBlank())
                 .distinct()
                 .toList();
+    }
+
+    private Optional<String> explicitActualActionTarget(
+            String userInstruction
+    ) {
+
+        if (
+                userInstruction == null
+                        ||
+                        userInstruction.isBlank()
+        ) {
+
+            return Optional.empty();
+        }
+
+        List<Pattern> patterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)(?:actual|real|only|correct)[^\"\\r\\n]{0,80}(?:button|control|submit|action|label)[^\"\\r\\n]{0,80}(?:says|is|should\\s+be|label(?:led|ed)?|called)\\s*\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:button|control|submit|action|label)[^\"\\r\\n]{0,80}(?:actually\\s+)?(?:says|is|should\\s+be|label(?:led|ed)?|called)\\s*\"([^\"]+)\""
+                        )
+                );
+
+        for (
+                Pattern pattern
+                : patterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(userInstruction);
+
+            if (
+                    matcher.find()
+            ) {
+
+                return Optional.of(
+                                matcher.group(1)
+                                        .trim()
+                        )
+                        .filter(target -> !target.isBlank());
+            }
+        }
+
+        return Optional.empty();
     }
 
     private Optional<String> unresolvedElementTarget(
@@ -746,6 +849,909 @@ public class GeneratedFeatureRepairService {
         }
 
         return normalized;
+    }
+
+    private FeatureRepair repairTravelPassengerDetailsFlow(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        if (
+                !shouldRepairTravelPassengerDetailsFlow(
+                        content,
+                        latestOutput,
+                        userInstruction
+                )
+        ) {
+
+            return new FeatureRepair(
+                    content,
+                    List.of()
+            );
+        }
+
+        List<String> lines =
+                content.lines()
+                        .toList();
+
+        PassengerNames passengerNames =
+                passengerNames(userInstruction);
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        for (
+                int i = 0;
+                i < lines.size();
+                i++
+        ) {
+
+            String line =
+                    lines.get(i);
+
+            if (
+                    shouldRepairTravelScenario(
+                            lines,
+                            i,
+                            userInstruction
+                    )
+                            &&
+                            isBadTravelDepartureAssertion(line)
+            ) {
+
+                changes.add(
+                        "Removed invalid select-flight assertion for \"Select your departure flight\" because the next page asks for passenger details."
+                );
+
+                continue;
+            }
+
+            if (
+                    shouldRepairTravelScenario(
+                            lines,
+                            i,
+                            userInstruction
+                    )
+                            &&
+                            isGeneratedFlightSelectionClick(line)
+            ) {
+
+                changes.add(
+                        "Removed generated click for nonexistent flight selector \""
+                                + clickedTarget(line)
+                                + "\"."
+                );
+
+                continue;
+            }
+
+            PassengerFieldEntry passengerFieldEntry =
+                    passengerFieldEntry(line);
+
+            if (
+                    passengerFieldEntry != null
+                            &&
+                            shouldRepairTravelScenario(
+                                    lines,
+                                    i,
+                                    userInstruction
+                            )
+            ) {
+
+                String nextValue =
+                        passengerFieldEntry.field()
+                                .equalsIgnoreCase("First Name")
+                                ? passengerNames.firstName()
+                                : passengerNames.lastName();
+
+                boolean shouldReplaceValue =
+                        passengerFieldEntry.field()
+                                .equalsIgnoreCase("First Name")
+                                ? passengerNames.firstNameProvided()
+                                : passengerNames.lastNameProvided();
+
+                if (
+                        shouldReplaceValue
+                                &&
+                                !passengerFieldEntry.value()
+                                        .equals(nextValue)
+                ) {
+
+                    line =
+                            passengerFieldEntry.indent()
+                                    + passengerFieldEntry.keyword()
+                                    + " user enters \""
+                                    + sanitizeStepText(nextValue)
+                                    + "\" into \""
+                                    + passengerFieldEntry.field()
+                                    + "\"";
+
+                    changes.add(
+                            "Updated passenger "
+                                    + passengerFieldEntry.field()
+                                    + " value to \""
+                                    + nextValue
+                                    + "\"."
+                    );
+                }
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+
+            if (
+                    isTravelFlightSearchContinue(
+                            lines,
+                            i,
+                            userInstruction
+                    )
+                            &&
+                            shouldInsertPassengerDetailsSteps(
+                                    lines,
+                                    i,
+                                    userInstruction,
+                                    passengerNames
+                            )
+            ) {
+
+                appendPassengerDetailsBlock(
+                        repaired,
+                        stepIndent(line),
+                        passengerNames,
+                        !hasLaterContinueBeforeScenario(
+                                lines,
+                                i
+                        )
+                );
+
+                changes.add(
+                        "Inserted passenger First Name and Last Name steps after the flight-search Continue action."
+                );
+            }
+
+            if (
+                    passengerFieldEntry != null
+                            &&
+                            passengerFieldEntry.field()
+                                    .equalsIgnoreCase("Last Name")
+                            &&
+                            shouldRepairTravelScenario(
+                                    lines,
+                                    i,
+                                    userInstruction
+                            )
+                            &&
+                            !hasLaterContinueBeforeScenario(
+                                    lines,
+                                    i
+                            )
+            ) {
+
+                repaired.append(passengerFieldEntry.indent())
+                        .append("And user clicks \"continue\"")
+                        .append(System.lineSeparator());
+
+                changes.add(
+                        "Added Continue after passenger details."
+                );
+            }
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes.stream()
+                        .distinct()
+                        .toList()
+        );
+    }
+
+    private boolean shouldRepairTravelPassengerDetailsFlow(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        String lowerContent =
+                content == null
+                        ? ""
+                        : content.toLowerCase();
+
+        if (
+                !looksLikeTravelSelectFlightFeature(lowerContent)
+        ) {
+
+            return false;
+        }
+
+        String evidence =
+                combinedOutput(
+                        combinedOutput(
+                                content,
+                                latestOutput
+                        ),
+                        userInstruction
+                )
+                        .toLowerCase();
+
+        return evidence.contains("outbound flight")
+                ||
+                evidence.contains("return flight")
+                ||
+                evidence.contains("select your departure flight")
+                ||
+                mentionsPassengerDetails(evidence);
+    }
+
+    private boolean looksLikeTravelSelectFlightFeature(
+            String lowerContent
+    ) {
+
+        return lowerContent.contains("select_flight")
+                ||
+                lowerContent.contains("select flight")
+                ||
+                lowerContent.contains("return journey")
+                ||
+                lowerContent.contains("travel.agileway.net");
+    }
+
+    private boolean mentionsPassengerDetails(
+            String lowerText
+    ) {
+
+        return lowerText != null
+                &&
+                lowerText.contains("first name")
+                &&
+                lowerText.contains("last name");
+    }
+
+    private boolean shouldRepairTravelScenario(
+            List<String> lines,
+            int index,
+            String userInstruction
+    ) {
+
+        if (
+                !isTravelScenario(
+                        lines,
+                        index
+                )
+        ) {
+
+            return false;
+        }
+
+        return scenarioContainsGeneratedFlightSelectionClick(
+                lines,
+                index
+        )
+                ||
+                scenarioContainsBadTravelDepartureAssertion(
+                        lines,
+                        index
+                )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "First Name"
+                )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "Last Name"
+                )
+                ||
+                (
+                        mentionsPassengerDetails(
+                                userInstruction == null
+                                        ? ""
+                                        : userInstruction.toLowerCase()
+                        )
+                                &&
+                                isPositiveTravelScenario(
+                                        lines,
+                                        index
+                                )
+                );
+    }
+
+    private boolean scenarioContainsGeneratedFlightSelectionClick(
+            List<String> lines,
+            int index
+    ) {
+
+        int start =
+                scenarioStart(
+                        lines,
+                        index
+                );
+
+        for (
+                int i = start;
+                i < lines.size();
+                i++
+        ) {
+
+            if (
+                    i > start
+                            &&
+                            isScenarioStart(lines.get(i))
+            ) {
+
+                break;
+            }
+
+            if (
+                    isGeneratedFlightSelectionClick(lines.get(i))
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean scenarioContainsBadTravelDepartureAssertion(
+            List<String> lines,
+            int index
+    ) {
+
+        int start =
+                scenarioStart(
+                        lines,
+                        index
+                );
+
+        for (
+                int i = start;
+                i < lines.size();
+                i++
+        ) {
+
+            if (
+                    i > start
+                            &&
+                            isScenarioStart(lines.get(i))
+            ) {
+
+                break;
+            }
+
+            if (
+                    isBadTravelDepartureAssertion(lines.get(i))
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isTravelScenario(
+            List<String> lines,
+            int index
+    ) {
+
+        return scenarioContains(
+                lines,
+                index,
+                "select_flight"
+        )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "select flight"
+                )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "return journey"
+                )
+                ||
+                scenarioContains(
+                        lines,
+                        index,
+                        "travel.agileway.net"
+                );
+    }
+
+    private boolean isPositiveTravelScenario(
+            List<String> lines,
+            int index
+    ) {
+
+        return !scenarioContains(
+                lines,
+                index,
+                "@negative"
+        )
+                &&
+                (
+                        scenarioContains(
+                                lines,
+                                index,
+                                "@positive"
+                        )
+                                ||
+                                scenarioContains(
+                                        lines,
+                                        index,
+                                        "successfully"
+                                )
+                                ||
+                                scenarioContains(
+                                        lines,
+                                        index,
+                                        "valid"
+                                )
+                );
+    }
+
+    private boolean isTravelFlightSearchContinue(
+            List<String> lines,
+            int index,
+            String userInstruction
+    ) {
+
+        if (
+                !isContinueClick(
+                        lines.get(index)
+                )
+        ) {
+
+            return false;
+        }
+
+        if (
+                !shouldRepairTravelScenario(
+                        lines,
+                        index,
+                        userInstruction
+                )
+        ) {
+
+            return false;
+        }
+
+        return !scenarioHasPassengerNameEntryBefore(
+                lines,
+                index,
+                "First Name"
+        )
+                &&
+                !scenarioHasPassengerNameEntryBefore(
+                        lines,
+                        index,
+                        "Last Name"
+                );
+    }
+
+    private boolean shouldInsertPassengerDetailsSteps(
+            List<String> lines,
+            int index,
+            String userInstruction,
+            PassengerNames passengerNames
+    ) {
+
+        if (
+                scenarioHasPassengerNameEntries(
+                        lines,
+                        index
+                )
+        ) {
+
+            return false;
+        }
+
+        return scenarioContainsGeneratedFlightSelectionClick(
+                lines,
+                index
+        )
+                ||
+                scenarioContainsBadTravelDepartureAssertion(
+                        lines,
+                        index
+                )
+                ||
+                passengerNames.firstNameProvided()
+                ||
+                passengerNames.lastNameProvided()
+                ||
+                (
+                        mentionsPassengerDetails(
+                                userInstruction == null
+                                        ? ""
+                                        : userInstruction.toLowerCase()
+                        )
+                                &&
+                                isPositiveTravelScenario(
+                                        lines,
+                                        index
+                                )
+                );
+    }
+
+    private boolean isBadTravelDepartureAssertion(
+            String line
+    ) {
+
+        Matcher assertion =
+                Pattern.compile(
+                                "^(\\s*)(Then|And) user should see \"Select your departure flight\"\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        return assertion.matches();
+    }
+
+    private boolean isGeneratedFlightSelectionClick(
+            String line
+    ) {
+
+        Matcher click =
+                Pattern.compile(
+                                "^(\\s*)(When|And) user clicks \"(outbound flight|return flight)\"\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        return click.matches();
+    }
+
+    private String clickedTarget(
+            String line
+    ) {
+
+        Matcher click =
+                Pattern.compile(
+                                "^(\\s*)(When|And) user clicks \"([^\"]+)\"\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        if (
+                click.matches()
+        ) {
+
+            return click.group(3);
+        }
+
+        return "";
+    }
+
+    private boolean isContinueClick(
+            String line
+    ) {
+
+        Matcher click =
+                Pattern.compile(
+                                "^(\\s*)(When|And) user clicks \"continue\"\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        return click.matches();
+    }
+
+    private boolean scenarioHasPassengerNameEntries(
+            List<String> lines,
+            int index
+    ) {
+
+        return scenarioHasPassengerNameEntry(
+                lines,
+                index,
+                "First Name"
+        )
+                &&
+                scenarioHasPassengerNameEntry(
+                        lines,
+                        index,
+                        "Last Name"
+                );
+    }
+
+    private boolean scenarioHasPassengerNameEntry(
+            List<String> lines,
+            int index,
+            String field
+    ) {
+
+        int start =
+                scenarioStart(
+                        lines,
+                        index
+                );
+
+        for (
+                int i = start;
+                i < lines.size();
+                i++
+        ) {
+
+            if (
+                    i > start
+                            &&
+                            isScenarioStart(lines.get(i))
+            ) {
+
+                break;
+            }
+
+            PassengerFieldEntry entry =
+                    passengerFieldEntry(lines.get(i));
+
+            if (
+                    entry != null
+                            &&
+                            entry.field()
+                                    .equalsIgnoreCase(field)
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean scenarioHasPassengerNameEntryBefore(
+            List<String> lines,
+            int index,
+            String field
+    ) {
+
+        int start =
+                scenarioStart(
+                        lines,
+                        index
+                );
+
+        for (
+                int i = start;
+                i < index;
+                i++
+        ) {
+
+            PassengerFieldEntry entry =
+                    passengerFieldEntry(lines.get(i));
+
+            if (
+                    entry != null
+                            &&
+                            entry.field()
+                                    .equalsIgnoreCase(field)
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasLaterContinueBeforeScenario(
+            List<String> lines,
+            int index
+    ) {
+
+        for (
+                int i = index + 1;
+                i < lines.size();
+                i++
+        ) {
+
+            if (
+                    isScenarioStart(lines.get(i))
+            ) {
+
+                return false;
+            }
+
+            if (
+                    isContinueClick(lines.get(i))
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void appendPassengerDetailsBlock(
+            StringBuilder repaired,
+            String indent,
+            PassengerNames passengerNames,
+            boolean includeContinue
+    ) {
+
+        repaired.append(indent)
+                .append("Then user should see \"First Name\"")
+                .append(System.lineSeparator());
+        repaired.append(indent)
+                .append("And user should see \"Last Name\"")
+                .append(System.lineSeparator());
+        repaired.append(indent)
+                .append("And user enters \"")
+                .append(sanitizeStepText(passengerNames.firstName()))
+                .append("\" into \"First Name\"")
+                .append(System.lineSeparator());
+        repaired.append(indent)
+                .append("And user enters \"")
+                .append(sanitizeStepText(passengerNames.lastName()))
+                .append("\" into \"Last Name\"")
+                .append(System.lineSeparator());
+
+        if (
+                includeContinue
+        ) {
+
+            repaired.append(indent)
+                    .append("And user clicks \"continue\"")
+                    .append(System.lineSeparator());
+        }
+    }
+
+    private PassengerFieldEntry passengerFieldEntry(
+            String line
+    ) {
+
+        Matcher entry =
+                Pattern.compile(
+                                "^(\\s*)(When|And) user enters \"([^\"]+)\" into \"(First Name|Last Name)\"\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        if (
+                !entry.matches()
+        ) {
+
+            return null;
+        }
+
+        return new PassengerFieldEntry(
+                entry.group(1),
+                entry.group(2),
+                entry.group(3),
+                canonicalPassengerField(entry.group(4))
+        );
+    }
+
+    private String canonicalPassengerField(
+            String field
+    ) {
+
+        return field.equalsIgnoreCase("First Name")
+                ? "First Name"
+                : "Last Name";
+    }
+
+    private PassengerNames passengerNames(
+            String userInstruction
+    ) {
+
+        Optional<String> firstName =
+                passengerName(
+                        userInstruction,
+                        "first"
+                );
+
+        Optional<String> lastName =
+                passengerName(
+                        userInstruction,
+                        "last"
+                );
+
+        return new PassengerNames(
+                firstName.orElse("${firstName}"),
+                lastName.orElse("${lastName}"),
+                firstName.isPresent(),
+                lastName.isPresent()
+        );
+    }
+
+    private Optional<String> passengerName(
+            String userInstruction,
+            String namePart
+    ) {
+
+        if (
+                userInstruction == null
+                        ||
+                        userInstruction.isBlank()
+        ) {
+
+            return Optional.empty();
+        }
+
+        Matcher matcher =
+                Pattern.compile(
+                                "(?i)\\b"
+                                        + Pattern.quote(namePart)
+                                        + "\\s+name\\s*(?:=|:|is)\\s*([A-Za-z][A-Za-z'\\-]*)"
+                        )
+                        .matcher(userInstruction);
+
+        if (
+                matcher.find()
+        ) {
+
+            return Optional.of(
+                    matcher.group(1)
+                            .trim()
+            );
+        }
+
+        return Optional.empty();
+    }
+
+    private String stepIndent(
+            String line
+    ) {
+
+        Matcher matcher =
+                Pattern.compile("^(\\s*)")
+                        .matcher(line);
+
+        if (
+                matcher.find()
+        ) {
+
+            return matcher.group(1);
+        }
+
+        return "";
+    }
+
+    private int scenarioStart(
+            List<String> lines,
+            int index
+    ) {
+
+        int start =
+                index;
+
+        while (
+                start > 0
+                        &&
+                        !isScenarioStart(lines.get(start))
+        ) {
+
+            start--;
+        }
+
+        return start;
+    }
+
+    private boolean isScenarioStart(
+            String line
+    ) {
+
+        String trimmed =
+                line.trim();
+
+        return trimmed.startsWith("Scenario:")
+                ||
+                trimmed.startsWith("Scenario Outline:");
     }
 
     private boolean shouldRepairParaBankBillPay(
@@ -2227,6 +3233,22 @@ public class GeneratedFeatureRepairService {
     private record ActionTargetReplacement(
             String from,
             String to
+    ) {
+    }
+
+    private record PassengerNames(
+            String firstName,
+            String lastName,
+            boolean firstNameProvided,
+            boolean lastNameProvided
+    ) {
+    }
+
+    private record PassengerFieldEntry(
+            String indent,
+            String keyword,
+            String value,
+            String field
     ) {
     }
 

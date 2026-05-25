@@ -556,8 +556,10 @@ public class RequirementTestCaseGeneratorService {
                 flightSubmitAction
         );
 
-        feature.append("    And user clicks \"outbound flight\"\n")
-                .append("    And user clicks \"return flight\"\n")
+        feature.append("    Then user should see \"First Name\"\n")
+                .append("    And user should see \"Last Name\"\n")
+                .append("    And user enters \"${firstName}\" into \"First Name\"\n")
+                .append("    And user enters \"${lastName}\" into \"Last Name\"\n")
                 .append("    And user clicks \"continue\"\n")
                 .append("    Then flow should complete successfully\n\n");
 
@@ -570,7 +572,8 @@ public class RequirementTestCaseGeneratorService {
                 flightSubmitAction
         );
 
-        feature.append("    And user clicks \"outbound flight\"\n")
+        feature.append("    Then user should see \"First Name\"\n")
+                .append("    And user should see \"Last Name\"\n")
                 .append("    And user clicks \"continue\"\n")
                 .append("    Then user should see \"required field error\"\n\n");
 
