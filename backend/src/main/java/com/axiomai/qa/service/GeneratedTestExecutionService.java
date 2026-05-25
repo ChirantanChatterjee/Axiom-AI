@@ -388,37 +388,50 @@ public class GeneratedTestExecutionService {
             String latestOutput =
                     latestQueuedExecutionOutput(sessionId);
 
-            OpenAIGeneratedTestRepairService.OpenAIRepairAttempt openAIRepair =
-                    openAIGeneratedTestRepairService
-                            .repair(
-                                    frameworkRoot,
-                                    latestOutput,
-                                    userInstruction
-                            );
+            GeneratedFeatureRepairService.RepairResult deterministicRepair =
+                    generatedFeatureRepairService.repair(
+                            frameworkRoot,
+                            latestOutput,
+                            userInstruction
+                    );
 
             GeneratedFeatureRepairService.RepairResult repair;
 
             if (
-                    openAIRepair.isRepaired()
+                    deterministicRepair.isChanged()
             ) {
 
                 repair =
-                        openAIRepair.getRepairResult();
+                        withFallbackRepairMetadata(
+                                deterministicRepair,
+                                "Applied deterministic feature-file repair before OpenAI because generated test steps can be wrong even when support code is valid."
+                        );
 
             } else {
 
-                GeneratedFeatureRepairService.RepairResult fallbackRepair =
-                        generatedFeatureRepairService.repair(
-                                frameworkRoot,
-                                latestOutput,
-                                userInstruction
-                        );
+                OpenAIGeneratedTestRepairService.OpenAIRepairAttempt openAIRepair =
+                        openAIGeneratedTestRepairService
+                                .repair(
+                                        frameworkRoot,
+                                        latestOutput,
+                                        userInstruction
+                                );
 
-                repair =
-                        withFallbackRepairMetadata(
-                                fallbackRepair,
-                                openAIRepair.getFallbackReason()
-                        );
+                if (
+                        openAIRepair.isRepaired()
+                ) {
+
+                    repair =
+                            openAIRepair.getRepairResult();
+
+                } else {
+
+                    repair =
+                            withFallbackRepairMetadata(
+                                    deterministicRepair,
+                                    openAIRepair.getFallbackReason()
+                            );
+                }
             }
 
             boolean learned =

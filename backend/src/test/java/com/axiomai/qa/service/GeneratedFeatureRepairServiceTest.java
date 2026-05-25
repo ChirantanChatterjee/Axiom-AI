@@ -10,6 +10,114 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GeneratedFeatureRepairServiceTest {
 
     @Test
+    void rewritesWrongGeneratedClickTargetWhenUserProvidesActualActionLabel() {
+
+        String feature =
+                """
+                        Feature: select flight
+
+                        @select_flight @generated
+                        Scenario: User successfully selects a return flight journey
+                          Given user launches "https://travel.agileway.net/login"
+                          And user clicks "search flights"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.RuntimeException: Unable to resolve element: search flights",
+                                "There is no button present on the page as \"search flights\" it just says \"continue\"."
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user clicks \"continue\"")
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("user clicks \"search flights\""))
+                        .count()
+        );
+    }
+
+    @Test
+    void rewritesWrongGeneratedClickTargetFromObservedCrawlerAction() {
+
+        String feature =
+                """
+                        Feature: select flight
+
+                        @select_flight @generated
+                        Scenario: User successfully selects a return flight journey
+                          Given user launches "https://travel.agileway.net/login"
+                          And user clicks "search flights"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                """
+                                        java.lang.RuntimeException: Unable to resolve element: search flights
+                                        ELEMENT -> TAG=INPUT | TEXT=Continue | TYPE=submit | NAME= | PLACEHOLDER= | ARIA= | ROLE=NEXT_BUTTON | SELECTOR=input[type='submit'][value='Continue']
+                                        """,
+                                ""
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user clicks \"continue\"")
+        );
+    }
+
+    @Test
+    void doesNotReplaceNonActionControlWithObservedContinueButton() {
+
+        String feature =
+                """
+                        Feature: select flight
+
+                        @select_flight @generated
+                        Scenario: User successfully selects a return flight journey
+                          Given user launches "https://travel.agileway.net/login"
+                          And user clicks "return journey"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                """
+                                        java.lang.RuntimeException: Unable to resolve element: return journey
+                                        ELEMENT -> TAG=INPUT | TEXT=Continue | TYPE=submit | NAME= | PLACEHOLDER= | ARIA= | ROLE=NEXT_BUTTON | SELECTOR=input[type='submit'][value='Continue']
+                                        """,
+                                ""
+                        );
+
+        assertEquals(
+                List.of(),
+                repair.changes()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user clicks \"return journey\"")
+        );
+    }
+
+    @Test
     void repairsParaBankBillPayGeneratedFeatureAfterLocatorFailure() {
 
         String feature =

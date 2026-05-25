@@ -183,6 +183,8 @@ public class OpenAIGeneratedTestRepairService {
                 - Only update files listed in the input.
                 - Preserve existing project structure, package names, Cucumber step style, and Java syntax.
                 - Prefer fixing the generated feature, page object, or step definitions over deleting assertions blindly.
+                - If a step clicks a label that is not present in the application (for example the feature says click "search flights" but the crawler/runtime evidence shows the actual submit action is "Continue"), update the .feature step to the real observed label. Do not add a page-object alias for a control that does not exist.
+                - For "Unable to resolve element: <target>", first decide whether <target> is a bad generated Gherkin target. If it is, repair the feature file. Only patch GeneratedPage.java when the target is a real UI label/field and the locator strategy is missing.
                 - If this is runtime data, invalid credentials, CAPTCHA, browser installation, or external service instability, set canRepair=false and explain why.
                 - If you repair, include complete replacement content for each changed file.
 

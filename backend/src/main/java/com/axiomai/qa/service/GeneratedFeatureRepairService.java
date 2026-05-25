@@ -156,6 +156,20 @@ public class GeneratedFeatureRepairService {
             );
         }
 
+        FeatureRepair actionTargetRepair =
+                repairIncorrectGeneratedActionTarget(
+                        content,
+                        latestOutput,
+                        userInstruction
+                );
+
+        if (
+                actionTargetRepair.changed()
+        ) {
+
+            return actionTargetRepair;
+        }
+
         FeatureRepair assertionTextRepair =
                 repairUserProvidedAssertionText(
                         content,
@@ -212,6 +226,526 @@ public class GeneratedFeatureRepairService {
                         .distinct()
                         .toList()
         );
+    }
+
+    private FeatureRepair repairIncorrectGeneratedActionTarget(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        Optional<String> failedTarget =
+                unresolvedElementTarget(latestOutput);
+
+        List<ActionTargetReplacement> replacements =
+                actionTargetReplacements(
+                        failedTarget,
+                        latestOutput,
+                        userInstruction
+                );
+
+        if (
+                replacements.isEmpty()
+        ) {
+
+            return new FeatureRepair(
+                    content,
+                    List.of()
+            );
+        }
+
+        List<String> lines =
+                content.lines()
+                        .toList();
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        for (
+                String line
+                : lines
+        ) {
+
+            Matcher clickStep =
+                    Pattern.compile(
+                                    "^(\\s*)(When|And) user clicks \"([^\"]+)\"\\s*$",
+                                    Pattern.CASE_INSENSITIVE
+                            )
+                            .matcher(line);
+
+            if (
+                    clickStep.matches()
+            ) {
+
+                String currentTarget =
+                        clickStep.group(3);
+
+                Optional<ActionTargetReplacement> replacement =
+                        replacements.stream()
+                                .filter(candidate -> candidate.from()
+                                        .equalsIgnoreCase(currentTarget))
+                                .findFirst();
+
+                if (
+                        replacement.isPresent()
+                ) {
+
+                    String nextTarget =
+                            normalizeGeneratedActionTarget(
+                                    replacement.get()
+                                            .to()
+                            );
+
+                    line =
+                            clickStep.group(1)
+                                    + clickStep.group(2)
+                                    + " user clicks \""
+                                    + sanitizeStepText(nextTarget)
+                                    + "\"";
+
+                    changes.add(
+                            "Updated generated click target from \""
+                                    + currentTarget
+                                    + "\" to \""
+                                    + nextTarget
+                                    + "\"."
+                    );
+                }
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes.stream()
+                        .distinct()
+                        .toList()
+        );
+    }
+
+    private List<ActionTargetReplacement> actionTargetReplacements(
+            Optional<String> failedTarget,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        List<ActionTargetReplacement> replacements =
+                new ArrayList<>();
+
+        replacements.addAll(
+                explicitActionTargetReplacements(
+                        userInstruction
+                )
+        );
+
+        if (
+                failedTarget.isPresent()
+                        &&
+                        replacements.stream()
+                                .noneMatch(replacement -> replacement.from()
+                                        .equalsIgnoreCase(
+                                                failedTarget.get()
+                                        ))
+        ) {
+
+            observedActionTarget(
+                    combinedOutput(
+                            latestOutput,
+                            userInstruction
+                    )
+            )
+                    .filter(observed -> shouldReplaceGeneratedActionTarget(
+                            failedTarget.get(),
+                            observed
+                    ))
+                    .ifPresent(observed -> replacements.add(
+                            new ActionTargetReplacement(
+                                    failedTarget.get(),
+                                    observed
+                            )
+                    ));
+        }
+
+        if (
+                failedTarget.isEmpty()
+        ) {
+
+            return replacements.stream()
+                    .filter(replacement -> !replacement.from()
+                            .isBlank())
+                    .filter(replacement -> !replacement.to()
+                            .isBlank())
+                    .distinct()
+                    .toList();
+        }
+
+        return replacements.stream()
+                .filter(replacement -> replacement.from()
+                        .equalsIgnoreCase(
+                                failedTarget.get()
+                        ))
+                .filter(replacement -> !replacement.to()
+                        .isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private List<ActionTargetReplacement> explicitActionTargetReplacements(
+            String userInstruction
+    ) {
+
+        if (
+                userInstruction == null
+                        ||
+                        userInstruction.isBlank()
+        ) {
+
+            return List.of();
+        }
+
+        List<ActionTargetReplacement> replacements =
+                new ArrayList<>();
+
+        List<Pattern> patterns =
+                List.of(
+                        Pattern.compile(
+                                "(?i)(?:replace|change|update|rewrite)\\s+\"([^\"]+)\"\\s+(?:to|with|as)\\s+\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:no|not|without|missing|there\\s+(?:is|are)\\s+no)[^\\r\\n\"]{0,180}\"([^\"]+)\"[^\\r\\n\"]{0,180}(?:just\\s+says|says|shows|actual(?:ly)?\\s+(?:says|is)|should\\s+be|is\\s+(?:called|label(?:led|ed)?))[^\\r\\n\"]{0,80}\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)\"([^\"]+)\"[^\\r\\n\"]{0,180}(?:just\\s+says|says|shows|actual(?:ly)?\\s+(?:says|is)|should\\s+be|is\\s+(?:called|label(?:led|ed)?))[^\\r\\n\"]{0,80}\"([^\"]+)\""
+                        )
+                );
+
+        for (
+                Pattern pattern
+                : patterns
+        ) {
+
+            Matcher matcher =
+                    pattern.matcher(userInstruction);
+
+            while (
+                    matcher.find()
+            ) {
+
+                String from =
+                        matcher.group(1)
+                                .trim();
+
+                String to =
+                        matcher.group(2)
+                                .trim();
+
+                if (
+                        !from.equalsIgnoreCase(to)
+                ) {
+
+                    replacements.add(
+                            new ActionTargetReplacement(
+                                    from,
+                                    to
+                            )
+                    );
+                }
+            }
+        }
+
+        return replacements.stream()
+                .filter(replacement -> !replacement.from()
+                        .isBlank())
+                .filter(replacement -> !replacement.to()
+                        .isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private Optional<String> unresolvedElementTarget(
+            String output
+    ) {
+
+        if (
+                output == null
+                        ||
+                        output.isBlank()
+        ) {
+
+            return Optional.empty();
+        }
+
+        Matcher matcher =
+                Pattern.compile(
+                                "Unable to resolve element: ([^\\r\\n]+)",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(output);
+
+        if (
+                !matcher.find()
+        ) {
+
+            return Optional.empty();
+        }
+
+        String target =
+                matcher.group(1)
+                        .trim();
+
+        return target.isBlank()
+                ? Optional.empty()
+                : Optional.of(target);
+    }
+
+    private Optional<String> observedActionTarget(
+            String output
+    ) {
+
+        if (
+                output == null
+                        ||
+                        output.isBlank()
+        ) {
+
+            return Optional.empty();
+        }
+
+        Pattern elementLine =
+                Pattern.compile(
+                        "ELEMENT\\s*->\\s*TAG=([^|]+)\\|\\s*TEXT=([^|]*)\\|[^\\r\\n]*?ROLE=([^|\\r\\n]+)",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        for (
+                String line
+                : output.lines()
+                .toList()
+        ) {
+
+            Matcher matcher =
+                    elementLine.matcher(line);
+
+            if (
+                    !matcher.find()
+            ) {
+
+                continue;
+            }
+
+            String tag =
+                    matcher.group(1)
+                            .trim()
+                            .toLowerCase();
+
+            String text =
+                    matcher.group(2)
+                            .trim();
+
+            String role =
+                    matcher.group(3)
+                            .trim()
+                            .toUpperCase();
+
+            if (
+                    text.isBlank()
+                            ||
+                            role.equals("LOGIN_BUTTON")
+            ) {
+
+                continue;
+            }
+
+            if (
+                    role.equals("NEXT_BUTTON")
+                            ||
+                            role.equals("PRIMARY_ACTION_BUTTON")
+                            ||
+                            role.equals("SEARCH_BUTTON")
+                            ||
+                            role.equals("SUBMIT_BUTTON")
+                            ||
+                            tag.equals("button")
+                            ||
+                            tag.equals("input")
+                            ||
+                            tag.equals("a")
+            ) {
+
+                return Optional.of(text);
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private boolean shouldReplaceGeneratedActionTarget(
+            String failedTarget,
+            String observedTarget
+    ) {
+
+        if (
+                failedTarget == null
+                        ||
+                        observedTarget == null
+        ) {
+
+            return false;
+        }
+
+        String failed =
+                failedTarget.trim()
+                        .toLowerCase();
+
+        String observed =
+                observedTarget.trim()
+                        .toLowerCase();
+
+        if (
+                failed.isBlank()
+                        ||
+                        observed.isBlank()
+                        ||
+                        failed.equals(observed)
+        ) {
+
+            return false;
+        }
+
+        return looksLikeGeneratedActionPhrase(failed)
+                &&
+                looksLikeObservedActionLabel(observed);
+    }
+
+    private boolean looksLikeGeneratedActionPhrase(
+            String target
+    ) {
+
+        return target.contains("search")
+                ||
+                target.contains("submit")
+                ||
+                target.contains("continue")
+                ||
+                target.contains("proceed")
+                ||
+                target.contains("next")
+                ||
+                target.contains("find")
+                ||
+                target.contains("save")
+                ||
+                target.contains("send")
+                ||
+                target.contains("pay")
+                ||
+                target.contains("book")
+                ||
+                target.contains("create")
+                ||
+                target.contains("finish");
+    }
+
+    private boolean looksLikeObservedActionLabel(
+            String target
+    ) {
+
+        return target.equals("continue")
+                ||
+                target.equals("next")
+                ||
+                target.equals("submit")
+                ||
+                target.equals("search")
+                ||
+                target.equals("find")
+                ||
+                target.equals("save")
+                ||
+                target.equals("send")
+                ||
+                target.equals("pay")
+                ||
+                target.equals("book")
+                ||
+                target.equals("finish")
+                ||
+                target.equals("checkout")
+                ||
+                target.equals("confirm")
+                ||
+                target.equals("apply")
+                ||
+                target.equals("go")
+                ||
+                target.length() <= 32;
+    }
+
+    private String normalizeGeneratedActionTarget(
+            String target
+    ) {
+
+        if (
+                target == null
+        ) {
+
+            return "";
+        }
+
+        String normalized =
+                target.trim()
+                        .replaceAll(
+                                "\\s+",
+                                " "
+                        );
+
+        String lower =
+                normalized.toLowerCase();
+
+        if (
+                lower.equals("continue")
+                        ||
+                        lower.equals("next")
+                        ||
+                        lower.equals("submit")
+                        ||
+                        lower.equals("search")
+                        ||
+                        lower.equals("find")
+                        ||
+                        lower.equals("save")
+                        ||
+                        lower.equals("send")
+                        ||
+                        lower.equals("pay")
+                        ||
+                        lower.equals("book")
+                        ||
+                        lower.equals("finish")
+                        ||
+                        lower.equals("checkout")
+                        ||
+                        lower.equals("confirm")
+                        ||
+                        lower.equals("apply")
+                        ||
+                        lower.equals("go")
+        ) {
+
+            return lower;
+        }
+
+        return normalized;
     }
 
     private boolean shouldRepairParaBankBillPay(
@@ -1687,6 +2221,12 @@ public class GeneratedFeatureRepairService {
     private record AssertionReplacement(
             String expected,
             String actual
+    ) {
+    }
+
+    private record ActionTargetReplacement(
+            String from,
+            String to
     ) {
     }
 
