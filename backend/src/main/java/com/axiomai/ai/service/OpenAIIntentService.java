@@ -97,7 +97,7 @@ Rules:
 - GENERATE_FEATURE means the user wants a specific feature/scenario/test created or updated.
 - Phrases such as "generate more tests", "add edge cases", "add negative tests", or "create boundary scenarios" for a named feature are GENERATE_FEATURE.
 - Treat "bill pay", "billpay", "bill payment", and "pay bill" as featureName "bill pay".
-- UPDATE_TEST_DATA means the user provides values such as username, password, email, search term, or other field data. Do not classify assertion-text corrections as UPDATE_TEST_DATA.
+- UPDATE_TEST_DATA means the user provides values such as username, password, email, search term, firstName, lastName, or other field data. Do not classify assertion-text corrections or failure explanations like "there is only a Next button" as UPDATE_TEST_DATA.
 - EXECUTE_FEATURE means the user wants to run a named generated feature.
 - EXECUTE_FLOW means the user wants to run a detected or stored flow.
 - SHOW_GENERATED_TEST_TAGS means the user asks for available generated-test tags.

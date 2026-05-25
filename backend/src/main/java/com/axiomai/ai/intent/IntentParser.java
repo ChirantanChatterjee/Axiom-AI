@@ -1484,6 +1484,12 @@ public class IntentParser {
                         ||
                         lower.contains("correct")
                         ||
+                        lower.contains("incorrect")
+                        ||
+                        lower.contains("wrong")
+                        ||
+                        lower.contains("invalid")
+                        ||
                         lower.contains("update")
                         ||
                         lower.contains("look at")
@@ -1760,7 +1766,7 @@ public class IntentParser {
 
         Pattern unquoted =
                 Pattern.compile(
-                        "\\b(username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp|from|to|origin|destination|journey type|journey)\\s*(?:=|:|is|as)\\s*([^,;]+?)(?=\\s+(?:and\\s+)?(?:username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|last name|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp|from|to|origin|destination|journey type|journey)\\s*(?:=|:|is|as)\\s*|$|[,;])",
+                        "\\b(username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|firstname|last name|lastname|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp|from|to|origin|destination|journey type|journey)\\s*(?:=|:|is|as)\\s*([^,;]+?)(?=\\s+(?:and\\s+)?(?:username|user|password|pass|confirm password|confirmation password|email|ssn|search term|search|first name|firstname|last name|lastname|phone|payee|address|city|state|postal code|zip code|postcode|zip|account|verify account|amount|product|quantity|token|otp|from|to|origin|destination|journey type|journey)\\s*(?:=|:|is|as)\\s*|$|[,;])",
                         Pattern.CASE_INSENSITIVE
                 );
 
@@ -1846,7 +1852,7 @@ public class IntentParser {
                         .toLowerCase();
 
         return !Pattern.compile(
-                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags)\\b"
+                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags|failed|failure|failing|repair|fix|gherkin|invalid|button|field|page|click|clicking|after|because)\\b"
                 )
                 .matcher(prefix)
                 .find();
@@ -1962,9 +1968,11 @@ public class IntentParser {
 
             case "journey type" -> "journeyType";
 
-            case "first name" -> "firstName";
+            case "first name",
+                 "firstname" -> "firstName";
 
-            case "last name" -> "lastName";
+            case "last name",
+                 "lastname" -> "lastName";
 
             case "postal code",
                  "zip code",
@@ -2154,6 +2162,12 @@ public class IntentParser {
                  "scenario",
                  "test",
                  "tests",
+                 "there",
+                 "then",
+                 "after",
+                 "because",
+                 "only",
+                 "hence",
                  "tag",
                  "tags",
                  "generated" -> true;

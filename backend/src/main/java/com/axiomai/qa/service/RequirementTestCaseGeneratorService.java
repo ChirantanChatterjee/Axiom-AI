@@ -168,9 +168,10 @@ public class RequirementTestCaseGeneratorService {
                   Then cart should not contain "<product>"
                   Then checkout total should equal item total plus tax
                   Then flow should complete successfully
-                - Use runtime placeholders for test data when appropriate: ${username}, ${password}, ${email}, ${search}, ${product}, ${quantity}, ${from}, ${to}.
+                - Use runtime placeholders for test data when appropriate: ${username}, ${password}, ${email}, ${search}, ${product}, ${quantity}, ${from}, ${to}, ${firstName}, ${lastName}.
                 - For payment forms, use runtime placeholders when appropriate: ${payee}, ${address}, ${city}, ${state}, ${zip}, ${phone}, ${account}, ${amount}.
                 - For travel flight selection, do not use a generic ${search} placeholder. Use explicit ${from} and ${to} placeholders and tag scenarios with @select_flight.
+                - For Agile Travel return journeys, after the flight-search "continue" action the passenger details page shows First Name, Last Name, and a Next button. Enter ${firstName} and ${lastName}, then click "next".
                 - Prefer crawler-observed controls and exact visible action labels. Do not invent buttons such as "search flights" unless the crawler observed that label.
                 - If the crawler shows a submit action such as "Continue", click "continue" rather than a guessed domain phrase.
                 - Keep targets semantic and short, for example "username", "password", "login button", "search", "add to cart".
@@ -560,7 +561,7 @@ public class RequirementTestCaseGeneratorService {
                 .append("    And user should see \"Last Name\"\n")
                 .append("    And user enters \"${firstName}\" into \"First Name\"\n")
                 .append("    And user enters \"${lastName}\" into \"Last Name\"\n")
-                .append("    And user clicks \"continue\"\n")
+                .append("    And user clicks \"next\"\n")
                 .append("    Then flow should complete successfully\n\n");
 
         feature.append("  @generated @ai_requirement @select_flight @return_journey @negative @required_field\n")
@@ -574,7 +575,7 @@ public class RequirementTestCaseGeneratorService {
 
         feature.append("    Then user should see \"First Name\"\n")
                 .append("    And user should see \"Last Name\"\n")
-                .append("    And user clicks \"continue\"\n")
+                .append("    And user clicks \"next\"\n")
                 .append("    Then user should see \"required field error\"\n\n");
 
         feature.append("  @generated @ai_requirement @select_flight @return_journey @negative @validation\n")

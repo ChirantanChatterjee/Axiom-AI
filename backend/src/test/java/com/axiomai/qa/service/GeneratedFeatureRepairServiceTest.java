@@ -120,7 +120,7 @@ class GeneratedFeatureRepairServiceTest {
 
         assertTrue(
                 repair.content()
-                        .contains("And user clicks \"continue\"")
+                        .contains("And user clicks \"next\"")
         );
 
         assertTrue(
@@ -217,7 +217,7 @@ class GeneratedFeatureRepairServiceTest {
 
         assertTrue(
                 repair.content()
-                        .contains("And user clicks \"continue\"")
+                        .contains("And user clicks \"next\"")
         );
 
         assertEquals(
@@ -233,6 +233,50 @@ class GeneratedFeatureRepairServiceTest {
                 repair.content()
                         .lines()
                         .filter(line -> line.contains("outbound flight"))
+                        .count()
+        );
+    }
+
+    @Test
+    void replacesPassengerDetailsContinueWithNextButton() {
+
+        String feature =
+                """
+                        Feature: select flight
+
+                        @select_flight @generated @positive
+                        Scenario: User successfully selects a return flight journey
+                          Given user launches "https://travel.agileway.net/login"
+                          When user clicks "continue"
+                          Then user should see "First Name"
+                          And user should see "Last Name"
+                          And user enters "Chirantan" into "First Name"
+                          And user enters "Chatterjee" into "Last Name"
+                          And user clicks "continue"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.RuntimeException: Unable to resolve element: continue",
+                                "After clicking continue the page shows First Name and Last Name fields with a Next button. The gherkin repeats to click the continue button after entering first name and last name."
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user clicks \"next\"")
+        );
+
+        assertEquals(
+                1,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("user clicks \"continue\""))
                         .count()
         );
     }

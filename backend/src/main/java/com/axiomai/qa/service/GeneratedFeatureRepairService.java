@@ -884,6 +884,12 @@ public class GeneratedFeatureRepairService {
         StringBuilder repaired =
                 new StringBuilder();
 
+        boolean passengerDetailsInsertedInScenario =
+                false;
+
+        boolean passengerNameEntrySeenInScenario =
+                false;
+
         for (
                 int i = 0;
                 i < lines.size();
@@ -892,6 +898,17 @@ public class GeneratedFeatureRepairService {
 
             String line =
                     lines.get(i);
+
+            if (
+                    isScenarioStart(line)
+            ) {
+
+                passengerDetailsInsertedInScenario =
+                        false;
+
+                passengerNameEntrySeenInScenario =
+                        false;
+            }
 
             if (
                     shouldRepairTravelScenario(
@@ -980,10 +997,52 @@ public class GeneratedFeatureRepairService {
                 }
             }
 
+            if (
+                    isContinueClick(line)
+                            &&
+                            shouldRepairTravelScenario(
+                                    lines,
+                                    i,
+                                    userInstruction
+                            )
+                            &&
+                            (
+                                    passengerDetailsInsertedInScenario
+                                            ||
+                                            passengerNameEntrySeenInScenario
+                                            ||
+                                            scenarioHasPassengerNameEntryBefore(
+                                                    lines,
+                                                    i,
+                                                    "First Name"
+                                            )
+                                            ||
+                                            scenarioHasPassengerNameEntryBefore(
+                                                    lines,
+                                                    i,
+                                                    "Last Name"
+                                            )
+                            )
+            ) {
+
+                line =
+                        stepIndent(line)
+                                + clickKeyword(line)
+                                + " user clicks \"next\"";
+
+                changes.add(
+                        "Changed passenger-details submit action from \"continue\" to \"next\"."
+                );
+            }
+
             repaired.append(line)
                     .append(System.lineSeparator());
 
             if (
+                    !passengerDetailsInsertedInScenario
+                            &&
+                            !passengerNameEntrySeenInScenario
+                            &&
                     isTravelFlightSearchContinue(
                             lines,
                             i,
@@ -1002,7 +1061,7 @@ public class GeneratedFeatureRepairService {
                         repaired,
                         stepIndent(line),
                         passengerNames,
-                        !hasLaterContinueBeforeScenario(
+                        !hasLaterPassengerSubmitBeforeScenario(
                                 lines,
                                 i
                         )
@@ -1011,6 +1070,12 @@ public class GeneratedFeatureRepairService {
                 changes.add(
                         "Inserted passenger First Name and Last Name steps after the flight-search Continue action."
                 );
+
+                passengerDetailsInsertedInScenario =
+                        true;
+
+                passengerNameEntrySeenInScenario =
+                        true;
             }
 
             if (
@@ -1025,19 +1090,27 @@ public class GeneratedFeatureRepairService {
                                     userInstruction
                             )
                             &&
-                            !hasLaterContinueBeforeScenario(
+                            !hasLaterPassengerSubmitBeforeScenario(
                                     lines,
                                     i
                             )
             ) {
 
                 repaired.append(passengerFieldEntry.indent())
-                        .append("And user clicks \"continue\"")
+                        .append("And user clicks \"next\"")
                         .append(System.lineSeparator());
 
                 changes.add(
-                        "Added Continue after passenger details."
+                        "Added Next after passenger details."
                 );
+            }
+
+            if (
+                    passengerFieldEntry != null
+            ) {
+
+                passengerNameEntrySeenInScenario =
+                        true;
             }
         }
 
@@ -1450,6 +1523,20 @@ public class GeneratedFeatureRepairService {
         return click.matches();
     }
 
+    private boolean isNextClick(
+            String line
+    ) {
+
+        Matcher click =
+                Pattern.compile(
+                                "^(\\s*)(When|And) user clicks \"next\"\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        return click.matches();
+    }
+
     private boolean scenarioHasPassengerNameEntries(
             List<String> lines,
             int index
@@ -1547,7 +1634,7 @@ public class GeneratedFeatureRepairService {
         return false;
     }
 
-    private boolean hasLaterContinueBeforeScenario(
+    private boolean hasLaterPassengerSubmitBeforeScenario(
             List<String> lines,
             int index
     ) {
@@ -1567,6 +1654,8 @@ public class GeneratedFeatureRepairService {
 
             if (
                     isContinueClick(lines.get(i))
+                            ||
+                            isNextClick(lines.get(i))
             ) {
 
                 return true;
@@ -1580,7 +1669,7 @@ public class GeneratedFeatureRepairService {
             StringBuilder repaired,
             String indent,
             PassengerNames passengerNames,
-            boolean includeContinue
+            boolean includeSubmit
     ) {
 
         repaired.append(indent)
@@ -1601,13 +1690,34 @@ public class GeneratedFeatureRepairService {
                 .append(System.lineSeparator());
 
         if (
-                includeContinue
+                includeSubmit
         ) {
 
             repaired.append(indent)
-                    .append("And user clicks \"continue\"")
+                    .append("And user clicks \"next\"")
                     .append(System.lineSeparator());
         }
+    }
+
+    private String clickKeyword(
+            String line
+    ) {
+
+        Matcher click =
+                Pattern.compile(
+                                "^(\\s*)(When|And) user clicks \"[^\"]+\"\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        if (
+                click.matches()
+        ) {
+
+            return click.group(2);
+        }
+
+        return "And";
     }
 
     private PassengerFieldEntry passengerFieldEntry(

@@ -380,6 +380,10 @@ class RequirementTestCaseGeneratorServiceTest {
         );
 
         assertTrue(
+                feature.contains("user clicks \"next\"")
+        );
+
+        assertTrue(
                 feature.contains("user enters \"${firstName}\" into \"First Name\"")
         );
 

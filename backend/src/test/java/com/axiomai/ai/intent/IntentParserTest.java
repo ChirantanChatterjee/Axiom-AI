@@ -290,6 +290,58 @@ class IntentParserTest {
     }
 
     @Test
+    void parsesFirstNameAndLastnameRuntimeValuesWithoutOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "First Name is Chirantan and Lastname is Chatterjee"
+                );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "Chirantan",
+                command.getVariables()
+                        .get("firstName")
+        );
+
+        assertEquals(
+                "Chatterjee",
+                command.getVariables()
+                        .get("lastName")
+        );
+    }
+
+    @Test
+    void doesNotTreatFailureExplanationWithThereIsAsRuntimeData() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "The tests failed because there are no \"Select your departure flight\" fields after clicking continue. There is only First Name and Last Name field along with a Next button. Hence the gherkin are invalid."
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+    }
+
+    @Test
     void parsesGenericRuntimePlaceholderValuesWithoutOpenAi() {
 
         IntentParser parser =
