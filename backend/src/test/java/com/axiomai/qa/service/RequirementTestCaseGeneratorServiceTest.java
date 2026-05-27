@@ -298,6 +298,41 @@ class RequirementTestCaseGeneratorServiceTest {
     }
 
     @Test
+    void aiGeneratedRequirementScenariosAreNormalizedWithRunnableFeatureTags() {
+
+        RequirementTestCaseGeneratorService service =
+                new RequirementTestCaseGeneratorService(
+                        new MissingTagsOpenAIService(),
+                        new StubFrameworkGeneratorService(),
+                        new EmptyFrameworkLearningService()
+                );
+
+        GeneratedFramework framework =
+                service.generate(
+                        "Add checkout tests for the SauceDemo cart flow.",
+                        "checkout",
+                        "https://www.saucedemo.com",
+                        List.of(new DetectedFlow()),
+                        "chat-one"
+                );
+
+        String feature =
+                framework.getFeatureFile();
+
+        assertTrue(
+                feature.contains("@generated @ai_requirement @checkout")
+        );
+
+        assertTrue(
+                feature.contains("Scenario: Complete checkout")
+        );
+
+        assertFalse(
+                feature.contains("@ai_generated")
+        );
+    }
+
+    @Test
     void billPayGenerationRejectsHallucinatedAiLaunchUrlWhenNoUrlIsExplicit() {
 
         RequirementTestCaseGeneratorService service =
@@ -527,6 +562,28 @@ class RequirementTestCaseGeneratorServiceTest {
                       When user enters "${username}" into "username"
                       And user enters "${password}" into "password"
                       And user enters "${search}" into "search"
+                      Then flow should complete successfully
+                    """;
+        }
+    }
+
+    private static class MissingTagsOpenAIService
+            extends OpenAIService {
+
+        @Override
+        public String ask(
+                String prompt
+        ) {
+
+            return """
+                    Feature: Checkout
+
+                    Scenario: Complete checkout
+                      Given user launches "https://www.saucedemo.com"
+                      When user enters "${username}" into "username"
+                      And user enters "${password}" into "password"
+                      And user clicks "login button"
+                      And user clicks "checkout"
                       Then flow should complete successfully
                     """;
         }

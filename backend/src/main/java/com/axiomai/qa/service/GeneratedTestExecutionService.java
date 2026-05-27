@@ -24,9 +24,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -98,6 +100,19 @@ public class GeneratedTestExecutionService {
                                 )
                         );
 
+        boolean featureFilesChanged =
+                normalizeFeatureFiles(frameworkRoot);
+
+        if (
+                featureFilesChanged
+                        &&
+                        generatedFrameworkPersistenceService != null
+        ) {
+
+            generatedFrameworkPersistenceService
+                    .persistFramework(sessionId);
+        }
+
         List<GeneratedTestTag> tags =
                 parseTags(frameworkRoot);
 
@@ -133,7 +148,8 @@ public class GeneratedTestExecutionService {
         String normalizedExpression =
                 normalizeTagExpression(tagExpression);
 
-        normalizeFeatureFiles(frameworkRoot);
+        boolean featureFilesChanged =
+                normalizeFeatureFiles(frameworkRoot);
 
         requireMatchingScenarios(
                 frameworkRoot,
@@ -180,7 +196,13 @@ public class GeneratedTestExecutionService {
             }
 
             if (
-                    supportFilesChanged
+                    (
+                            supportFilesChanged
+                                    ||
+                                    featureFilesChanged
+                    )
+                            &&
+                            generatedFrameworkPersistenceService != null
             ) {
 
                 generatedFrameworkPersistenceService
@@ -820,7 +842,7 @@ public class GeneratedTestExecutionService {
         }
     }
 
-    private void normalizeFeatureFiles(
+    private boolean normalizeFeatureFiles(
             Path frameworkRoot
     ) {
 
@@ -833,8 +855,11 @@ public class GeneratedTestExecutionService {
                 !Files.exists(featureRoot)
         ) {
 
-            return;
+            return false;
         }
+
+        boolean changed =
+                false;
 
         try (
                 Stream<Path> paths =
@@ -857,12 +882,9 @@ public class GeneratedTestExecutionService {
                         Files.readString(featureFile);
 
                 String normalized =
-                        content.replaceAll(
-                                "(?i)\\bYYYY\\b",
-                                String.valueOf(
-                                        Year.now()
-                                                .getValue()
-                                )
+                        normalizeFeatureContent(
+                                content,
+                                featureFile
                         );
 
                 if (
@@ -873,6 +895,9 @@ public class GeneratedTestExecutionService {
                             featureFile,
                             normalized
                     );
+
+                    changed =
+                            true;
                 }
             }
 
@@ -883,6 +908,209 @@ public class GeneratedTestExecutionService {
                     e
             );
         }
+
+        return changed;
+    }
+
+    private String normalizeFeatureContent(
+            String content,
+            Path featureFile
+    ) {
+
+        String normalized =
+                content.replaceAll(
+                        "(?i)\\bYYYY\\b",
+                        String.valueOf(
+                                Year.now()
+                                        .getValue()
+                        )
+                );
+
+        return ensureScenarioTags(
+                normalized,
+                featureFileTag(featureFile)
+        );
+    }
+
+    private String ensureScenarioTags(
+            String feature,
+            String featureTag
+    ) {
+
+        if (
+                feature == null
+                        ||
+                        feature.isBlank()
+        ) {
+
+            return "";
+        }
+
+        Set<String> requiredTags =
+                new LinkedHashSet<>();
+
+        requiredTags.add("@generated");
+        requiredTags.add("@ai_requirement");
+
+        if (
+                featureTag != null
+                        &&
+                        !featureTag.isBlank()
+        ) {
+
+            requiredTags.add("@"
+                    + featureTag);
+        }
+
+        String[] lines =
+                feature.split(
+                        "\\R",
+                        -1
+                );
+
+        List<String> output =
+                new ArrayList<>();
+
+        List<String> pendingTagLines =
+                new ArrayList<>();
+
+        for (String line : lines) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTagLines.add(line);
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Scenario:")
+                            ||
+                            trimmed.startsWith("Scenario Outline:")
+            ) {
+
+                output.add(
+                        scenarioIndent(line)
+                                + mergedScenarioTags(
+                                        pendingTagLines,
+                                        requiredTags
+                                )
+                );
+                pendingTagLines.clear();
+                output.add(line);
+                continue;
+            }
+
+            if (
+                    !pendingTagLines.isEmpty()
+            ) {
+
+                output.addAll(pendingTagLines);
+                pendingTagLines.clear();
+            }
+
+            output.add(line);
+        }
+
+        if (
+                !pendingTagLines.isEmpty()
+        ) {
+
+            output.addAll(pendingTagLines);
+        }
+
+        return String.join(
+                "\n",
+                output
+        )
+                .replaceAll("\\s*$", "")
+                + "\n";
+    }
+
+    private String scenarioIndent(
+            String scenarioLine
+    ) {
+
+        int index =
+                0;
+
+        while (
+                index < scenarioLine.length()
+                        &&
+                        Character.isWhitespace(
+                                scenarioLine.charAt(index)
+                        )
+        ) {
+
+            index++;
+        }
+
+        return index == 0
+                ? "  "
+                : scenarioLine.substring(
+                        0,
+                        index
+                );
+    }
+
+    private String mergedScenarioTags(
+            List<String> pendingTagLines,
+            Set<String> requiredTags
+    ) {
+
+        Set<String> tags =
+                new LinkedHashSet<>(requiredTags);
+
+        for (String tagLine : pendingTagLines) {
+
+            for (
+                    String tag
+                    : tagLine.trim()
+                            .split("\\s+")
+            ) {
+
+                if (
+                        tag.startsWith("@")
+                ) {
+
+                    tags.add(tag);
+                }
+            }
+        }
+
+        return String.join(
+                " ",
+                tags
+        );
+    }
+
+    private String featureFileTag(
+            Path featureFile
+    ) {
+
+        String fileName =
+                featureFile.getFileName()
+                        .toString();
+
+        if (
+                fileName.endsWith(".feature")
+        ) {
+
+            fileName =
+                    fileName.substring(
+                            0,
+                            fileName.length()
+                                    - ".feature".length()
+                    );
+        }
+
+        return fileName.toLowerCase()
+                .replaceAll("[^a-z0-9]+", "_")
+                .replaceAll("^_+|_+$", "");
     }
 
     private long lastModified(

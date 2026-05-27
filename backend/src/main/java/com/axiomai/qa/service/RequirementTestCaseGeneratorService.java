@@ -9,7 +9,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.Year;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -109,7 +112,11 @@ public class RequirementTestCaseGeneratorService {
                 );
 
         String normalizedAi =
-                normalizeGeneratedFeature(aiGenerated);
+                normalizeGeneratedFeature(
+                        aiGenerated,
+                        requirement,
+                        featureName
+                );
 
         if (
                 isUsableFeature(
@@ -295,7 +302,9 @@ public class RequirementTestCaseGeneratorService {
     }
 
     private String normalizeGeneratedFeature(
-            String feature
+            String feature,
+            String requirement,
+            String featureName
     ) {
 
         if (
@@ -305,12 +314,181 @@ public class RequirementTestCaseGeneratorService {
             return "";
         }
 
-        return feature.replaceAll(
+        String normalized =
+                feature.replaceAll(
                 "(?i)\\bYYYY\\b",
                 String.valueOf(
                         Year.now()
                                 .getValue()
                 )
+        );
+
+        return ensureScenarioTags(
+                normalized,
+                requirement,
+                featureName
+        );
+    }
+
+    private String ensureScenarioTags(
+            String feature,
+            String requirement,
+            String featureName
+    ) {
+
+        if (
+                feature == null
+                        ||
+                        feature.isBlank()
+        ) {
+
+            return "";
+        }
+
+        String requestedTag =
+                stableFeatureTag(
+                        requirement,
+                        featureName
+                );
+
+        Set<String> requiredTags =
+                new LinkedHashSet<>();
+
+        requiredTags.add("@generated");
+        requiredTags.add("@ai_requirement");
+        requiredTags.add("@"
+                + requestedTag);
+
+        String[] lines =
+                feature.split(
+                        "\\R",
+                        -1
+                );
+
+        List<String> output =
+                new ArrayList<>();
+
+        List<String> pendingTagLines =
+                new ArrayList<>();
+
+        for (String line : lines) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTagLines.add(line);
+                continue;
+            }
+
+            if (
+                    isScenarioHeader(trimmed)
+            ) {
+
+                output.add(
+                        scenarioIndent(line)
+                                + mergedTagLine(
+                                        pendingTagLines,
+                                        requiredTags
+                                )
+                );
+                pendingTagLines.clear();
+                output.add(line);
+                continue;
+            }
+
+            if (
+                    !pendingTagLines.isEmpty()
+            ) {
+
+                output.addAll(pendingTagLines);
+                pendingTagLines.clear();
+            }
+
+            output.add(line);
+        }
+
+        if (
+                !pendingTagLines.isEmpty()
+        ) {
+
+            output.addAll(pendingTagLines);
+        }
+
+        return String.join(
+                "\n",
+                output
+        )
+                .replaceAll("\\s*$", "")
+                + "\n";
+    }
+
+    private boolean isScenarioHeader(
+            String trimmedLine
+    ) {
+
+        return trimmedLine.startsWith("Scenario:")
+                ||
+                trimmedLine.startsWith("Scenario Outline:");
+    }
+
+    private String scenarioIndent(
+            String scenarioLine
+    ) {
+
+        int index =
+                0;
+
+        while (
+                index < scenarioLine.length()
+                        &&
+                        Character.isWhitespace(
+                                scenarioLine.charAt(index)
+                        )
+        ) {
+
+            index++;
+        }
+
+        return index == 0
+                ? "  "
+                : scenarioLine.substring(
+                        0,
+                        index
+                );
+    }
+
+    private String mergedTagLine(
+            List<String> pendingTagLines,
+            Set<String> requiredTags
+    ) {
+
+        Set<String> tags =
+                new LinkedHashSet<>(requiredTags);
+
+        for (String tagLine : pendingTagLines) {
+
+            for (
+                    String tag
+                    : tagLine.trim()
+                            .split("\\s+")
+            ) {
+
+                if (
+                        tag.startsWith("@")
+                ) {
+
+                    tags.add(tag);
+                }
+            }
+        }
+
+        return String.join(
+                " ",
+                tags
         );
     }
 
@@ -1071,7 +1249,18 @@ public class RequirementTestCaseGeneratorService {
                 &&
                 feature.contains("Scenario:")
                 &&
-                feature.contains("@generated");
+                feature.contains("@generated")
+                &&
+                feature.contains("@ai_requirement")
+                &&
+                feature.toLowerCase()
+                        .contains(
+                                "@"
+                                        + stableFeatureTag(
+                                                requirement,
+                                                featureName
+                                        )
+                        );
 
         if (
                 !basicFeature
@@ -1418,6 +1607,38 @@ public class RequirementTestCaseGeneratorService {
         }
 
         return tag;
+    }
+
+    private String stableFeatureTag(
+            String requirement,
+            String featureName
+    ) {
+
+        String requestedText =
+                safe(requirement)
+                        + " "
+                        + safe(featureName);
+
+        if (
+                isBillPayRequest(requestedText)
+        ) {
+
+            return "bill_pay";
+        }
+
+        if (
+                isTravelFlightRequest(requestedText)
+        ) {
+
+            return "select_flight";
+        }
+
+        return tag(
+                title(
+                        featureName,
+                        requirement
+                )
+        );
     }
 
     private String safe(

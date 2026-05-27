@@ -4,11 +4,15 @@ import com.axiomai.audit.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -21,6 +25,9 @@ public class WorkspaceSessionController {
 
     private final WorkspaceAccessService
             workspaceAccessService;
+
+    private final WorkspaceChatSessionService
+            workspaceChatSessionService;
 
     private AuditLogService
             auditLogService;
@@ -55,12 +62,46 @@ public class WorkspaceSessionController {
                 normalizedSessionId
         );
 
+        workspaceChatSessionService.delete(
+                normalizedSessionId
+        );
+
         auditWorkspaceDeleted(
                 token,
                 normalizedSessionId
         );
 
         return result;
+    }
+
+    @GetMapping
+    public List<WorkspaceChatSessionDto> listSessions(
+            @RequestHeader("X-AIF-Session") String token
+    ) {
+
+        return workspaceChatSessionService
+                .listForCurrentUser(token);
+    }
+
+    @PutMapping("/{sessionId}")
+    public WorkspaceChatSessionDto saveSession(
+            @PathVariable String sessionId,
+            @RequestHeader("X-AIF-Session") String token,
+            @RequestBody WorkspaceChatSessionDto request
+    ) {
+
+        String normalizedSessionId =
+                workspaceAccessService.requireOrBindAccess(
+                        token,
+                        sessionId
+                );
+
+        return workspaceChatSessionService
+                .saveForCurrentUser(
+                        token,
+                        normalizedSessionId,
+                        request
+                );
     }
 
     private void auditWorkspaceDeleted(

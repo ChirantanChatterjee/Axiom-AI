@@ -44,7 +44,8 @@ class WorkspaceTenantIsolationTest {
         WorkspaceSessionController controller =
                 new WorkspaceSessionController(
                         cleanupService,
-                        accessService
+                        accessService,
+                        new StubWorkspaceChatSessionService()
                 );
 
         ResponseStatusException exception =
@@ -552,6 +553,25 @@ class WorkspaceTenantIsolationTest {
             cleanupCalls++;
 
             return null;
+        }
+    }
+
+    private static class StubWorkspaceChatSessionService
+            extends WorkspaceChatSessionService {
+
+        private StubWorkspaceChatSessionService() {
+
+            super(
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void delete(
+                String sessionId
+        ) {
         }
     }
 

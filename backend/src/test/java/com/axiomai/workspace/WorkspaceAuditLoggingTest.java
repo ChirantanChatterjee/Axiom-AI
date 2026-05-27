@@ -39,7 +39,8 @@ class WorkspaceAuditLoggingTest {
         WorkspaceSessionController controller =
                 new WorkspaceSessionController(
                         cleanupService,
-                        accessService
+                        accessService,
+                        new StubWorkspaceChatSessionService()
                 );
 
         controller.setAuditLogService(
@@ -365,6 +366,25 @@ class WorkspaceAuditLoggingTest {
                     0,
                     null
             );
+        }
+    }
+
+    private static class StubWorkspaceChatSessionService
+            extends WorkspaceChatSessionService {
+
+        private StubWorkspaceChatSessionService() {
+
+            super(
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void delete(
+                String sessionId
+        ) {
         }
     }
 }
