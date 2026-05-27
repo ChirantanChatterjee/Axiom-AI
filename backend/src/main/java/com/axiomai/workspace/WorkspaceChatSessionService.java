@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -122,6 +124,71 @@ public class WorkspaceChatSessionService {
     }
 
     @Transactional
+    public WorkspaceChatSessionDto appendMessagesForCurrentUser(
+            String token,
+            String sessionId,
+            WorkspaceChatSessionDto metadata,
+            List<Map<String, Object>> newMessages
+    ) {
+
+        AifUserEntity user =
+                authService.requireUser(token);
+
+        WorkspaceChatSessionEntity entity =
+                findOrCreate(
+                        sessionId,
+                        user,
+                        metadata
+                );
+
+        assertOwner(
+                entity,
+                user
+        );
+
+        entity.setUserEmail(
+                user.getEmail()
+        );
+
+        List<Map<String, Object>> messages =
+                new ArrayList<>(
+                        deserializeMessages(
+                                entity.getMessagesJson()
+                        )
+                );
+
+        if (
+                newMessages != null
+        ) {
+
+            for (Map<String, Object> message : newMessages) {
+
+                appendIfNotDuplicate(
+                        messages,
+                        message
+                );
+            }
+        }
+
+        applyMetadata(
+                entity,
+                metadata,
+                messages
+        );
+
+        entity.setUpdatedAt(
+                Instant.now()
+        );
+        entity.setMessagesJson(
+                serializeMessages(messages)
+        );
+
+        return toDto(
+                repository.save(entity)
+        );
+    }
+
+    @Transactional
     public void delete(
             String sessionId
     ) {
@@ -147,6 +214,129 @@ public class WorkspaceChatSessionService {
                         )
                 )
                 .build();
+    }
+
+    private WorkspaceChatSessionEntity findOrCreate(
+            String sessionId,
+            AifUserEntity user,
+            WorkspaceChatSessionDto metadata
+    ) {
+
+        return repository.findById(sessionId)
+                .orElseGet(() -> WorkspaceChatSessionEntity.builder()
+                        .sessionId(sessionId)
+                        .userId(user.getId())
+                        .userEmail(user.getEmail())
+                        .title("New chat")
+                        .frameworkLocked(false)
+                        .createdAt(firstNonNull(
+                                metadata == null
+                                        ? null
+                                        : metadata.getCreatedAt(),
+                                Instant.now()
+                        ))
+                        .updatedAt(Instant.now())
+                        .messagesJson("[]")
+                        .build());
+    }
+
+    private void applyMetadata(
+            WorkspaceChatSessionEntity entity,
+            WorkspaceChatSessionDto metadata,
+            List<Map<String, Object>> messages
+    ) {
+
+        entity.setTitle(
+                firstNonBlank(
+                        metadata == null
+                                ? null
+                                : metadata.getTitle(),
+                        titleFromMessages(
+                                entity.getTitle(),
+                                messages
+                        )
+                )
+        );
+        entity.setWebsiteUrl(
+                blankToNull(
+                        metadata == null
+                                ? entity.getWebsiteUrl()
+                                : firstNonBlank(
+                                        metadata.getWebsiteUrl(),
+                                        entity.getWebsiteUrl()
+                                )
+                )
+        );
+        entity.setDomainName(
+                blankToNull(
+                        metadata == null
+                                ? entity.getDomainName()
+                                : firstNonBlank(
+                                        metadata.getDomainName(),
+                                        entity.getDomainName()
+                                )
+                )
+        );
+        entity.setFrameworkLocked(
+                entity.isFrameworkLocked()
+                        ||
+                        (
+                                metadata != null
+                                        &&
+                                        metadata.isFrameworkLocked()
+                        )
+        );
+    }
+
+    private void appendIfNotDuplicate(
+            List<Map<String, Object>> messages,
+            Map<String, Object> message
+    ) {
+
+        if (
+                message == null
+                        ||
+                        blankToNull(
+                                stringValue(
+                                        message.get("text")
+                                )
+                        ) == null
+        ) {
+
+            return;
+        }
+
+        Map<String, Object> normalized =
+                new LinkedHashMap<>(message);
+
+        if (
+                !messages.isEmpty()
+        ) {
+
+            Map<String, Object> last =
+                    messages.get(messages.size() - 1);
+
+            if (
+                    stringValue(last.get("sender"))
+                            .equals(
+                                    stringValue(
+                                            normalized.get("sender")
+                                    )
+                            )
+                            &&
+                            stringValue(last.get("text"))
+                                    .equals(
+                                            stringValue(
+                                                    normalized.get("text")
+                                            )
+                                    )
+            ) {
+
+                return;
+            }
+        }
+
+        messages.add(normalized);
     }
 
     private String serializeMessages(
@@ -195,6 +385,74 @@ public class WorkspaceChatSessionService {
 
             return List.of();
         }
+    }
+
+    private String titleFromMessages(
+            String currentTitle,
+            List<Map<String, Object>> messages
+    ) {
+
+        if (
+                currentTitle != null
+                        &&
+                        !currentTitle.isBlank()
+                        &&
+                        !"New chat".equalsIgnoreCase(currentTitle)
+        ) {
+
+            return currentTitle;
+        }
+
+        if (
+                messages == null
+        ) {
+
+            return "New chat";
+        }
+
+        for (Map<String, Object> message : messages) {
+
+            if (
+                    !"user".equalsIgnoreCase(
+                            stringValue(
+                                    message.get("sender")
+                            )
+                    )
+            ) {
+
+                continue;
+            }
+
+            String text =
+                    stringValue(
+                            message.get("text")
+                    )
+                            .replaceAll("\\s+", " ")
+                            .trim();
+
+            if (
+                    text.isBlank()
+            ) {
+
+                continue;
+            }
+
+            return text.length() <= 38
+                    ? text
+                    : text.substring(0, 35)
+                    + "...";
+        }
+
+        return "New chat";
+    }
+
+    private String stringValue(
+            Object value
+    ) {
+
+        return value == null
+                ? ""
+                : String.valueOf(value);
     }
 
     private void assertOwner(

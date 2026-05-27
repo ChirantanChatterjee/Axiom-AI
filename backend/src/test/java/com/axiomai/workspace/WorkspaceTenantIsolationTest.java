@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.lang.reflect.Proxy;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -135,7 +136,8 @@ class WorkspaceTenantIsolationTest {
         AIChatController controller =
                 new AIChatController(
                         orchestratorService,
-                        accessService
+                        accessService,
+                        new StubWorkspaceChatSessionService()
                 );
 
         ResponseStatusException exception =
@@ -158,6 +160,63 @@ class WorkspaceTenantIsolationTest {
         assertEquals(
                 0,
                 orchestratorService.processCalls
+        );
+    }
+
+    @Test
+    void chatControllerPersistsConversationTurnAfterSuccessfulResponse() {
+
+        StubAIOrchestratorService orchestratorService =
+                new StubAIOrchestratorService();
+
+        StubWorkspaceAccessService accessService =
+                new StubWorkspaceAccessService();
+
+        StubWorkspaceChatSessionService chatSessionService =
+                new StubWorkspaceChatSessionService();
+
+        AIChatController controller =
+                new AIChatController(
+                        orchestratorService,
+                        accessService,
+                        chatSessionService
+                );
+
+        AIResponse response =
+                controller.chat(
+                        new ChatRequest(
+                                "generate tests",
+                                "session-a",
+                                "https://example.test",
+                                "example.test",
+                                false
+                        ),
+                        "token-a"
+                );
+
+        assertEquals(
+                1,
+                orchestratorService.processCalls
+        );
+
+        assertEquals(
+                true,
+                response.isSuccess()
+        );
+
+        assertEquals(
+                1,
+                chatSessionService.appendCalls
+        );
+
+        assertEquals(
+                "session-a",
+                chatSessionService.lastSessionId
+        );
+
+        assertEquals(
+                2,
+                chatSessionService.lastMessages.size()
         );
     }
 
@@ -559,6 +618,13 @@ class WorkspaceTenantIsolationTest {
     private static class StubWorkspaceChatSessionService
             extends WorkspaceChatSessionService {
 
+        private int appendCalls;
+
+        private String lastSessionId;
+
+        private List<Map<String, Object>> lastMessages =
+                List.of();
+
         private StubWorkspaceChatSessionService() {
 
             super(
@@ -572,6 +638,26 @@ class WorkspaceTenantIsolationTest {
         public void delete(
                 String sessionId
         ) {
+        }
+
+        @Override
+        public WorkspaceChatSessionDto appendMessagesForCurrentUser(
+                String token,
+                String sessionId,
+                WorkspaceChatSessionDto metadata,
+                List<Map<String, Object>> newMessages
+        ) {
+
+            appendCalls++;
+            lastSessionId =
+                    sessionId;
+            lastMessages =
+                    newMessages;
+
+            return WorkspaceChatSessionDto.builder()
+                    .id(sessionId)
+                    .messages(newMessages)
+                    .build();
         }
     }
 
