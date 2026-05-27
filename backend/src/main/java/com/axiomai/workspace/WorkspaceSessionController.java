@@ -2,6 +2,7 @@ package com.axiomai.workspace;
 
 import com.axiomai.audit.AuditLogService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/workspace/sessions")
 @RequiredArgsConstructor
+@Slf4j
 public class WorkspaceSessionController {
 
     private final WorkspaceCleanupService
@@ -79,6 +81,11 @@ public class WorkspaceSessionController {
             @RequestHeader("X-AIF-Session") String token
     ) {
 
+        log.info(
+                "Workspace chat sessions list requested hasSessionHeader={}",
+                hasSessionHeader(token)
+        );
+
         return workspaceChatSessionService
                 .listForCurrentUser(token);
     }
@@ -90,12 +97,45 @@ public class WorkspaceSessionController {
             @RequestBody WorkspaceChatSessionDto request
     ) {
 
+        log.info(
+                "Workspace chat session save requested sessionId={} hasSessionHeader={} messageCount={}",
+                sessionId,
+                hasSessionHeader(token),
+                messageCount(request)
+        );
+
         return workspaceChatSessionService
                 .saveForCurrentUser(
                         token,
                         sessionId,
                         request
                 );
+    }
+
+    private boolean hasSessionHeader(
+            String token
+    ) {
+
+        return token != null
+                &&
+                !token.isBlank();
+    }
+
+    private int messageCount(
+            WorkspaceChatSessionDto request
+    ) {
+
+        if (
+                request == null
+                        ||
+                        request.getMessages() == null
+        ) {
+
+            return 0;
+        }
+
+        return request.getMessages()
+                .size();
     }
 
     private void auditWorkspaceDeleted(

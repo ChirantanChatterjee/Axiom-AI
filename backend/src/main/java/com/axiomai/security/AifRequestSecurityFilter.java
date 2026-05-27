@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -22,6 +23,7 @@ import java.util.Set;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 @RequiredArgsConstructor
+@Slf4j
 public class AifRequestSecurityFilter extends OncePerRequestFilter {
 
     public static final String SESSION_HEADER =
@@ -97,24 +99,43 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
 
         } catch (ResponseStatusException e) {
 
+            int status =
+                    e.getStatusCode()
+                            .value();
+
+            String reason =
+                    safeReason(e);
+
+            logWorkspaceSessionDenied(
+                    request,
+                    path,
+                    status,
+                    reason
+            );
+
             auditAccessDenied(
                     request,
                     path,
-                    e.getStatusCode()
-                            .value(),
-                    safeReason(e)
+                    status,
+                    reason
             );
 
             writeError(
                     response,
-                    e.getStatusCode()
-                            .value(),
-                    safeReason(e)
+                    status,
+                    reason
             );
 
             return;
 
         } catch (RuntimeException e) {
+
+            logWorkspaceSessionDenied(
+                    request,
+                    path,
+                    HttpStatus.UNAUTHORIZED.value(),
+                    "Unauthorized"
+            );
 
             auditAccessDenied(
                     request,
@@ -136,6 +157,42 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
                 request,
                 response
         );
+    }
+
+    private void logWorkspaceSessionDenied(
+            HttpServletRequest request,
+            String path,
+            int status,
+            String reason
+    ) {
+
+        if (
+                !path.startsWith("/api/workspace/sessions")
+        ) {
+
+            return;
+        }
+
+        log.warn(
+                "Workspace chat session request denied method={} path={} status={} reason={} hasSessionHeader={}",
+                request.getMethod(),
+                path,
+                status,
+                reason,
+                hasSessionHeader(request)
+        );
+    }
+
+    private boolean hasSessionHeader(
+            HttpServletRequest request
+    ) {
+
+        String token =
+                request.getHeader(SESSION_HEADER);
+
+        return token != null
+                &&
+                !token.isBlank();
     }
 
     private void addSecurityHeaders(
