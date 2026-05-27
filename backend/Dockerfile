@@ -1,8 +1,22 @@
+FROM node:22-bookworm-slim AS frontend-build
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+
+RUN npm ci
+
+COPY frontend/ ./
+
+RUN npm run build
+
 FROM eclipse-temurin:17-jammy
 
 WORKDIR /app
 
 COPY backend/ .
+
+COPY --from=frontend-build /frontend/dist/ src/main/resources/static/
 
 RUN chmod +x ./mvnw
 
