@@ -59,10 +59,13 @@ public class WorkspaceChatSessionService {
         AifUserEntity user =
                 authService.requireUser(token);
 
+        String normalizedSessionId =
+                normalizeSessionId(sessionId);
+
         WorkspaceChatSessionEntity entity =
-                repository.findById(sessionId)
+                repository.findById(normalizedSessionId)
                         .orElseGet(() -> WorkspaceChatSessionEntity.builder()
-                                .sessionId(sessionId)
+                                .sessionId(normalizedSessionId)
                                 .userId(user.getId())
                                 .userEmail(user.getEmail())
                                 .createdAt(firstNonNull(
@@ -134,9 +137,12 @@ public class WorkspaceChatSessionService {
         AifUserEntity user =
                 authService.requireUser(token);
 
+        String normalizedSessionId =
+                normalizeSessionId(sessionId);
+
         WorkspaceChatSessionEntity entity =
                 findOrCreate(
-                        sessionId,
+                        normalizedSessionId,
                         user,
                         metadata
                 );
@@ -193,7 +199,9 @@ public class WorkspaceChatSessionService {
             String sessionId
     ) {
 
-        repository.deleteById(sessionId);
+        repository.deleteById(
+                normalizeSessionId(sessionId)
+        );
     }
 
     private WorkspaceChatSessionDto toDto(
@@ -453,6 +461,44 @@ public class WorkspaceChatSessionService {
         return value == null
                 ? ""
                 : String.valueOf(value);
+    }
+
+    private String normalizeSessionId(
+            String sessionId
+    ) {
+
+        if (
+                sessionId == null
+                        ||
+                        sessionId.isBlank()
+        ) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Chat session id is required."
+            );
+        }
+
+        String normalized =
+                sessionId.trim()
+                        .replaceAll(
+                                "[^A-Za-z0-9._-]",
+                                "_"
+                        );
+
+        if (
+                normalized.isBlank()
+                        ||
+                        normalized.length() > 128
+        ) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Chat session id is invalid."
+            );
+        }
+
+        return normalized;
     }
 
     private void assertOwner(

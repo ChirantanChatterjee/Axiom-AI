@@ -90,16 +90,10 @@ public class WorkspaceSessionController {
             @RequestBody WorkspaceChatSessionDto request
     ) {
 
-        String normalizedSessionId =
-                workspaceAccessService.requireOrBindAccess(
-                        token,
-                        sessionId
-                );
-
         return workspaceChatSessionService
                 .saveForCurrentUser(
                         token,
-                        normalizedSessionId,
+                        sessionId,
                         request
                 );
     }

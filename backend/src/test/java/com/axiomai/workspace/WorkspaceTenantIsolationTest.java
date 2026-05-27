@@ -72,6 +72,57 @@ class WorkspaceTenantIsolationTest {
     }
 
     @Test
+    void savingChatHistoryDoesNotClaimLegacyWorkspaceState() {
+
+        StubWorkspaceCleanupService cleanupService =
+                new StubWorkspaceCleanupService();
+
+        StubWorkspaceAccessService accessService =
+                new StubWorkspaceAccessService();
+
+        StubWorkspaceChatSessionService chatSessionService =
+                new StubWorkspaceChatSessionService();
+
+        WorkspaceSessionController controller =
+                new WorkspaceSessionController(
+                        cleanupService,
+                        accessService,
+                        chatSessionService
+                );
+
+        controller.saveSession(
+                "legacy-session",
+                "token-a",
+                WorkspaceChatSessionDto.builder()
+                        .title("Legacy chat")
+                        .messages(List.of(
+                                Map.of(
+                                        "sender",
+                                        "user",
+                                        "text",
+                                        "generate framework"
+                                )
+                        ))
+                        .build()
+        );
+
+        assertEquals(
+                0,
+                accessService.bindCalls
+        );
+
+        assertEquals(
+                1,
+                chatSessionService.saveCalls
+        );
+
+        assertEquals(
+                "legacy-session",
+                chatSessionService.lastSessionId
+        );
+    }
+
+    @Test
     void userACannotInspectUserBGeneratedExecutionJob() {
 
         StubGeneratedTestExecutionQueueService queueService =
@@ -532,6 +583,8 @@ class WorkspaceTenantIsolationTest {
 
         private String lastRequiredSessionId;
 
+        private int bindCalls;
+
         private int deleteOwnershipCalls;
 
         private StubWorkspaceAccessService() {
@@ -567,6 +620,8 @@ class WorkspaceTenantIsolationTest {
                 String token,
                 String sessionId
         ) {
+
+            bindCalls++;
 
             if (
                     bindException != null
@@ -620,6 +675,8 @@ class WorkspaceTenantIsolationTest {
 
         private int appendCalls;
 
+        private int saveCalls;
+
         private String lastSessionId;
 
         private List<Map<String, Object>> lastMessages =
@@ -638,6 +695,20 @@ class WorkspaceTenantIsolationTest {
         public void delete(
                 String sessionId
         ) {
+        }
+
+        @Override
+        public WorkspaceChatSessionDto saveForCurrentUser(
+                String token,
+                String sessionId,
+                WorkspaceChatSessionDto request
+        ) {
+
+            saveCalls++;
+            lastSessionId =
+                    sessionId;
+
+            return request;
         }
 
         @Override

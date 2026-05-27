@@ -7,6 +7,7 @@ import com.axiomai.workspace.WorkspaceAccessService;
 import com.axiomai.workspace.WorkspaceChatSessionDto;
 import com.axiomai.workspace.WorkspaceChatSessionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.Map;
 @RequestMapping("/api/ai")
 
 @RequiredArgsConstructor
+@Slf4j
 public class AIChatController {
 
     private final AIOrchestratorService
@@ -52,21 +54,32 @@ public class AIChatController {
                         request.getFrameworkLocked()
                 );
 
-        workspaceChatSessionService.appendMessagesForCurrentUser(
-                token,
-                sessionId,
-                WorkspaceChatSessionDto.builder()
-                        .websiteUrl(request.getWebsiteUrl())
-                        .domainName(request.getDomainName())
-                        .frameworkLocked(Boolean.TRUE.equals(
-                                request.getFrameworkLocked()
-                        ))
-                        .build(),
-                chatTurnMessages(
-                        request,
-                        response
-                )
-        );
+        try {
+
+            workspaceChatSessionService.appendMessagesForCurrentUser(
+                    token,
+                    sessionId,
+                    WorkspaceChatSessionDto.builder()
+                            .websiteUrl(request.getWebsiteUrl())
+                            .domainName(request.getDomainName())
+                            .frameworkLocked(Boolean.TRUE.equals(
+                                    request.getFrameworkLocked()
+                            ))
+                            .build(),
+                    chatTurnMessages(
+                            request,
+                            response
+                    )
+            );
+
+        } catch (Exception e) {
+
+            log.warn(
+                    "Unable to persist chat session {} after AI response.",
+                    sessionId,
+                    e
+            );
+        }
 
         return response;
     }
