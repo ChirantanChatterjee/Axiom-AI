@@ -7,6 +7,7 @@ import com.axiomai.workspace.repository.WorkspaceChatSessionRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class WorkspaceChatSessionService {
 
     private static final TypeReference<List<Map<String, Object>>> MESSAGE_LIST_TYPE =
@@ -43,10 +45,20 @@ public class WorkspaceChatSessionService {
         AifUserEntity user =
                 authService.requireUser(token);
 
-        return repository.findByUserIdOrderByUpdatedAtDesc(user.getId())
+        List<WorkspaceChatSessionDto> sessions =
+                repository.findByUserIdOrderByUpdatedAtDesc(user.getId())
                 .stream()
                 .map(this::toDto)
                 .toList();
+
+        log.info(
+                "Workspace chat sessions listed userId={} email={} count={}",
+                user.getId(),
+                maskedEmail(user.getEmail()),
+                sessions.size()
+        );
+
+        return sessions;
     }
 
     @Transactional
@@ -121,9 +133,24 @@ public class WorkspaceChatSessionService {
                 )
         );
 
-        return toDto(
-                repository.save(entity)
+        WorkspaceChatSessionEntity saved =
+                repository.save(entity);
+
+        int messageCount =
+                deserializeMessages(
+                        saved.getMessagesJson()
+                )
+                        .size();
+
+        log.info(
+                "Workspace chat session saved userId={} email={} sessionId={} messageCount={}",
+                user.getId(),
+                maskedEmail(user.getEmail()),
+                saved.getSessionId(),
+                messageCount
         );
+
+        return toDto(saved);
     }
 
     @Transactional
@@ -163,6 +190,9 @@ public class WorkspaceChatSessionService {
                         )
                 );
 
+        int messageCountBeforeAppend =
+                messages.size();
+
         if (
                 newMessages != null
         ) {
@@ -189,9 +219,20 @@ public class WorkspaceChatSessionService {
                 serializeMessages(messages)
         );
 
-        return toDto(
-                repository.save(entity)
+        WorkspaceChatSessionEntity saved =
+                repository.save(entity);
+
+        log.info(
+                "Workspace chat session appended userId={} email={} sessionId={} added={} total={}",
+                user.getId(),
+                maskedEmail(user.getEmail()),
+                saved.getSessionId(),
+                messages.size()
+                        - messageCountBeforeAppend,
+                messages.size()
         );
+
+        return toDto(saved);
     }
 
     @Transactional
@@ -499,6 +540,34 @@ public class WorkspaceChatSessionService {
         }
 
         return normalized;
+    }
+
+    private String maskedEmail(
+            String email
+    ) {
+
+        if (
+                email == null
+                        ||
+                        email.isBlank()
+        ) {
+
+            return "";
+        }
+
+        int at =
+                email.indexOf('@');
+
+        if (
+                at <= 1
+        ) {
+
+            return "***";
+        }
+
+        return email.charAt(0)
+                + "***"
+                + email.substring(at);
     }
 
     private void assertOwner(
