@@ -187,6 +187,91 @@ class FlowDetectionEngineTest {
     }
 
     @Test
+    void detectsMicrosoftIdentityLoginAsTwoStepFlowAndSkipsGenericFormFlow() {
+
+        PageElement emailField =
+                element(
+                        "INPUT",
+                        "",
+                        "email",
+                        "loginfmt",
+                        "Email, phone, or Skype",
+                        "Enter your email, phone, or Skype.",
+                        "input[aria-label='Enter your email, phone, or Skype.']"
+                );
+
+        PageElement passwordField =
+                element(
+                        "INPUT",
+                        "",
+                        "password",
+                        "passwd",
+                        "",
+                        "",
+                        "#i0118"
+                );
+
+        PageElement nextButton =
+                element(
+                        "INPUT",
+                        "Next",
+                        "submit",
+                        "",
+                        "",
+                        "",
+                        "#idSIButton9"
+                );
+
+        ElementClassifier.classify(emailField);
+        ElementClassifier.classify(passwordField);
+        ElementClassifier.classify(nextButton);
+
+        List<DetectedFlow> flows =
+                FlowDetectionEngine.detectFlows(
+                        "https://joegill.crm4.dynamics.com",
+                        List.of(
+                                emailField,
+                                passwordField,
+                                nextButton
+                        )
+                );
+
+        DetectedFlow loginFlow =
+                flows.stream()
+                        .filter(flow -> "LOGIN".equals(flow.getFlowType()))
+                        .findFirst()
+                        .orElseThrow();
+
+        List<String> targets =
+                loginFlow.getSteps()
+                        .stream()
+                        .map(FlowStep::getTarget)
+                        .toList();
+
+        assertEquals(
+                List.of(
+                        "USERNAME",
+                        "NEXT_BUTTON",
+                        "PASSWORD",
+                        "LOGIN_BUTTON"
+                ),
+                targets
+        );
+
+        assertEquals(
+                "#idSIButton9",
+                loginFlow.getSteps()
+                        .get(3)
+                        .getSelector()
+        );
+
+        assertTrue(
+                flows.stream()
+                        .noneMatch(flow -> "FORM_SUBMISSION".equals(flow.getFlowType()))
+        );
+    }
+
+    @Test
     void submitInputWithContinueIsFormActionNotLoginButton() {
 
         PageElement origin =

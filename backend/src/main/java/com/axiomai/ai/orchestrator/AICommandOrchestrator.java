@@ -2498,6 +2498,17 @@ public class AICommandOrchestrator {
     ) {
 
         if (
+                command == null
+                        ||
+                        !shouldStoreCommandVariables(
+                                command.getIntent()
+                        )
+        ) {
+
+            return;
+        }
+
+        if (
                 command.getVariables() == null
                         ||
                         command.getVariables()
@@ -2518,6 +2529,29 @@ public class AICommandOrchestrator {
                         userId,
                         command.getVariables()
                 );
+    }
+
+    private boolean shouldStoreCommandVariables(
+            String intent
+    ) {
+
+        if (
+                intent == null
+                        ||
+                        intent.isBlank()
+        ) {
+
+            return true;
+        }
+
+        return switch (intent) {
+            case "REPAIR_GENERATED_TESTS",
+                 "SHOW_GENERATED_TEST_TAGS",
+                 "SHOW_REPORT",
+                 "SHOW_DB",
+                 "DOWNLOAD_FRAMEWORK" -> false;
+            default -> true;
+        };
     }
 
     private void applyWorkspaceVariables(

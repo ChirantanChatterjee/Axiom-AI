@@ -926,10 +926,49 @@ public class GeneratedTestExecutionService {
                         )
                 );
 
+        normalized =
+                normalizeRuntimePlaceholders(
+                        normalized
+                );
+
         return ensureScenarioTags(
                 normalized,
                 featureFileTag(featureFile)
         );
+    }
+
+    private String normalizeRuntimePlaceholders(
+            String content
+    ) {
+
+        if (
+                content == null
+                        ||
+                        content.isBlank()
+        ) {
+
+            return content == null
+                    ? ""
+                    : content;
+        }
+
+        return content
+                .replaceAll(
+                        "(?i)\\$\\{authfield}",
+                        "\\${username}"
+                )
+                .replaceAll(
+                        "(?i)\\$\\{auth_field}",
+                        "\\${username}"
+                )
+                .replaceAll(
+                        "(?i)\\$\\{loginfield}",
+                        "\\${username}"
+                )
+                .replaceAll(
+                        "(?i)\\$\\{login_field}",
+                        "\\${username}"
+                );
     }
 
     private String ensureScenarioTags(
@@ -1637,13 +1676,16 @@ public class GeneratedTestExecutionService {
         Map<String, String> normalizedVariables =
                 new LinkedHashMap<>();
 
+        Map<String, String> aliasedVariables =
+                withRuntimeVariableAliases(variables);
+
         if (
-                variables != null
+                !aliasedVariables.isEmpty()
         ) {
 
             for (
                     Map.Entry<String, String> entry
-                    : variables.entrySet()
+                    : aliasedVariables.entrySet()
             ) {
 
                 if (
@@ -1685,15 +1727,119 @@ public class GeneratedTestExecutionService {
         return missing;
     }
 
+    private Map<String, String> withRuntimeVariableAliases(
+            Map<String, String> variables
+    ) {
+
+        Map<String, String> aliased =
+                new LinkedHashMap<>();
+
+        if (
+                variables != null
+        ) {
+
+            aliased.putAll(variables);
+        }
+
+        String usernameAliasValue =
+                firstPresentValue(
+                        aliased,
+                        List.of(
+                                "username",
+                                "authfield",
+                                "auth_field",
+                                "loginfield",
+                                "login_field"
+                        )
+                );
+
+        if (
+                usernameAliasValue != null
+                        &&
+                        !usernameAliasValue.isBlank()
+        ) {
+
+            aliased.putIfAbsent(
+                    "username",
+                    usernameAliasValue
+            );
+
+            aliased.putIfAbsent(
+                    "authfield",
+                    usernameAliasValue
+            );
+
+            aliased.putIfAbsent(
+                    "auth_field",
+                    usernameAliasValue
+            );
+
+            aliased.putIfAbsent(
+                    "loginfield",
+                    usernameAliasValue
+            );
+
+            aliased.putIfAbsent(
+                    "login_field",
+                    usernameAliasValue
+            );
+        }
+
+        return aliased;
+    }
+
+    private String firstPresentValue(
+            Map<String, String> variables,
+            List<String> keys
+    ) {
+
+        if (
+                variables == null
+                        ||
+                        variables.isEmpty()
+                        ||
+                        keys == null
+        ) {
+
+            return null;
+        }
+
+        for (
+                String key
+                : keys
+        ) {
+
+            for (
+                    Map.Entry<String, String> entry
+                    : variables.entrySet()
+            ) {
+
+                if (
+                        entry.getKey() != null
+                                &&
+                                entry.getKey()
+                                        .equalsIgnoreCase(key)
+                                &&
+                                entry.getValue() != null
+                                &&
+                                !entry.getValue()
+                                        .isBlank()
+                ) {
+
+                    return entry.getValue();
+                }
+            }
+        }
+
+        return null;
+    }
+
     private List<String> requiredVariables(
 
             Path frameworkRoot,
             String tagExpression
 
     ) {
-
-        List<String> tagFilters =
-                extractTags(tagExpression);
 
         List<String> required =
                 new ArrayList<>();
@@ -1724,43 +1870,129 @@ public class GeneratedTestExecutionService {
                     Path featureFile
                     : featureFiles
             ) {
-
-                String content =
-                        Files.readString(featureFile);
-
-                if (
-                        !tagFilters.isEmpty()
-                                &&
-                                tagFilters.stream()
-                                        .noneMatch(content::contains)
-                ) {
-
-                    continue;
-                }
-
-                Matcher matcher =
-                        placeholder.matcher(content);
-
-                while (
-                        matcher.find()
-                ) {
-
-                    String key =
-                            matcher.group(1);
-
-                    if (
-                            !required.contains(key)
-                    ) {
-
-                        required.add(key);
-                    }
-                }
+                collectRequiredVariables(
+                        featureFile,
+                        tagExpression,
+                        placeholder,
+                        required
+                );
             }
 
         } catch (IOException ignored) {
         }
 
         return required;
+    }
+
+    private void collectRequiredVariables(
+
+            Path featureFile,
+            String tagExpression,
+            Pattern placeholder,
+            List<String> required
+
+    ) throws IOException {
+
+        List<String> lines =
+                Files.readAllLines(featureFile);
+
+        List<String> featureTags =
+                new ArrayList<>();
+
+        List<String> pendingTags =
+                new ArrayList<>();
+
+        boolean scenarioMatches =
+                false;
+
+        boolean inScenario =
+                false;
+
+        for (
+                String line
+                : lines
+        ) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTags.addAll(
+                        List.of(
+                                trimmed.split("\\s+")
+                        )
+                );
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Feature:")
+            ) {
+
+                featureTags.addAll(pendingTags);
+                pendingTags.clear();
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Scenario:")
+                            ||
+                            trimmed.startsWith("Scenario Outline:")
+            ) {
+
+                List<String> scenarioTags =
+                        new ArrayList<>(featureTags);
+
+                scenarioTags.addAll(pendingTags);
+
+                scenarioMatches =
+                        scenarioMatchesTagExpression(
+                                scenarioTags,
+                                tagExpression
+                        );
+
+                inScenario =
+                        true;
+
+                pendingTags.clear();
+
+                continue;
+            }
+
+            if (
+                    !inScenario
+                            ||
+                            !scenarioMatches
+            ) {
+
+                continue;
+            }
+
+            Matcher matcher =
+                    placeholder.matcher(trimmed);
+
+            while (
+                    matcher.find()
+            ) {
+
+                String key =
+                        matcher.group(1);
+
+                if (
+                        required.stream()
+                                .noneMatch(existing ->
+                                        existing.equalsIgnoreCase(key)
+                                )
+                ) {
+
+                    required.add(key);
+                }
+            }
+        }
     }
 
     private List<RuntimeVariableContext> runtimeVariableContexts(
@@ -3001,9 +3233,12 @@ public class GeneratedTestExecutionService {
             return;
         }
 
+        Map<String, String> aliasedVariables =
+                withRuntimeVariableAliases(variables);
+
         for (
                 Map.Entry<String, String> entry
-                : variables.entrySet()
+                : aliasedVariables.entrySet()
         ) {
 
             if (

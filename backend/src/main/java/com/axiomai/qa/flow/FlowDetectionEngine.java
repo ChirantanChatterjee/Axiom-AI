@@ -62,10 +62,12 @@ public class FlowDetectionEngine {
         // =================================================
 
         DetectedFlow formFlow =
-                detectFormFlow(
+                loginFlow == null
+                        ? detectFormFlow(
                         url,
                         elements
-                );
+                )
+                        : null;
 
         if (formFlow != null) {
 
@@ -123,16 +125,61 @@ public class FlowDetectionEngine {
         }
 
         if (
+                authField != null
+                        &&
+                        passwordField != null
+                        &&
+                        nextButton != null
+                        &&
+                        loginButton == null
+        ) {
+
+            List<FlowStep> steps =
+                    new ArrayList<>();
+
+            steps.add(
+                    typeStep(
+                            "USERNAME",
+                            authField
+                    )
+            );
+
+            steps.add(
+                    clickStep(
+                            "NEXT_BUTTON",
+                            nextButton
+                    )
+            );
+
+            steps.add(
+                    typeStep(
+                            "PASSWORD",
+                            passwordField
+                    )
+            );
+
+            steps.add(
+                    clickStep(
+                            "LOGIN_BUTTON",
+                            nextButton
+                    )
+            );
+
+            return new DetectedFlow(
+
+                    "LOGIN",
+                    url,
+                    steps
+            );
+        }
+
+        if (
 
                 authField != null
                         &&
                         passwordField != null
                         &&
-                        (
-                                loginButton != null
-                                        ||
-                                        nextButton != null
-                        )
+                        loginButton != null
 
         ) {
 
@@ -156,9 +203,7 @@ public class FlowDetectionEngine {
             steps.add(
                     clickStep(
                             "LOGIN_BUTTON",
-                            loginButton != null
-                                    ? loginButton
-                                    : nextButton
+                            loginButton
                     )
             );
 
@@ -200,7 +245,9 @@ public class FlowDetectionEngine {
             );
 
             steps.add(
-                    syntheticGoogleSubmitStep()
+                    syntheticSecondStepSubmitStep(
+                            nextButton
+                    )
             );
 
             return new DetectedFlow(
@@ -523,7 +570,9 @@ public class FlowDetectionEngine {
         return step;
     }
 
-    private static FlowStep syntheticGoogleSubmitStep() {
+    private static FlowStep syntheticSecondStepSubmitStep(
+            PageElement nextButton
+    ) {
 
         FlowStep step =
                 new FlowStep();
@@ -532,18 +581,45 @@ public class FlowDetectionEngine {
 
         step.setTarget("LOGIN_BUTTON");
 
+        String nextSelector =
+                nextButton == null
+                        ? ""
+                        : safe(nextButton.getBestSelector());
+
+        String primarySelector =
+                nextSelector.toLowerCase()
+                        .contains("idsibutton9")
+                        ? "#idSIButton9"
+                        : "#passwordNext";
+
         step.setSelector(
-                "#passwordNext"
+                primarySelector
         );
 
-        step.setFallbackSelectors(
-                List.of(
-                        "button:has-text(\"Next\")",
-                        "[role='button']:has-text(\"Next\")",
-                        "button:has-text(\"Continue\")",
-                        "[role='button']:has-text(\"Continue\")"
-                )
-        );
+        List<String> fallbacks =
+                new ArrayList<>();
+
+        if (
+                !nextSelector.isBlank()
+                        &&
+                        !nextSelector.equals(primarySelector)
+        ) {
+
+            fallbacks.add(nextSelector);
+        }
+
+        fallbacks.add("#idSIButton9");
+        fallbacks.add("#passwordNext");
+        fallbacks.add("input[type='submit'][value*='Sign in' i]");
+        fallbacks.add("input[type='submit'][value*='Next' i]");
+        fallbacks.add("button:has-text(\"Sign in\")");
+        fallbacks.add("[role='button']:has-text(\"Sign in\")");
+        fallbacks.add("button:has-text(\"Next\")");
+        fallbacks.add("[role='button']:has-text(\"Next\")");
+        fallbacks.add("button:has-text(\"Continue\")");
+        fallbacks.add("[role='button']:has-text(\"Continue\")");
+
+        step.setFallbackSelectors(fallbacks);
 
         step.setBusinessRole(
                 "LOGIN_BUTTON"

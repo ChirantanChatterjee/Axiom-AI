@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IntentParserTest {
 
@@ -818,6 +819,81 @@ class IntentParserTest {
         assertEquals(
                 "REPAIR_GENERATED_TESTS",
                 command.getIntent()
+        );
+    }
+
+    @Test
+    void detectsUsernamePasswordFieldMismatchAsGeneratedRepairRequest() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "The username field is filled with password value can you please resolve this?"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertTrue(
+                command.getVariables()
+                        .isEmpty()
+        );
+    }
+
+    @Test
+    void doesNotSaveFieldComplaintAsGenericTestData() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "The last test failed as the username field is getting filled with value provided for password Can you please rectify this?"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertTrue(
+                command.getVariables()
+                        .isEmpty()
+        );
+    }
+
+    @Test
+    void detectsIncorrectUsernameComplaintAsRepairWithoutSavingEnteredVariable() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "The username entered is incorrect can you please correct it?"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertTrue(
+                command.getVariables()
+                        .isEmpty()
         );
     }
 

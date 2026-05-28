@@ -68,6 +68,9 @@ public class FlowFeatureGenerator {
                 .append(flow.getPageUrl())
                 .append("\"\n");
 
+        boolean actionStarted =
+                false;
+
         for (FlowStep step : flow.getSteps()) {
 
             String action =
@@ -76,12 +79,19 @@ public class FlowFeatureGenerator {
             String role =
                     step.getTarget();
 
+            String keyword =
+                    actionStarted
+                            ? "And"
+                            : "When";
+
             if (
                     "TYPE".equalsIgnoreCase(action)
             ) {
 
                 sb.append(
-                                "    When user enters \"${"
+                                "    "
+                                        + keyword
+                                        + " user enters \"${"
                         )
 
                         .append(
@@ -97,6 +107,9 @@ public class FlowFeatureGenerator {
                         )
 
                         .append("\"\n");
+
+                actionStarted =
+                        true;
             }
 
             if (
@@ -104,7 +117,9 @@ public class FlowFeatureGenerator {
             ) {
 
                 sb.append(
-                                "    And user clicks "
+                                "    "
+                                        + keyword
+                                        + " user clicks "
                         )
 
                         .append("\"")
@@ -112,6 +127,9 @@ public class FlowFeatureGenerator {
                                 targetLabel(role)
                         )
                         .append("\"\n");
+
+                actionStarted =
+                        true;
             }
         }
 
@@ -166,6 +184,26 @@ public class FlowFeatureGenerator {
     private String targetLabel(
             String role
     ) {
+
+        String lower =
+                safe(role)
+                        .toLowerCase();
+
+        if (
+                lower.contains("auth")
+                        ||
+                        lower.contains("identifier")
+        ) {
+
+            return "username";
+        }
+
+        if (
+                lower.contains("pass")
+        ) {
+
+            return "password";
+        }
 
         return safe(role)
                 .toLowerCase()
@@ -244,7 +282,11 @@ public class FlowFeatureGenerator {
                 role.toLowerCase();
 
         if (
-                lower.contains("user")
+                lower.contains("auth")
+                        ||
+                        lower.contains("identifier")
+                        ||
+                        lower.contains("user")
                         ||
                         lower.contains("login")
         ) {

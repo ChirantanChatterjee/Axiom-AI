@@ -403,7 +403,113 @@ public class AutomationWorkspaceService {
             );
         }
 
+        addRuntimeVariableAliases(values);
+
         return values;
+    }
+
+    private void addRuntimeVariableAliases(
+            Map<String, String> values
+    ) {
+
+        if (
+                values == null
+                        ||
+                        values.isEmpty()
+        ) {
+
+            return;
+        }
+
+        String usernameValue =
+                firstPresentValue(
+                        values,
+                        List.of(
+                                "username",
+                                "authfield",
+                                "auth_field",
+                                "loginfield",
+                                "login_field"
+                        )
+                );
+
+        if (
+                usernameValue == null
+                        ||
+                        usernameValue.isBlank()
+        ) {
+
+            return;
+        }
+
+        values.putIfAbsent(
+                "username",
+                usernameValue
+        );
+
+        values.putIfAbsent(
+                "authfield",
+                usernameValue
+        );
+
+        values.putIfAbsent(
+                "auth_field",
+                usernameValue
+        );
+
+        values.putIfAbsent(
+                "loginfield",
+                usernameValue
+        );
+
+        values.putIfAbsent(
+                "login_field",
+                usernameValue
+        );
+    }
+
+    private String firstPresentValue(
+            Map<String, String> values,
+            List<String> keys
+    ) {
+
+        if (
+                values == null
+                        ||
+                        keys == null
+        ) {
+
+            return null;
+        }
+
+        for (
+                String key
+                : keys
+        ) {
+
+            for (
+                    Map.Entry<String, String> entry
+                    : values.entrySet()
+            ) {
+
+                if (
+                        entry.getKey() != null
+                                &&
+                                entry.getKey()
+                                        .equalsIgnoreCase(key)
+                                &&
+                                entry.getValue() != null
+                                &&
+                                !entry.getValue()
+                                        .isBlank()
+                ) {
+
+                    return entry.getValue();
+                }
+            }
+        }
+
+        return null;
     }
 
     // =====================================================

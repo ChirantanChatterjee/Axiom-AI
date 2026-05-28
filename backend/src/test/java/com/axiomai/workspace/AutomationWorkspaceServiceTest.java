@@ -4,6 +4,7 @@ import com.axiomai.qa.flow.DetectedFlow;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -59,6 +60,53 @@ class AutomationWorkspaceServiceTest {
         assertNull(
                 service.getSession("chat-three")
                         .getWebsiteUrl()
+        );
+    }
+
+    @Test
+    void runtimeVariableAliasesStayWithinChatSession() {
+
+        AutomationWorkspaceService service =
+                new AutomationWorkspaceService();
+
+        service.putVariable(
+                "chat-one",
+                "authfield",
+                "user@example.com",
+                false
+        );
+
+        service.putVariable(
+                "chat-two",
+                "username",
+                "other@example.com",
+                false
+        );
+
+        Map<String, String> chatOneValues =
+                service.getVariableValues("chat-one");
+
+        Map<String, String> chatTwoValues =
+                service.getVariableValues("chat-two");
+
+        assertEquals(
+                "user@example.com",
+                chatOneValues.get("username")
+        );
+
+        assertEquals(
+                "user@example.com",
+                chatOneValues.get("authfield")
+        );
+
+        assertEquals(
+                "other@example.com",
+                chatTwoValues.get("username")
+        );
+
+        assertEquals(
+                "other@example.com",
+                chatTwoValues.get("authfield")
         );
     }
 

@@ -1,0 +1,13 @@
+node_modules
+frontend/node_modules
+frontend/dist
+backend/target
+backend/reports
+backend/generated-frameworks
+backend/workspace
+reports
+.git
+.idea
+.env
+.env.*
+*.log

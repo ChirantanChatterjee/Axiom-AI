@@ -39,6 +39,62 @@ class GeneratedFrameworkContentTest {
     }
 
     @Test
+    void authFieldTargetsUseUsernamePlaceholderAndLabel() {
+
+        FlowStep authField =
+                new FlowStep(
+                        "TYPE",
+                        "AUTH_FIELD",
+                        "input[name='loginfmt']"
+                );
+
+        FlowStep passwordField =
+                new FlowStep(
+                        "TYPE",
+                        "PASSWORD_FIELD",
+                        "input[name='passwd']"
+                );
+
+        FlowStep login =
+                new FlowStep(
+                        "CLICK",
+                        "LOGIN_BUTTON",
+                        "#idSIButton9"
+                );
+
+        DetectedFlow flow =
+                new DetectedFlow();
+
+        flow.setFlowType("LOGIN");
+        flow.setPageUrl("https://example.crm.dynamics.com");
+        flow.setSteps(
+                List.of(
+                        authField,
+                        passwordField,
+                        login
+                )
+        );
+
+        String feature =
+                new FlowFeatureGenerator()
+                        .generate(
+                                List.of(flow)
+                        );
+
+        assertTrue(
+                feature.contains("When user enters \"${username}\" into \"username\"")
+        );
+
+        assertTrue(
+                feature.contains("And user enters \"${password}\" into \"password\"")
+        );
+
+        assertFalse(
+                feature.contains("authfield")
+        );
+    }
+
+    @Test
     void generatedJavaIsStandaloneAndAddsStepScreenshots() {
 
         String page =

@@ -1454,6 +1454,13 @@ public class IntentParser {
             return true;
         }
 
+        if (
+                containsGeneratedFieldValueCorrection(lower)
+        ) {
+
+            return true;
+        }
+
         boolean failureSignal =
                 lower.contains("failed")
                         ||
@@ -1469,6 +1476,16 @@ public class IntentParser {
                         ||
                         lower.contains("broken")
                         ||
+                        lower.contains("incorrect")
+                        ||
+                        lower.contains("wrong")
+                        ||
+                        lower.contains("filled with")
+                        ||
+                        lower.contains("getting filled")
+                        ||
+                        lower.contains("value provided for")
+                        ||
                         lower.contains("last test")
                         ||
                         lower.contains("look at it again")
@@ -1476,7 +1493,9 @@ public class IntentParser {
                         lower.contains("check it again");
 
         boolean repairSignal =
-                lower.contains("fix")
+                        lower.contains("fix")
+                        ||
+                        lower.contains("resolve")
                         ||
                         lower.contains("repair")
                         ||
@@ -1543,6 +1562,61 @@ public class IntentParser {
                 repairSignal
                 &&
                 generatedTestContext;
+    }
+
+    private boolean containsGeneratedFieldValueCorrection(
+            String lower
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        boolean fieldContext =
+                lower.contains("field")
+                        ||
+                        lower.contains("username")
+                        ||
+                        lower.contains("password")
+                        ||
+                        lower.contains("auth");
+
+        boolean valueMismatch =
+                lower.contains("filled with")
+                        ||
+                        lower.contains("getting filled")
+                        ||
+                        lower.contains("value provided for")
+                        ||
+                        lower.contains("entered is incorrect")
+                        ||
+                        lower.contains("is incorrect")
+                        ||
+                        lower.contains("wrong value")
+                        ||
+                        lower.contains("incorrect value");
+
+        boolean correctionRequest =
+                lower.contains("fix")
+                        ||
+                        lower.contains("resolve")
+                        ||
+                        lower.contains("rectify")
+                        ||
+                        lower.contains("correct")
+                        ||
+                        lower.contains("please");
+
+        return fieldContext
+                &&
+                valueMismatch
+                &&
+                correctionRequest;
     }
 
     private boolean containsWholeWord(
@@ -1830,6 +1904,16 @@ public class IntentParser {
             return false;
         }
 
+        String lowerMessage =
+                message.toLowerCase();
+
+        if (
+                containsNonVariableUpdateLanguage(lowerMessage)
+        ) {
+
+            return false;
+        }
+
         Matcher assignment =
                 Pattern.compile(
                         "\\b[A-Za-z][A-Za-z0-9_ -]{0,40}\\s*(?:=|:|\\bis\\b|\\bas\\b)",
@@ -1856,6 +1940,34 @@ public class IntentParser {
                 )
                 .matcher(prefix)
                 .find();
+    }
+
+    private boolean containsNonVariableUpdateLanguage(
+            String lower
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        return Pattern.compile(
+                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags|failed|failure|failing|repair|fix|resolve|rectify|incorrect|wrong|invalid|button|field|page|click|clicking|after|because|screenshot|screenshots)\\b"
+                )
+                .matcher(lower)
+                .find()
+                ||
+                lower.contains("filled with")
+                ||
+                lower.contains("getting filled")
+                ||
+                lower.contains("value provided for")
+                ||
+                lower.contains("can you");
     }
 
     private void putVariable(
@@ -2168,6 +2280,15 @@ public class IntentParser {
                  "because",
                  "only",
                  "hence",
+                 "field",
+                 "entered",
+                 "filled",
+                 "failed",
+                 "incorrect",
+                 "wrong",
+                 "value",
+                 "provided",
+                 "please",
                  "tag",
                  "tags",
                  "generated" -> true;
