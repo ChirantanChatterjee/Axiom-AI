@@ -151,6 +151,13 @@ const loadStoredAuth = () => {
   }
 };
 
+const sessionTokenForUser = (user) =>
+  user?.sessionToken ||
+  user?.token ||
+  user?.sessionId ||
+  user?.authToken ||
+  "";
+
 const loadChats = (user) => {
   try {
     const stored =
@@ -195,6 +202,279 @@ const loadInitialChatState = (user) => {
   return {
     chats,
     activeChatId
+  };
+};
+
+const normalizeChatSession = (chat) => {
+  const fallback =
+    createChatSession();
+
+  if (!chat) {
+    return fallback;
+  }
+
+  return {
+    ...fallback,
+    ...chat,
+    id:
+      chat.id ||
+      chat.sessionId ||
+      fallback.id,
+    title:
+      chat.title ||
+      "New chat",
+    websiteUrl:
+      chat.websiteUrl ||
+      null,
+    domainName:
+      chat.domainName ||
+      null,
+    frameworkLocked:
+      Boolean(chat.frameworkLocked),
+    createdAt:
+      chat.createdAt ||
+      fallback.createdAt,
+    updatedAt:
+      chat.updatedAt ||
+      fallback.updatedAt,
+    messages:
+      Array.isArray(chat.messages) &&
+      chat.messages.length > 0
+        ? chat.messages
+        : fallback.messages
+  };
+};
+
+const authHeaders = (user) => ({
+  "X-AIF-Session": sessionTokenForUser(user)
+});
+
+const reportChatSyncFailure = (action, error) => {
+  const status =
+    error?.response?.status;
+  const url =
+    error?.config?.url;
+  const detail =
+    [
+      status
+        ? `status=${status}`
+        : null,
+      url
+        ? `url=${url}`
+        : null
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  console.warn(
+    `AIF chat sync ${action} failed${detail ? ` (${detail})` : ""}.`,
+    error
+  );
+};
+
+const saveRemoteChatSession = async (user, chat) => {
+  if (
+    !sessionTokenForUser(user) ||
+    !chat?.id
+  ) {
+    return;
+  }
+
+  await axios.put(
+    `${API_BASE_URL}/api/workspace/sessions/${encodeURIComponent(chat.id)}`,
+    normalizeChatSession(chat),
+    {
+      headers: authHeaders(user)
+    }
+  );
+};
+
+const isWelcomeOnlyChat = (chat) => {
+  const messages =
+    Array.isArray(chat?.messages)
+      ? chat.messages
+      : [];
+
+  return messages.length === 1 &&
+    messages[0]?.sender === welcomeMessage.sender &&
+    messages[0]?.text === welcomeMessage.text;
+};
+
+const isMeaningfulChat = (chat) =>
+  Boolean(
+    chat?.websiteUrl ||
+    chat?.domainName ||
+    chat?.frameworkLocked ||
+    (
+      chat?.title &&
+      chat.title !== "New chat"
+    ) ||
+    !isWelcomeOnlyChat(chat)
+  );
+
+const chatTime = (chat) => {
+  const value =
+    Date.parse(chat?.updatedAt || chat?.createdAt || "");
+
+  return Number.isNaN(value)
+    ? 0
+    : value;
+};
+
+const mergeChatSessions = (remoteChats, localChats) => {
+  const merged =
+    new Map();
+
+  remoteChats.forEach(chat => {
+    const normalized =
+      normalizeChatSession(chat);
+
+    merged.set(
+      normalized.id,
+      normalized
+    );
+  });
+
+  localChats
+    .map(normalizeChatSession)
+    .filter(isMeaningfulChat)
+    .forEach(localChat => {
+      const remoteChat =
+        merged.get(localChat.id);
+
+      if (
+        !remoteChat ||
+        chatTime(localChat) >= chatTime(remoteChat)
+      ) {
+        merged.set(
+          localChat.id,
+          {
+            ...remoteChat,
+            ...localChat,
+            messages:
+              Array.isArray(localChat.messages) &&
+              localChat.messages.length > 0
+                ? localChat.messages
+                : remoteChat?.messages
+          }
+        );
+      }
+    });
+
+  return Array.from(merged.values())
+    .sort((left, right) =>
+      chatTime(right) - chatTime(left)
+    );
+};
+
+const loadRemoteChatState = async (user) => {
+  if (!sessionTokenForUser(user)) {
+    return loadInitialChatState(user);
+  }
+
+  const localState =
+    loadInitialChatState(user);
+
+  const guestState =
+    userStorageKey(user) === "guest"
+      ? {
+          chats: [],
+          activeChatId: null
+        }
+      : loadInitialChatState(null);
+
+  const localChats =
+    mergeChatSessions(
+      localState.chats,
+      guestState.chats
+    );
+
+  try {
+    const response =
+      await axios.get(
+        `${API_BASE_URL}/api/workspace/sessions`,
+        {
+          headers: authHeaders(user)
+        }
+      );
+
+    const remoteChats =
+      Array.isArray(response.data)
+        ? response.data.map(normalizeChatSession)
+        : [];
+
+    if (remoteChats.length > 0) {
+      const mergedChats =
+        mergeChatSessions(
+          remoteChats,
+          localChats
+        );
+
+      const storedActiveId =
+        localStorage.getItem(activeChatKey(user)) ||
+        localState.activeChatId ||
+        guestState.activeChatId;
+
+      localStorage.setItem(
+        chatStorageKey(user),
+        JSON.stringify(mergedChats)
+      );
+
+      await Promise.all(
+        mergedChats
+          .filter(isMeaningfulChat)
+          .map(chat =>
+            saveRemoteChatSession(user, chat)
+              .catch(error => {
+                reportChatSyncFailure(
+                  "save",
+                  error
+                );
+                return null;
+              })
+          )
+      );
+
+      return {
+        chats: mergedChats,
+        activeChatId:
+          mergedChats.some(chat => chat.id === storedActiveId)
+            ? storedActiveId
+            : mergedChats[0].id
+      };
+    }
+  } catch (error) {
+    reportChatSyncFailure(
+      "load",
+      error
+    );
+    return loadInitialChatState(user);
+  }
+
+  await Promise.all(
+    localChats.map(chat =>
+      saveRemoteChatSession(user, chat)
+        .catch(error => {
+          reportChatSyncFailure(
+            "save",
+            error
+          );
+          return null;
+        })
+    )
+  );
+
+  localStorage.setItem(
+    chatStorageKey(user),
+    JSON.stringify(localChats)
+  );
+
+  return {
+    chats: localChats,
+    activeChatId:
+      localChats.some(chat => chat.id === localState.activeChatId)
+        ? localState.activeChatId
+        : localChats[0]?.id
   };
 };
 
@@ -1038,7 +1318,7 @@ function ProfileView({
             <span>Session</span>
             <strong>
               {
-                user?.sessionToken
+                sessionTokenForUser(user)
                   ? "Active"
                   : "Not available"
               }
@@ -1741,6 +2021,12 @@ function App() {
   const [authUser, setAuthUser] =
     useState(loadStoredAuth);
 
+  const authSessionToken =
+    sessionTokenForUser(authUser);
+
+  const [chatSyncReady, setChatSyncReady] =
+    useState(() => !sessionTokenForUser(loadStoredAuth()));
+
   const [authMode, setAuthMode] =
     useState("login");
 
@@ -1819,6 +2105,9 @@ function App() {
   const messagesEndRef =
     useRef(null);
 
+  const remoteLoadedTokenRef =
+    useRef(null);
+
   const activeChat =
     useMemo(
       () => chats.find(chat => chat.id === activeChatId) || chats[0],
@@ -1890,11 +2179,15 @@ function App() {
           response.data;
 
         const nextState =
-          loadInitialChatState(authenticatedUser);
+          await loadRemoteChatState(authenticatedUser);
+
+        remoteLoadedTokenRef.current =
+          sessionTokenForUser(authenticatedUser);
 
         setAuthUser(authenticatedUser);
         setChats(nextState.chats);
         setActiveChatId(nextState.activeChatId);
+        setChatSyncReady(true);
         setDeletingChatIds([]);
         setInput("");
         setSocialProvider("");
@@ -1966,6 +2259,58 @@ function App() {
 
   useEffect(
     () => {
+      if (!authSessionToken) {
+        setChatSyncReady(true);
+        return undefined;
+      }
+
+      if (
+        remoteLoadedTokenRef.current === authSessionToken
+      ) {
+        setChatSyncReady(true);
+        return undefined;
+      }
+
+      let cancelled =
+        false;
+
+      setChatSyncReady(false);
+
+      loadRemoteChatState(authUser)
+        .then(nextState => {
+          if (cancelled) {
+            return;
+          }
+
+          remoteLoadedTokenRef.current =
+            authSessionToken;
+          setChats(nextState.chats);
+          setActiveChatId(nextState.activeChatId);
+          setDeletingChatIds([]);
+          setChatSyncReady(true);
+        })
+        .catch(error => {
+          reportChatSyncFailure(
+            "hydrate",
+            error
+          );
+
+          if (!cancelled) {
+            setChatSyncReady(true);
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    },
+    [
+      authSessionToken
+    ]
+  );
+
+  useEffect(
+    () => {
       if (!authUser) {
         return;
       }
@@ -1980,7 +2325,11 @@ function App() {
 
   useEffect(
     () => {
-      if (!authUser || chats.length === 0) {
+      if (
+        !authUser ||
+        !chatSyncReady ||
+        chats.length === 0
+      ) {
         return;
       }
 
@@ -1988,9 +2337,32 @@ function App() {
         chatStorageKey(authUser),
         JSON.stringify(chats)
       );
+
+      const syncTimer =
+        window.setTimeout(
+          () => {
+            chats.forEach(chat => {
+              saveRemoteChatSession(
+                authUser,
+                chat
+              ).catch(error => {
+                reportChatSyncFailure(
+                  "save",
+                  error
+                );
+              });
+            });
+          },
+          500
+        );
+
+      return () => {
+        window.clearTimeout(syncTimer);
+      };
     },
     [
       authUser,
+      chatSyncReady,
       chats
     ]
   );
@@ -2080,7 +2452,7 @@ function App() {
           resolvedDownloadUrl,
           {
             headers: {
-              "X-AIF-Session": authUser?.sessionToken || ""
+              ...authHeaders(authUser)
             },
             responseType: "blob"
           }
@@ -2179,7 +2551,7 @@ function App() {
             `${API_BASE_URL}/api/generated-test-executions/${encodeURIComponent(jobId)}`,
             {
               headers: {
-                "X-AIF-Session": authUser?.sessionToken || ""
+                ...authHeaders(authUser)
               }
             }
           );
@@ -2278,7 +2650,7 @@ function App() {
         `${API_BASE_URL}/api/workspace/sessions/${encodeURIComponent(chatId)}`,
         {
           headers: {
-            "X-AIF-Session": authUser?.sessionToken || ""
+            ...authHeaders(authUser)
           }
         }
       );
@@ -2414,11 +2786,15 @@ function App() {
         response.data;
 
       const nextState =
-        loadInitialChatState(authenticatedUser);
+        await loadRemoteChatState(authenticatedUser);
+
+      remoteLoadedTokenRef.current =
+        sessionTokenForUser(authenticatedUser);
 
       setAuthUser(authenticatedUser);
       setChats(nextState.chats);
       setActiveChatId(nextState.activeChatId);
+      setChatSyncReady(true);
       setDeletingChatIds([]);
       setInput("");
       setView("chat");
@@ -2446,7 +2822,10 @@ function App() {
       supabase.auth.signOut();
     }
 
+    remoteLoadedTokenRef.current =
+      null;
     setAuthUser(null);
+    setChatSyncReady(true);
     setChats([]);
     setActiveChatId(null);
     setDeletingChatIds([]);
@@ -2464,7 +2843,7 @@ function App() {
           `${API_BASE_URL}/api/admin/metrics`,
           {
             headers: {
-              "X-AIF-Session": authUser?.sessionToken || ""
+              ...authHeaders(authUser)
             }
           }
         );
@@ -2518,7 +2897,7 @@ function App() {
           formData,
           {
             headers: {
-              "X-AIF-Session": authUser?.sessionToken || ""
+              ...authHeaders(authUser)
             }
           }
         );
@@ -2605,7 +2984,7 @@ function App() {
           },
           {
             headers: {
-              "X-AIF-Session": authUser?.sessionToken || ""
+              ...authHeaders(authUser)
             }
           }
         );
