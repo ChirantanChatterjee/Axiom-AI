@@ -1908,6 +1908,19 @@ public class AICommandOrchestrator {
                 automationWorkspaceService
                         .getSession(userId);
 
+        String tagExpression =
+                generatedTestTarget(command);
+
+        command.setTarget(
+                tagExpression
+        );
+
+        automationWorkspaceService
+                .setLastGeneratedTestExecution(
+                        userId,
+                        tagExpression
+                );
+
         Map<String, String> variables =
                 automationWorkspaceService
                         .getVariableValues(userId);
@@ -1916,7 +1929,7 @@ public class AICommandOrchestrator {
                 generatedTestExecutionService
                         .missingRuntimeVariableContexts(
                                 workspace.getSessionId(),
-                                command.getTarget(),
+                                tagExpression,
                                 variables
                         );
 
@@ -1927,7 +1940,7 @@ public class AICommandOrchestrator {
             automationWorkspaceService
                     .setPendingGeneratedTestExecution(
                             userId,
-                            command.getTarget()
+                            tagExpression
                     );
 
             return missingRuntimeDataResponseWithContexts(
@@ -1943,7 +1956,7 @@ public class AICommandOrchestrator {
                     generatedTestExecutionQueueService.enqueue(
                             workspace.getSessionId(),
                             userId,
-                            command.getTarget(),
+                            tagExpression,
                             variables
                     );
 
@@ -1969,7 +1982,7 @@ public class AICommandOrchestrator {
                 generatedTestExecutionService
                         .runTests(
                                 workspace.getSessionId(),
-                                command.getTarget(),
+                                tagExpression,
                                 variables
                         );
 
@@ -2033,6 +2046,26 @@ public class AICommandOrchestrator {
                 "async".equals(mode);
     }
 
+    private String generatedTestTarget(
+            AICommand command
+    ) {
+
+        if (
+                command == null
+                        ||
+                        command.getTarget() == null
+                        ||
+                        command.getTarget()
+                                .isBlank()
+        ) {
+
+            return "ALL";
+        }
+
+        return command.getTarget()
+                .trim();
+    }
+
     private AIResponse repairGeneratedTests(
             AICommand command,
             String userId
@@ -2041,6 +2074,11 @@ public class AICommandOrchestrator {
         AutomationSession workspace =
                 automationWorkspaceService
                         .getSession(userId);
+
+        rememberLatestQueuedGeneratedTestTag(
+                userId,
+                workspace
+        );
 
         GeneratedTestExecutionService.GeneratedTestRepairResult result =
                 generatedTestExecutionService
@@ -2064,6 +2102,50 @@ public class AICommandOrchestrator {
                 .data(result)
 
                 .build();
+    }
+
+    private void rememberLatestQueuedGeneratedTestTag(
+
+            String userId,
+            AutomationSession workspace
+
+    ) {
+
+        if (
+                generatedTestExecutionQueueService == null
+                        ||
+                        workspace == null
+                        ||
+                        workspace.getSessionId() == null
+                        ||
+                        workspace.getSessionId()
+                                .isBlank()
+        ) {
+
+            return;
+        }
+
+        generatedTestExecutionQueueService
+                .findLatestForSession(
+                        workspace.getSessionId()
+                )
+                .map(
+                        GeneratedTestExecutionJobEntity::getTagExpression
+                )
+                .filter(
+                        tagExpression ->
+                                tagExpression != null
+                                        &&
+                                        !tagExpression.isBlank()
+                )
+                .ifPresent(
+                        tagExpression ->
+                                automationWorkspaceService
+                                        .setLastGeneratedTestExecution(
+                                                userId,
+                                                tagExpression
+                                        )
+                );
     }
 
     // =====================================================

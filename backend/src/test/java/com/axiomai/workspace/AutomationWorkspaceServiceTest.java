@@ -111,6 +111,37 @@ class AutomationWorkspaceServiceTest {
     }
 
     @Test
+    void generatedTestTagMemoryStaysWithinChatSession() {
+
+        AutomationWorkspaceService service =
+                new AutomationWorkspaceService();
+
+        service.setLastGeneratedTestExecution(
+                "chat-one",
+                "@login"
+        );
+
+        service.setLastGeneratedTestExecution(
+                "chat-two",
+                "@checkout"
+        );
+
+        assertEquals(
+                "@login",
+                service.getLastGeneratedTestExecution("chat-one")
+        );
+
+        assertEquals(
+                "@checkout",
+                service.getLastGeneratedTestExecution("chat-two")
+        );
+
+        assertNull(
+                service.getLastGeneratedTestExecution("chat-three")
+        );
+    }
+
+    @Test
     void removeSessionClearsChatScopedWorkspaceMemory() {
 
         AutomationWorkspaceService service =

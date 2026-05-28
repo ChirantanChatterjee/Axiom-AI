@@ -2594,6 +2594,42 @@ public class FlowPageObjectGenerator {
 
                         String escaped = cssText(target);
                         String slug = slug(target);
+                        String key = targetKey(target);
+
+                        if ("username".equals(key)) {
+                            return Arrays.asList(
+                                    "input[name='loginfmt']",
+                                    "input[name='identifier']",
+                                    "input[name='username']",
+                                    "input[autocomplete='username']",
+                                    "input[type='email']",
+                                    "input[aria-label*=\\"Email, phone, or Skype\\" i]",
+                                    "input[placeholder*=\\"Email, phone, or Skype\\" i]",
+                                    "input[aria-label*=\\"email\\" i]",
+                                    "input[placeholder*=\\"email\\" i]",
+                                    "input[name=\\"" + escaped + "\\" i]",
+                                    "input[name*=\\"" + escaped + "\\" i]",
+                                    "input[id=\\"" + slug + "\\" i]",
+                                    "input[id*=\\"" + slug + "\\" i]",
+                                    "input[placeholder*=\\"" + escaped + "\\" i]",
+                                    "input[aria-label*=\\"" + escaped + "\\" i]",
+                                    "input[data-test*=\\"" + slug + "\\" i]",
+                                    "input[data-testid*=\\"" + slug + "\\" i]",
+                                    "input[data-cy*=\\"" + slug + "\\" i]",
+                                    "textarea[name*=\\"" + escaped + "\\" i]",
+                                    "textarea[placeholder*=\\"" + escaped + "\\" i]",
+                                    "select[name*=\\"" + escaped + "\\" i]",
+                                    "[contenteditable='true'][aria-label*=\\"" + escaped + "\\" i]",
+                                    "[role='textbox'][aria-label*=\\"" + escaped + "\\" i]",
+                                    "[role='searchbox'][aria-label*=\\"" + escaped + "\\" i]",
+                                    "[role='combobox'][aria-label*=\\"" + escaped + "\\" i]",
+                                    "[role='combobox']:has-text(\\"" + escaped + "\\")",
+                                    "label:has-text(\\"" + escaped + "\\") input",
+                                    "label:has-text(\\"" + escaped + "\\") textarea",
+                                    "div:has-text(\\"" + escaped + "\\") input",
+                                    "div:has-text(\\"" + escaped + "\\") textarea"
+                            );
+                        }
 
                         return Arrays.asList(
                                 "input[name=\\"" + escaped + "\\" i]",
@@ -2658,7 +2694,17 @@ public class FlowPageObjectGenerator {
                                 .replaceAll("[^a-z0-9]+", "_")
                                 .replaceAll("^_+|_+$", "");
 
-                        if (normalized.contains("user") || normalized.contains("auth")) {
+                        if (
+                                normalized.contains("user")
+                                        ||
+                                        normalized.contains("auth")
+                                        ||
+                                        normalized.contains("email")
+                                        ||
+                                        normalized.contains("loginfmt")
+                                        ||
+                                        normalized.contains("identifier")
+                        ) {
                             return "username";
                         }
 
@@ -2832,6 +2878,12 @@ public class FlowPageObjectGenerator {
                 normalized.contains("user")
                         ||
                         normalized.contains("auth")
+                        ||
+                        normalized.contains("email")
+                        ||
+                        normalized.contains("loginfmt")
+                        ||
+                        normalized.contains("identifier")
         ) {
 
             return "username";

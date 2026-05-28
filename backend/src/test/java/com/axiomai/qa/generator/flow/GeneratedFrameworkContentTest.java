@@ -95,6 +95,28 @@ class GeneratedFrameworkContentTest {
     }
 
     @Test
+    void generatedPageObjectResolvesMicrosoftUsernameFieldsByUsernameTarget() {
+
+        String page =
+                new FlowPageObjectGenerator()
+                        .generate(
+                                List.of(loginFlow())
+                        );
+
+        assertTrue(
+                page.contains("\"input[name='loginfmt']\"")
+        );
+
+        assertTrue(
+                page.contains("\"input[aria-label*=\\\"Email, phone, or Skype\\\" i]\"")
+        );
+
+        assertTrue(
+                page.contains("normalized.contains(\"email\")")
+        );
+    }
+
+    @Test
     void generatedJavaIsStandaloneAndAddsStepScreenshots() {
 
         String page =

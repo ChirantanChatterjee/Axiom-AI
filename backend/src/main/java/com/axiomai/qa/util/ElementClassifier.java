@@ -126,6 +126,10 @@ public class ElementClassifier {
                                         combined.contains("email")
                                         ||
                                         combined.contains("user")
+                                        ||
+                                        combined.contains("loginfmt")
+                                        ||
+                                        combined.contains("userprincipalname")
                         )
 
         ) {

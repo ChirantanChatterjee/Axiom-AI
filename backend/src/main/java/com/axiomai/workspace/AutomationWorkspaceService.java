@@ -530,9 +530,23 @@ public class AutomationWorkspaceService {
                 tagExpression
         );
 
+        session.setLastGeneratedTestTagExpression(
+                tagExpression
+        );
+
         session.setUpdatedAt(
                 LocalDateTime.now()
         );
+    }
+
+    public String getPendingGeneratedTestExecution(
+            String userId
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        return session.getPendingGeneratedTestTagExpression();
     }
 
     public String consumePendingGeneratedTestExecution(
@@ -552,6 +566,44 @@ public class AutomationWorkspaceService {
         );
 
         return tagExpression;
+    }
+
+    public void setLastGeneratedTestExecution(
+
+            String userId,
+            String tagExpression
+
+    ) {
+
+        if (
+                tagExpression == null
+                        ||
+                        tagExpression.isBlank()
+        ) {
+
+            return;
+        }
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        session.setLastGeneratedTestTagExpression(
+                tagExpression
+        );
+
+        session.setUpdatedAt(
+                LocalDateTime.now()
+        );
+    }
+
+    public String getLastGeneratedTestExecution(
+            String userId
+    ) {
+
+        AutomationSession session =
+                getOrCreateSession(userId);
+
+        return session.getLastGeneratedTestTagExpression();
     }
 
     // =====================================================

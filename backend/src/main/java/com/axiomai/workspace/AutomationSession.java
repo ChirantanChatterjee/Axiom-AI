@@ -84,6 +84,8 @@ public class AutomationSession {
 
     private String pendingGeneratedTestTagExpression;
 
+    private String lastGeneratedTestTagExpression;
+
     private String pendingFrameworkGenerationUrl;
 
     // =====================================================

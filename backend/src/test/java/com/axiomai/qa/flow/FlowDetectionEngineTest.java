@@ -272,6 +272,101 @@ class FlowDetectionEngineTest {
     }
 
     @Test
+    void detectsMicrosoftPasswordPageAsLoginFlowAndSkipsGenericFormFlow() {
+
+        PageElement backButton =
+                element(
+                        "BUTTON",
+                        "Back",
+                        "button",
+                        "",
+                        "",
+                        "Back",
+                        "button[aria-label='Back']"
+                );
+
+        PageElement usernameField =
+                element(
+                        "INPUT",
+                        "",
+                        "text",
+                        "loginfmt",
+                        "",
+                        "",
+                        "input[name='loginfmt']"
+                );
+
+        PageElement passwordField =
+                element(
+                        "INPUT",
+                        "",
+                        "password",
+                        "passwd",
+                        "Password",
+                        "Enter the password for user@example.com",
+                        "input[aria-label='Enter the password for user@example.com']"
+                );
+
+        PageElement signInButton =
+                element(
+                        "INPUT",
+                        "Sign in",
+                        "submit",
+                        "",
+                        "",
+                        "",
+                        "#idSIButton9"
+                );
+
+        ElementClassifier.classify(backButton);
+        ElementClassifier.classify(usernameField);
+        ElementClassifier.classify(passwordField);
+        ElementClassifier.classify(signInButton);
+
+        assertEquals(
+                "AUTH_FIELD",
+                usernameField.getBusinessRole()
+        );
+
+        List<DetectedFlow> flows =
+                FlowDetectionEngine.detectFlows(
+                        "https://login.microsoftonline.com",
+                        List.of(
+                                backButton,
+                                usernameField,
+                                passwordField,
+                                signInButton
+                        )
+                );
+
+        DetectedFlow loginFlow =
+                flows.stream()
+                        .filter(flow -> "LOGIN".equals(flow.getFlowType()))
+                        .findFirst()
+                        .orElseThrow();
+
+        List<String> targets =
+                loginFlow.getSteps()
+                        .stream()
+                        .map(FlowStep::getTarget)
+                        .toList();
+
+        assertEquals(
+                List.of(
+                        "USERNAME",
+                        "PASSWORD",
+                        "LOGIN_BUTTON"
+                ),
+                targets
+        );
+
+        assertTrue(
+                flows.stream()
+                        .noneMatch(flow -> "FORM_SUBMISSION".equals(flow.getFlowType()))
+        );
+    }
+
+    @Test
     void submitInputWithContinueIsFormActionNotLoginButton() {
 
         PageElement origin =

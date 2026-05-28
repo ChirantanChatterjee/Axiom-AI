@@ -743,19 +743,45 @@ public class AIOrchestratorService {
 
         if (
 
+                isUnknownOrFlowExecution(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        isRunRequest(lower)
+
+                        &&
+
+                        shouldRerunGeneratedTests(
+                                lower,
+                                workspace
+                        )
+
+        ) {
+
+            command.setIntent(
+                    "EXECUTE_GENERATED_TESTS"
+            );
+
+            command.setTarget(
+                    generatedTestRerunTarget(
+                            workspace
+                    )
+            );
+
+            return;
+        }
+
+        if (
+
                 "UNKNOWN".equalsIgnoreCase(
                         command.getIntent()
                 )
 
                         &&
 
-                        (
-                                lower.contains("execute")
-                                        ||
-                                        lower.contains("run")
-                                        ||
-                                        lower.contains("start")
-                        )
+                        isRunRequest(lower)
 
         ) {
 
@@ -865,6 +891,107 @@ public class AIOrchestratorService {
                     extractFeatureName(message)
             );
         }
+    }
+
+    private boolean isRunRequest(
+            String lower
+    ) {
+
+        return lower.contains("execute")
+                ||
+                lower.contains("run")
+                ||
+                lower.contains("start");
+    }
+
+    private boolean isUnknownOrFlowExecution(
+            String intent
+    ) {
+
+        return "UNKNOWN".equalsIgnoreCase(intent)
+                ||
+                "EXECUTE_FLOW".equalsIgnoreCase(intent);
+    }
+
+    private boolean shouldRerunGeneratedTests(
+
+            String lower,
+            AutomationSession workspace
+
+    ) {
+
+        if (
+                lower.contains("flow")
+                        ||
+                        lower.contains("feature")
+        ) {
+
+            return false;
+        }
+
+        boolean referencesTests =
+                lower.contains("test")
+                        ||
+                        lower.contains("cucumber")
+                        ||
+                        lower.contains("scenario")
+                        ||
+                        lower.contains("tag")
+                        ||
+                        lower.contains("same")
+                        ||
+                        lower.contains("again")
+                        ||
+                        lower.contains("rerun")
+                        ||
+                        lower.contains("re-run");
+
+        if (
+                !referencesTests
+        ) {
+
+            return false;
+        }
+
+        return firstNonBlank(
+                workspace.getPendingGeneratedTestTagExpression(),
+                workspace.getLastGeneratedTestTagExpression()
+        ) != null
+                ||
+                hasFrameworkArtifact(workspace);
+    }
+
+    private String generatedTestRerunTarget(
+            AutomationSession workspace
+    ) {
+
+        String rememberedTarget =
+                firstNonBlank(
+                        workspace.getPendingGeneratedTestTagExpression(),
+                        workspace.getLastGeneratedTestTagExpression()
+                );
+
+        return rememberedTarget == null
+                ? "ALL"
+                : rememberedTarget;
+    }
+
+    private boolean hasFrameworkArtifact(
+            AutomationSession workspace
+    ) {
+
+        return workspace.getArtifacts() != null
+                &&
+                workspace.getArtifacts()
+                        .stream()
+                        .anyMatch(
+                                artifact ->
+                                        artifact != null
+                                                &&
+                                                "FRAMEWORK".equalsIgnoreCase(
+                                                        artifact.getType()
+                                                )
+                        );
     }
 
     // =====================================================
