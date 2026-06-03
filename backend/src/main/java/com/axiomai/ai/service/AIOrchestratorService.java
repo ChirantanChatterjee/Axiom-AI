@@ -743,6 +743,107 @@ public class AIOrchestratorService {
 
         if (
 
+                "EXECUTE_GENERATED_TESTS".equalsIgnoreCase(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        shouldUseRememberedGeneratedTestTarget(
+                                command,
+                                message,
+                                lower,
+                                workspace
+                        )
+
+        ) {
+
+            command.setTarget(
+                    generatedTestRerunTarget(
+                            workspace
+                    )
+            );
+
+            return;
+        }
+
+        if (
+
+                "EXECUTE_GENERATED_TESTS".equalsIgnoreCase(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        shouldUseDefaultGeneratedTestTarget(
+                                command,
+                                lower,
+                                workspace
+                        )
+
+        ) {
+
+            command.setTarget(
+                    generatedTestDefaultTarget(
+                            lower,
+                            workspace
+                    )
+            );
+
+            return;
+        }
+
+        if (
+
+                "EXECUTE_GENERATED_TESTS".equalsIgnoreCase(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        (
+                                command.getTarget() == null
+                                        ||
+                                        command.getTarget()
+                                                .isBlank()
+                        )
+
+        ) {
+
+            command.setTarget(
+                    generatedTestDefaultTarget(
+                            lower,
+                            workspace
+                    )
+            );
+
+            return;
+        }
+
+        if (
+
+                isUnknownOrFlowExecution(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        shouldRepairGeneratedTests(
+                                lower,
+                                workspace
+                        )
+
+        ) {
+
+            command.setIntent(
+                    "REPAIR_GENERATED_TESTS"
+            );
+
+            return;
+        }
+
+        if (
+
                 isUnknownOrFlowExecution(
                         command.getIntent()
                 )
@@ -901,7 +1002,11 @@ public class AIOrchestratorService {
                 ||
                 lower.contains("run")
                 ||
-                lower.contains("start");
+                lower.contains("start")
+                ||
+                lower.contains("rerun")
+                ||
+                lower.contains("re-run");
     }
 
     private boolean isUnknownOrFlowExecution(
@@ -976,6 +1081,350 @@ public class AIOrchestratorService {
                 : rememberedTarget;
     }
 
+    private String generatedTestDefaultTarget(
+            String lower,
+            AutomationSession workspace
+    ) {
+
+        if (
+                shouldRerunGeneratedTests(
+                        lower,
+                        workspace
+                )
+        ) {
+
+            return generatedTestRerunTarget(workspace);
+        }
+
+        return "ALL";
+    }
+
+    private boolean shouldRepairGeneratedTests(
+
+            String lower,
+
+            AutomationSession workspace
+
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        if (
+                lower.contains("test data")
+                        ||
+                        lower.contains("runtime data")
+        ) {
+
+            return false;
+        }
+
+        boolean repairVerb =
+                java.util.regex.Pattern.compile(
+                                "\\b(?:fix|repair|resolve|heal|rectify|correct)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
+
+        if (
+                !repairVerb
+        ) {
+
+            return false;
+        }
+
+        boolean generatedTestContext =
+                lower.contains("generated")
+                        ||
+                        lower.contains("cucumber")
+                        ||
+                        lower.contains("gherkin")
+                        ||
+                        lower.contains("test")
+                        ||
+                        lower.contains("scenario")
+                        ||
+                        lower.contains("last")
+                        ||
+                        lower.contains("failure")
+                        ||
+                        lower.contains("failed")
+                        ||
+                        lower.contains("error")
+                        ||
+                        containsWholeWord(lower, "it")
+                        ||
+                        containsWholeWord(lower, "this")
+                        ||
+                        containsWholeWord(lower, "that");
+
+        if (
+                !generatedTestContext
+        ) {
+
+            return false;
+        }
+
+        if (
+                lower.contains("flow")
+                        &&
+                        !lower.contains("test")
+                        &&
+                        !lower.contains("generated")
+                        &&
+                        !lower.contains("cucumber")
+        ) {
+
+            return false;
+        }
+
+        return firstNonBlank(
+                workspace.getPendingGeneratedTestTagExpression(),
+                workspace.getLastGeneratedTestTagExpression()
+        ) != null
+                ||
+                hasFrameworkArtifact(workspace);
+    }
+
+    private boolean shouldUseRememberedGeneratedTestTarget(
+
+            AICommand command,
+
+            String message,
+
+            String lower,
+
+            AutomationSession workspace
+
+    ) {
+
+        if (
+                lower.contains("flow")
+                        ||
+                        lower.contains("feature")
+                        ||
+                        hasExplicitGeneratedTestTarget(lower)
+        ) {
+
+            return false;
+        }
+
+        if (
+                !isConversationalGeneratedTestRerun(lower)
+                        ||
+                        !shouldRerunGeneratedTests(
+                                lower,
+                                workspace
+                        )
+        ) {
+
+            return false;
+        }
+
+        String target =
+                command.getTarget();
+
+        if (
+                target == null
+                        ||
+                        target.isBlank()
+        ) {
+
+            return true;
+        }
+
+        String normalizedTarget =
+                target.trim();
+
+        String normalizedMessage =
+                message == null
+                        ? ""
+                        : message.trim();
+
+        if (
+                normalizedTarget.equalsIgnoreCase("ALL")
+                        &&
+                        !lower.contains("all")
+        ) {
+
+            return true;
+        }
+
+        return normalizedTarget.equalsIgnoreCase(normalizedMessage)
+                ||
+                normalizedTarget.equalsIgnoreCase(lower)
+                ||
+                looksLikeConversationalRunTarget(normalizedTarget);
+    }
+
+    private boolean shouldUseDefaultGeneratedTestTarget(
+
+            AICommand command,
+
+            String lower,
+
+            AutomationSession workspace
+
+    ) {
+
+        if (
+                lower.contains("flow")
+                        ||
+                        lower.contains("feature")
+                        ||
+                        hasExplicitGeneratedTestTarget(lower)
+        ) {
+
+            return false;
+        }
+
+        String target =
+                command.getTarget();
+
+        if (
+                target == null
+                        ||
+                        target.isBlank()
+        ) {
+
+            return false;
+        }
+
+        if (
+                target.trim()
+                        .startsWith("@")
+                        ||
+                        "ALL".equalsIgnoreCase(
+                                target.trim()
+                        )
+        ) {
+
+            return false;
+        }
+
+        return looksLikeConversationalRunTarget(target)
+                ||
+                target.equalsIgnoreCase(lower);
+    }
+
+    private boolean isConversationalGeneratedTestRerun(
+            String lower
+    ) {
+
+        if (
+                !isRunRequest(lower)
+        ) {
+
+            return false;
+        }
+
+        return lower.contains("rerun")
+                ||
+                lower.contains("re-run")
+                ||
+                lower.contains("again")
+                ||
+                lower.contains("same")
+                ||
+                lower.contains("last")
+                ||
+                java.util.regex.Pattern.compile(
+                                "\\b(?:run|rerun|re-run)\\s+(?:the\\s+)?(?:generated\\s+)?tests?\\s*\\??\\s*$"
+                        )
+                        .matcher(lower)
+                        .find();
+    }
+
+    private boolean hasExplicitGeneratedTestTarget(
+            String lower
+    ) {
+
+        if (
+                lower == null
+        ) {
+
+            return false;
+        }
+
+        return lower.contains("@")
+                ||
+                lower.contains(" tag ")
+                ||
+                lower.contains(" tags ")
+                ||
+                lower.contains("with tag")
+                ||
+                lower.contains("matching ")
+                ||
+                java.util.regex.Pattern.compile(
+                                "\\b(?:for|of|on)\\s+(?!me\\b|us\\b)(?:@?[a-z0-9][a-z0-9 _-]{1,80})"
+                        )
+                        .matcher(lower)
+                        .find()
+                ||
+                lower.contains(" all ");
+    }
+
+    private boolean containsWholeWord(
+            String lower,
+            String word
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        word == null
+                        ||
+                        word.isBlank()
+        ) {
+
+            return false;
+        }
+
+        return java.util.regex.Pattern.compile(
+                        "\\b" + java.util.regex.Pattern.quote(word) + "\\b"
+                )
+                .matcher(lower)
+                .find();
+    }
+
+    private boolean looksLikeConversationalRunTarget(
+            String target
+    ) {
+
+        if (
+                target == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                target.toLowerCase();
+
+        return !lower.contains("@")
+                &&
+                (
+                        lower.contains("run")
+                                ||
+                                lower.contains("rerun")
+                                ||
+                                lower.contains("re-run")
+                                ||
+                                lower.contains("test")
+                                ||
+                                lower.contains("again")
+                                ||
+                                lower.contains("same")
+                );
+    }
+
     private boolean hasFrameworkArtifact(
             AutomationSession workspace
     ) {
@@ -1012,6 +1461,25 @@ public class AIOrchestratorService {
         // TARGET
         // =================================================
 
+        if (
+                "EXECUTE_GENERATED_TESTS".equalsIgnoreCase(
+                        command.getIntent()
+                )
+        ) {
+
+            if (
+                    command.getTarget() == null
+                            ||
+                            command.getTarget()
+                                    .isBlank()
+            ) {
+
+                command.setTarget(
+                        generatedTestRerunTarget(workspace)
+                );
+            }
+
+        } else
         if (
 
                 (

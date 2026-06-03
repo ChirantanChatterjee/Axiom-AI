@@ -93,6 +93,33 @@ public class IntentParser {
         }
 
         if (
+                containsGeneratedTestUpdateIntent(message)
+        ) {
+
+            String featureName =
+                    extractFeatureName(message);
+
+            return AICommand.builder()
+                    .intent("GENERATE_FEATURE")
+                    .flowName(
+                            featureName == null
+                                    ? "generated"
+                                    : featureName
+                    )
+                    .featureName(
+                            featureName == null
+                                    ? "generated"
+                                    : featureName
+                    )
+                    .url(
+                            extractUrl(message)
+                    )
+                    .variables(variables)
+                    .message(message)
+                    .build();
+        }
+
+        if (
                 containsGeneratedTestExecutionRequest(message)
         ) {
 
@@ -330,16 +357,25 @@ public class IntentParser {
             return false;
         }
 
+        if (
+                lower.contains("test data")
+                        ||
+                        lower.contains("runtime data")
+                        ||
+                        lower.contains("runtime variable")
+                        ||
+                        lower.contains("runtime value")
+        ) {
+
+            return false;
+        }
+
         boolean generationVerb =
-                lower.contains("generate")
-                        ||
-                        lower.contains("create")
-                        ||
-                        lower.contains("add")
-                        ||
-                        lower.contains("write")
-                        ||
-                        lower.contains("produce");
+                Pattern.compile(
+                                "\\b(?:generate|create|add|write|produce|update|modify|extend|enhance|improve)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
 
         boolean testArtifact =
                 lower.contains("feature")
@@ -520,7 +556,7 @@ public class IntentParser {
 
         String[] parts =
                 Pattern.compile(
-                                "(?i)\\s+(?:and\\s+then|then|after\\s+that)\\s+|;\\s*|\\s+and\\s+(?=(?:can\\s+you\\s+|please\\s+)?(?:run|execute|start|create|generate|add|write|produce)\\b)"
+                                "(?i)\\s+(?:and\\s+then|then|after\\s+that)\\s+|;\\s*|\\s+and\\s+(?=(?:can\\s+you\\s+|please\\s+)?(?:run|execute|start|create|generate|add|write|produce|update|modify|extend)\\b)"
                         )
                         .split(message);
 
@@ -863,6 +899,10 @@ public class IntentParser {
                         lower.contains("execute")
                         ||
                         lower.contains("start")
+                        ||
+                        lower.contains("rerun")
+                        ||
+                        lower.contains("re-run")
                 );
 
         boolean referencesTests =
@@ -895,6 +935,103 @@ public class IntentParser {
                         hasExplicitTarget
                                 ||
                                 containsGeneratedTestFeatureTarget(message)
+                                ||
+                                containsConversationalGeneratedTestRerun(lower)
+                );
+    }
+
+    private boolean containsConversationalGeneratedTestRerun(
+            String lower
+    ) {
+
+        if (
+                lower == null
+        ) {
+
+            return false;
+        }
+
+        return lower.contains("rerun")
+                ||
+                lower.contains("re-run")
+                ||
+                lower.contains("again")
+                ||
+                lower.contains("same")
+                ||
+                lower.contains("last");
+    }
+
+    private boolean containsGeneratedTestUpdateIntent(
+            String message
+    ) {
+
+        if (
+                message == null
+                        ||
+                        message.isBlank()
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                message.toLowerCase();
+
+        if (
+                lower.contains("test data")
+                        ||
+                        lower.contains("runtime data")
+                        ||
+                        lower.contains("runtime variable")
+                        ||
+                        lower.contains("runtime value")
+                        ||
+                        lower.contains("failed")
+                        ||
+                        lower.contains("failing")
+                        ||
+                        lower.contains("failure")
+                        ||
+                        lower.contains("error")
+        ) {
+
+            return false;
+        }
+
+        boolean updateVerb =
+                Pattern.compile(
+                                "\\b(?:update|modify|extend|enhance|improve|add|append|include|cover|create|generate)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
+
+        boolean testArtifact =
+                lower.contains("generated test")
+                        ||
+                        lower.contains("tests")
+                        ||
+                        lower.contains("test cases")
+                        ||
+                        lower.contains("scenarios")
+                        ||
+                        lower.contains("coverage");
+
+        boolean testUpdateShape =
+                Pattern.compile(
+                                "\\b(?:tests?|scenarios?|test\\s+cases?)\\s+(?:to\\s+)?(?:add|include|cover|update|modify|extend)\\b"
+                        )
+                        .matcher(lower)
+                        .find()
+                        ||
+                        lower.contains("tests_to_add");
+
+        return updateVerb
+                &&
+                (
+                        testArtifact
+                                ||
+                                testUpdateShape
                 );
     }
 
@@ -1166,10 +1303,10 @@ public class IntentParser {
         List<Pattern> patterns =
                 List.of(
                         Pattern.compile(
-                                "(?i)\\b(?:run|execute|start)\\s+(?:the\\s+)?(?:generated\\s+)?tests?\\s+(?:for|of|on)\\s+(.+)$"
+                                "(?i)\\b(?:run|rerun|re-run|execute|start)\\s+(?:the\\s+)?(?:generated\\s+)?tests?\\s+(?:for|of|on)\\s+(.+)$"
                         ),
                         Pattern.compile(
-                                "(?i)\\b(?:run|execute|start)\\s+(?:the\\s+)?(.+?)\\s+(?:generated\\s+)?tests?\\b"
+                                "(?i)\\b(?:run|rerun|re-run|execute|start)\\s+(?:the\\s+)?(.+?)\\s+(?:generated\\s+)?tests?\\b"
                         )
                 );
 
@@ -1191,7 +1328,7 @@ public class IntentParser {
                         );
 
                 if (
-                        !cleaned.isBlank()
+                        !isGenericGeneratedTestTarget(cleaned)
                 ) {
 
                     return cleaned;
@@ -1200,6 +1337,44 @@ public class IntentParser {
         }
 
         return null;
+    }
+
+    private boolean isGenericGeneratedTestTarget(
+            String target
+    ) {
+
+        if (
+                target == null
+        ) {
+
+            return true;
+        }
+
+        String lower =
+                target.trim()
+                        .toLowerCase();
+
+        return lower.isBlank()
+                ||
+                lower.equals("me")
+                ||
+                lower.equals("us")
+                ||
+                lower.equals("generated")
+                ||
+                lower.equals("generated test")
+                ||
+                lower.equals("generated tests")
+                ||
+                lower.equals("test")
+                ||
+                lower.equals("tests")
+                ||
+                lower.equals("same")
+                ||
+                lower.equals("last")
+                ||
+                lower.equals("current");
     }
 
     private String cleanGeneratedTestTargetPhrase(
@@ -1215,6 +1390,10 @@ public class IntentParser {
 
         String cleaned =
                 cleanToken(value)
+                        .replaceAll(
+                                "[?!]+$",
+                                ""
+                        )
                         .replaceAll(
                                 "(?i)\\b(?:with|using)\\s+(?:tag|tags|filter)\\b.*$",
                                 ""
@@ -1461,6 +1640,20 @@ public class IntentParser {
             return true;
         }
 
+        if (
+                containsGeneratedElementTextCorrection(lower)
+        ) {
+
+            return true;
+        }
+
+        if (
+                containsDirectGeneratedRepairCommand(lower)
+        ) {
+
+            return true;
+        }
+
         boolean failureSignal =
                 lower.contains("failed")
                         ||
@@ -1480,6 +1673,10 @@ public class IntentParser {
                         ||
                         lower.contains("wrong")
                         ||
+                        lower.contains("heal")
+                        ||
+                        lower.contains("healing")
+                        ||
                         lower.contains("filled with")
                         ||
                         lower.contains("getting filled")
@@ -1498,6 +1695,10 @@ public class IntentParser {
                         lower.contains("resolve")
                         ||
                         lower.contains("repair")
+                        ||
+                        lower.contains("heal")
+                        ||
+                        lower.contains("healing")
                         ||
                         lower.contains("rectify")
                         ||
@@ -1564,6 +1765,73 @@ public class IntentParser {
                 generatedTestContext;
     }
 
+    private boolean containsDirectGeneratedRepairCommand(
+            String lower
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        if (
+                lower.contains("test data")
+                        ||
+                        lower.contains("runtime data")
+        ) {
+
+            return false;
+        }
+
+        boolean repairVerb =
+                Pattern.compile(
+                                "\\b(?:fix|repair|resolve|heal|rectify|correct)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
+
+        if (
+                !repairVerb
+        ) {
+
+            return false;
+        }
+
+        boolean generatedContext =
+                lower.contains("generated")
+                        ||
+                        lower.contains("cucumber")
+                        ||
+                        lower.contains("gherkin")
+                        ||
+                        lower.contains("test")
+                        ||
+                        lower.contains("scenario")
+                        ||
+                        lower.contains("last")
+                        ||
+                        containsWholeWord(
+                                lower,
+                                "it"
+                        )
+                        ||
+                        containsWholeWord(
+                                lower,
+                                "this"
+                        )
+                        ||
+                        containsWholeWord(
+                                lower,
+                                "that"
+                        );
+
+        return generatedContext;
+    }
+
     private boolean containsGeneratedFieldValueCorrection(
             String lower
     ) {
@@ -1617,6 +1885,117 @@ public class IntentParser {
                 valueMismatch
                 &&
                 correctionRequest;
+    }
+
+    private boolean containsGeneratedElementTextCorrection(
+            String lower
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        boolean elementContext =
+                lower.contains("element")
+                        ||
+                        lower.contains("option")
+                        ||
+                        lower.contains("dropdown")
+                        ||
+                        lower.contains("drop-down")
+                        ||
+                        lower.contains("select")
+                        ||
+                        lower.contains("label")
+                        ||
+                        lower.contains("text");
+
+        boolean correctionContext =
+                lower.contains("expected")
+                        ||
+                        lower.contains("should be")
+                        ||
+                        lower.contains("actual")
+                        ||
+                        lower.contains("actually")
+                        ||
+                        lower.contains("correct")
+                        ||
+                        lower.contains("is called")
+                        ||
+                        lower.contains("is labelled")
+                        ||
+                        lower.contains("is labeled")
+                        ||
+                        lower.contains("text is")
+                        ||
+                        Pattern.compile(
+                                        "\\b(?:element|option|dropdown|drop-down|select|label|text)\\s+(?:is|are)\\b"
+                                )
+                                .matcher(lower)
+                                .find();
+
+        boolean quotedValue =
+                Pattern.compile("\"[^\"]+\"|'[^']+'")
+                        .matcher(lower)
+                        .find();
+
+        return elementContext
+                &&
+                correctionContext
+                &&
+                (
+                        quotedValue
+                                ||
+                                containsKnownSortOptionText(lower)
+                );
+    }
+
+    private boolean containsKnownSortOptionText(
+            String lower
+    ) {
+
+        if (
+                lower == null
+        ) {
+
+            return false;
+        }
+
+        String normalized =
+                lower.replaceAll(
+                                "[\\u2010-\\u2015]",
+                                "-"
+                        )
+                        .replaceAll(
+                                "\\s+",
+                                " "
+                        );
+
+        return normalized.contains("name (a to z)")
+                ||
+                normalized.contains("name (z to a)")
+                ||
+                normalized.contains("price (low to high)")
+                ||
+                normalized.contains("price (high to low)")
+                ||
+                normalized.contains("a-z")
+                ||
+                normalized.contains("z-a")
+                ||
+                normalized.contains("low-high")
+                ||
+                normalized.contains("high-low")
+                ||
+                normalized.contains("low to high")
+                ||
+                normalized.contains("high to low");
     }
 
     private boolean containsWholeWord(
@@ -1936,7 +2315,7 @@ public class IntentParser {
                         .toLowerCase();
 
         return !Pattern.compile(
-                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags|failed|failure|failing|repair|fix|gherkin|invalid|button|field|page|click|clicking|after|because)\\b"
+                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags|failed|failure|failing|repair|fix|gherkin|invalid|button|field|element|option|dropdown|select|label|page|click|clicking|after|because)\\b"
                 )
                 .matcher(prefix)
                 .find();
@@ -1956,7 +2335,7 @@ public class IntentParser {
         }
 
         return Pattern.compile(
-                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags|failed|failure|failing|repair|fix|resolve|rectify|incorrect|wrong|invalid|button|field|page|click|clicking|after|because|screenshot|screenshots)\\b"
+                        "\\b(run|execute|start|generate|create|add|write|produce|provide|show|give|download|report|framework|feature|scenario|database|db|tag|tags|failed|failure|failing|repair|fix|resolve|rectify|incorrect|wrong|invalid|button|field|element|option|dropdown|select|label|page|click|clicking|after|because|screenshot|screenshots)\\b"
                 )
                 .matcher(lower)
                 .find()
@@ -2281,6 +2660,11 @@ public class IntentParser {
                  "only",
                  "hence",
                  "field",
+                 "element",
+                 "option",
+                 "dropdown",
+                 "select",
+                 "label",
                  "entered",
                  "filled",
                  "failed",

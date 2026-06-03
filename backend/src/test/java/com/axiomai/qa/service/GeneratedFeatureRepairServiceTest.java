@@ -83,6 +83,150 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void rewritesSauceDemoSortOptionClicksToSupportedDropdownValues() {
+
+        String feature =
+                """
+                        Feature: form
+
+                        @generated @ai_requirement @product_sorting
+                        Scenario: Product list is sorted by name ascending when A-Z is selected
+                          Given user launches "https://www.saucedemo.com"
+                          And user clicks "A-Z"
+                          Then product list should be sorted by "name ascending"
+
+                        @generated @ai_requirement @product_sorting
+                        Scenario: Product list is sorted by name descending when Z-A is selected
+                          Given user launches "https://www.saucedemo.com"
+                          And user clicks "Z-A"
+                          Then product list should be sorted by "name descending"
+
+                        @generated @ai_requirement @product_sorting
+                        Scenario: Product list is sorted by price ascending when Price Low-High is selected
+                          Given user launches "https://www.saucedemo.com"
+                          And user clicks "Price Low-High"
+                          Then product list should be sorted by "price ascending"
+
+                        @generated @ai_requirement @product_sorting
+                        Scenario: Product list is sorted by price descending when Price High-Low is selected
+                          Given user launches "https://www.saucedemo.com"
+                          And user clicks "Price High-Low"
+                          Then product list should be sorted by "price descending"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.RuntimeException: Unable to resolve element: A-Z",
+                                "The element text should be \"Name (A to Z)\""
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"az\" into \"sort\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"za\" into \"sort\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"lohi\" into \"sort\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"hilo\" into \"sort\"")
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("user clicks \"A-Z\""))
+                        .count()
+        );
+    }
+
+    @Test
+    void rewritesGeneratedSelectStepToSupportedSortDropdownEntryStep() {
+
+        String feature =
+                """
+                        Feature: form
+
+                        @generated @ai_requirement @product_sorting
+                        Scenario: Product list is sorted by name ascending when Name A to Z is selected
+                          Given user launches "https://www.saucedemo.com"
+                          And user selects "Name (A to Z)" from "sort"
+                          Then product list should be sorted by "name ascending"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.RuntimeException: Undefined step: user selects"
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"az\" into \"sort\"")
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("user selects"))
+                        .count()
+        );
+    }
+
+    @Test
+    void rewritesSortClickFromUserProvidedActualOptionTextWhenOutputIsSparse() {
+
+        String feature =
+                """
+                        Feature: generated
+
+                        @generated @ai_requirement
+                        Scenario: Sort by name ascending
+                          Given user launches "https://www.saucedemo.com"
+                          And user clicks "A-Z"
+                          Then user should see "Products"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "Generated test command finished with exit code 1",
+                                "The element text should be \"Name (A to Z)\""
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"az\" into \"sort\"")
+        );
+    }
+
+    @Test
     void repairsSelectFlightScenarioFlowAfterContinueAsPassengerDetailsPage() {
 
         String feature =

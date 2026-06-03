@@ -162,6 +162,25 @@ public class GeneratedFeatureRepairService {
         List<String> allChanges =
                 new ArrayList<>();
 
+        FeatureRepair sortOptionRepair =
+                repairGeneratedSortOptionSelection(
+                        repairedContent,
+                        latestOutput,
+                        userInstruction
+                );
+
+        if (
+                sortOptionRepair.changed()
+        ) {
+
+            repairedContent =
+                    sortOptionRepair.content();
+
+            allChanges.addAll(
+                    sortOptionRepair.changes()
+            );
+        }
+
         FeatureRepair actionTargetRepair =
                 repairIncorrectGeneratedActionTarget(
                         repairedContent,
@@ -365,6 +384,418 @@ public class GeneratedFeatureRepairService {
                         .distinct()
                         .toList()
         );
+    }
+
+    private FeatureRepair repairGeneratedSortOptionSelection(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        if (
+                !containsGeneratedSortEvidence(
+                        combinedOutput(
+                                combinedOutput(
+                                        content,
+                                        latestOutput
+                                ),
+                                userInstruction
+                        )
+                )
+        ) {
+
+            return new FeatureRepair(
+                    content,
+                    List.of()
+            );
+        }
+
+        List<String> lines =
+                content.lines()
+                        .toList();
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        Pattern clickPattern =
+                Pattern.compile(
+                        "^(\\s*)(When|And) user clicks \"([^\"]+)\"\\s*(?:#.*)?$",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        Pattern selectPattern =
+                Pattern.compile(
+                        "^(\\s*)(When|And) user selects \"([^\"]+)\" from \"([^\"]+)\"\\s*(?:#.*)?$",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        Pattern enterPattern =
+                Pattern.compile(
+                        "^(\\s*)(When|And) user enters \"([^\"]+)\" into \"([^\"]+)\"\\s*(?:#.*)?$",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        for (
+                String line
+                : lines
+        ) {
+
+            Matcher click =
+                    clickPattern.matcher(line);
+
+            Matcher select =
+                    selectPattern.matcher(line);
+
+            Matcher enter =
+                    enterPattern.matcher(line);
+
+            if (
+                    click.matches()
+            ) {
+
+                Optional<String> sortValue =
+                        sortOptionValue(
+                                click.group(3)
+                        );
+
+                if (
+                        sortValue.isPresent()
+                ) {
+
+                    line =
+                            sortEntryStep(
+                                    click.group(1),
+                                    click.group(2),
+                                    sortValue.get()
+                            );
+
+                    changes.add(
+                            "Changed generated sort action from click \""
+                                    + click.group(3)
+                                    + "\" to select value \""
+                                    + sortValue.get()
+                                    + "\" in the sort dropdown."
+                    );
+                }
+
+            } else if (
+                    select.matches()
+            ) {
+
+                Optional<String> sortValue =
+                        sortOptionValue(
+                                select.group(3)
+                        );
+
+                if (
+                        sortValue.isPresent()
+                                &&
+                                looksLikeSortControl(
+                                        select.group(4)
+                                )
+                ) {
+
+                    line =
+                            sortEntryStep(
+                                    select.group(1),
+                                    select.group(2),
+                                    sortValue.get()
+                            );
+
+                    changes.add(
+                            "Changed generated sort dropdown step for \""
+                                    + select.group(3)
+                                    + "\" to supported value \""
+                                    + sortValue.get()
+                                    + "\"."
+                    );
+                }
+
+            } else if (
+                    enter.matches()
+                            &&
+                            looksLikeSortControl(
+                                    enter.group(4)
+                            )
+            ) {
+
+                Optional<String> sortValue =
+                        sortOptionValue(
+                                enter.group(3)
+                        );
+
+                if (
+                        sortValue.isPresent()
+                                &&
+                                !sortValue.get()
+                                        .equals(enter.group(3))
+                ) {
+
+                    line =
+                            sortEntryStep(
+                                    enter.group(1),
+                                    enter.group(2),
+                                    sortValue.get()
+                            );
+
+                    changes.add(
+                            "Changed generated sort option \""
+                                    + enter.group(3)
+                                    + "\" to supported value \""
+                                    + sortValue.get()
+                                    + "\"."
+                    );
+                }
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes.stream()
+                        .distinct()
+                        .toList()
+        );
+    }
+
+    private boolean containsGeneratedSortEvidence(
+            String text
+    ) {
+
+        if (
+                text == null
+                        ||
+                        text.isBlank()
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                normalizeSortOptionText(text);
+
+        return lower.contains("product list should be sorted")
+                ||
+                lower.contains("@product_sorting")
+                ||
+                lower.contains("product_sorting")
+                ||
+                lower.contains("inventory page")
+                ||
+                lower.contains("saucedemo")
+                ||
+                lower.contains("unable to resolve element: a-z")
+                ||
+                lower.contains("unable to resolve element: z-a")
+                ||
+                lower.contains("unable to resolve element: price low-high")
+                ||
+                lower.contains("unable to resolve element: price high-low")
+                ||
+                sortOptionValue(text)
+                        .isPresent();
+    }
+
+    private String sortEntryStep(
+            String indent,
+            String keyword,
+            String sortValue
+    ) {
+
+        return indent
+                + keyword
+                + " user enters \""
+                + sortValue
+                + "\" into \"sort\"";
+    }
+
+    private boolean looksLikeSortControl(
+            String target
+    ) {
+
+        if (
+                target == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                target.trim()
+                        .toLowerCase();
+
+        return lower.equals("sort")
+                ||
+                lower.contains("sort")
+                ||
+                lower.contains("order")
+                ||
+                lower.contains("filter")
+                ||
+                lower.contains("dropdown")
+                ||
+                lower.contains("drop-down")
+                ||
+                lower.contains("select");
+    }
+
+    private Optional<String> sortOptionValue(
+            String label
+    ) {
+
+        String normalized =
+                normalizeSortOptionText(label);
+
+        if (
+                normalized.isBlank()
+        ) {
+
+            return Optional.empty();
+        }
+
+        if (
+                normalized.equals("az")
+                        ||
+                        normalized.equals("a-z")
+                        ||
+                        normalized.equals("a to z")
+                        ||
+                        normalized.equals("name a-z")
+                        ||
+                        normalized.equals("name a to z")
+                        ||
+                        (
+                                normalized.contains("name")
+                                        &&
+                                        (
+                                                normalized.contains("a-z")
+                                                        ||
+                                                        normalized.contains("a to z")
+                                        )
+                        )
+        ) {
+
+            return Optional.of("az");
+        }
+
+        if (
+                normalized.equals("za")
+                        ||
+                        normalized.equals("z-a")
+                        ||
+                        normalized.equals("z to a")
+                        ||
+                        normalized.equals("name z-a")
+                        ||
+                        normalized.equals("name z to a")
+                        ||
+                        (
+                                normalized.contains("name")
+                                        &&
+                                        (
+                                                normalized.contains("z-a")
+                                                        ||
+                                                        normalized.contains("z to a")
+                                        )
+                        )
+        ) {
+
+            return Optional.of("za");
+        }
+
+        if (
+                normalized.equals("lohi")
+                        ||
+                        normalized.equals("low-high")
+                        ||
+                        normalized.equals("low to high")
+                        ||
+                        normalized.equals("price low-high")
+                        ||
+                        normalized.equals("price low to high")
+                        ||
+                        (
+                                normalized.contains("price")
+                                        &&
+                                        (
+                                                normalized.contains("low-high")
+                                                        ||
+                                                        normalized.contains("low to high")
+                                        )
+                        )
+        ) {
+
+            return Optional.of("lohi");
+        }
+
+        if (
+                normalized.equals("hilo")
+                        ||
+                        normalized.equals("high-low")
+                        ||
+                        normalized.equals("high to low")
+                        ||
+                        normalized.equals("price high-low")
+                        ||
+                        normalized.equals("price high to low")
+                        ||
+                        (
+                                normalized.contains("price")
+                                        &&
+                                        (
+                                                normalized.contains("high-low")
+                                                        ||
+                                                        normalized.contains("high to low")
+                                        )
+                        )
+        ) {
+
+            return Optional.of("hilo");
+        }
+
+        return Optional.empty();
+    }
+
+    private String normalizeSortOptionText(
+            String text
+    ) {
+
+        if (
+                text == null
+        ) {
+
+            return "";
+        }
+
+        return text.trim()
+                .toLowerCase()
+                .replaceAll(
+                        "[\\u2010-\\u2015]",
+                        "-"
+                )
+                .replaceAll(
+                        "[()_]+",
+                        " "
+                )
+                .replaceAll(
+                        "\\s*-\\s*",
+                        "-"
+                )
+                .replaceAll(
+                        "\\s+",
+                        " "
+                )
+                .trim();
     }
 
     private List<ActionTargetReplacement> actionTargetReplacements(

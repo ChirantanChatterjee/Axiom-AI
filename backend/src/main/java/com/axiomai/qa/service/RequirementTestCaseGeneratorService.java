@@ -181,6 +181,8 @@ public class RequirementTestCaseGeneratorService {
                 - For Agile Travel return journeys, after the flight-search "continue" action the passenger details page shows First Name, Last Name, and a Next button. Enter ${firstName} and ${lastName}, then click "next".
                 - Prefer crawler-observed controls and exact visible action labels. Do not invent buttons such as "search flights" unless the crawler observed that label.
                 - If the crawler shows a submit action such as "Continue", click "continue" rather than a guessed domain phrase.
+                - For dropdown/select controls, do not click option labels. Use `When user enters "<option value>" into "<dropdown target>"`.
+                - For SauceDemo product sorting, use `When user enters "az" into "sort"` for Name A to Z, "za" for Name Z to A, "lohi" for Price low to high, and "hilo" for Price high to low.
                 - Keep targets semantic and short, for example "username", "password", "login button", "search", "add to cart".
                 - If a requested feature is behind login, include login steps before the feature steps.
                 - For ParaBank bill pay, launch the ParaBank home page, log in, click "Bill Pay", fill "verify account" with ${account}, and click "send payment button".

@@ -2163,7 +2163,7 @@ public class FlowPageObjectGenerator {
                             Object tagName = locator.evaluate("el => el.tagName.toLowerCase()");
 
                             if ("select".equals(tagName)) {
-                                locator.selectOption(value == null ? "" : value);
+                                selectOptionWithFallback(locator, value);
                                 return;
                             }
                         } catch (RuntimeException ignored) {
@@ -2179,6 +2179,118 @@ public class FlowPageObjectGenerator {
                             page.keyboard().press("Control+A");
                             page.keyboard().type(value == null ? "" : value);
                         }
+                    }
+
+                    private void selectOptionWithFallback(Locator locator, String value) {
+
+                        String requested = value == null ? "" : value;
+                        RuntimeException lastFailure = null;
+
+                        try {
+                            locator.selectOption(requested);
+                            return;
+                        } catch (RuntimeException e) {
+                            lastFailure = e;
+                        }
+
+                        try {
+                            locator.selectOption(new SelectOption().setLabel(requested));
+                            return;
+                        } catch (RuntimeException e) {
+                            lastFailure = e;
+                        }
+
+                        String canonical = canonicalSortOptionValue(requested);
+
+                        if (!canonical.equals(requested)) {
+                            try {
+                                locator.selectOption(canonical);
+                                return;
+                            } catch (RuntimeException e) {
+                                lastFailure = e;
+                            }
+                        }
+
+                        throw new RuntimeException(
+                                "Unable to select option: " + requested,
+                                lastFailure
+                        );
+                    }
+
+                    private String canonicalSortOptionValue(String value) {
+
+                        if (value == null) {
+                            return "";
+                        }
+
+                        String lower = value.trim().toLowerCase(Locale.ROOT);
+
+                        lower = lower
+                                .replace(String.valueOf((char) 8208), "-")
+                                .replace(String.valueOf((char) 8209), "-")
+                                .replace(String.valueOf((char) 8210), "-")
+                                .replace(String.valueOf((char) 8211), "-")
+                                .replace(String.valueOf((char) 8212), "-")
+                                .replace(String.valueOf((char) 8213), "-")
+                                .replace("(", " ")
+                                .replace(")", " ")
+                                .replace("_", " ")
+                                .trim();
+
+                        while (lower.contains("  ")) {
+                            lower = lower.replace("  ", " ");
+                        }
+
+                        lower = lower
+                                .replace(" - ", "-")
+                                .replace(" -", "-")
+                                .replace("- ", "-");
+
+                        if (
+                                lower.equals("az")
+                                        || lower.equals("a-z")
+                                        || lower.equals("a to z")
+                                        || lower.equals("name a-z")
+                                        || lower.equals("name a to z")
+                                        || (lower.contains("name") && (lower.contains("a-z") || lower.contains("a to z")))
+                        ) {
+                            return "az";
+                        }
+
+                        if (
+                                lower.equals("za")
+                                        || lower.equals("z-a")
+                                        || lower.equals("z to a")
+                                        || lower.equals("name z-a")
+                                        || lower.equals("name z to a")
+                                        || (lower.contains("name") && (lower.contains("z-a") || lower.contains("z to a")))
+                        ) {
+                            return "za";
+                        }
+
+                        if (
+                                lower.equals("lohi")
+                                        || lower.equals("low-high")
+                                        || lower.equals("low to high")
+                                        || lower.equals("price low-high")
+                                        || lower.equals("price low to high")
+                                        || (lower.contains("price") && (lower.contains("low-high") || lower.contains("low to high")))
+                        ) {
+                            return "lohi";
+                        }
+
+                        if (
+                                lower.equals("hilo")
+                                        || lower.equals("high-low")
+                                        || lower.equals("high to low")
+                                        || lower.equals("price high-low")
+                                        || lower.equals("price high to low")
+                                        || (lower.contains("price") && (lower.contains("high-low") || lower.contains("high to low")))
+                        ) {
+                            return "hilo";
+                        }
+
+                        return value.trim();
                     }
 
                     private void confirmFieldIfNeeded(String target, String value) {

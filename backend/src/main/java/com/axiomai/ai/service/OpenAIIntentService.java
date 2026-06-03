@@ -95,14 +95,14 @@ Allowed intents:
 Rules:
 - GENERATE_FRAMEWORK means the user wants a full automation framework for a website.
 - GENERATE_FEATURE means the user wants a specific feature/scenario/test created or updated.
-- Phrases such as "generate more tests", "add edge cases", "add negative tests", or "create boundary scenarios" for a named feature are GENERATE_FEATURE.
+- Phrases such as "generate more tests", "update generated tests", "add these tests", "extend coverage", "add edge cases", "add negative tests", or "create boundary scenarios" for a named feature are GENERATE_FEATURE.
 - Treat "bill pay", "billpay", "bill payment", and "pay bill" as featureName "bill pay".
 - UPDATE_TEST_DATA means the user provides values such as username, password, email, search term, firstName, lastName, or other field data. Do not classify assertion-text corrections or failure explanations like "there is only a Next button" as UPDATE_TEST_DATA.
 - EXECUTE_FEATURE means the user wants to run a named generated feature.
 - EXECUTE_FLOW means the user wants to run a detected or stored flow.
 - SHOW_GENERATED_TEST_TAGS means the user asks for available generated-test tags.
 - EXECUTE_GENERATED_TESTS means the user wants to run generated Cucumber tests by tag, all generated tests, or a named generated test feature.
-- REPAIR_GENERATED_TESTS means the user asks to inspect, fix, repair, correct, or update a failed generated/Cucumber test, including natural phrasing like "I see some failures, can you fix it?" or assertion-text corrections like "the actual assertion text was X".
+- REPAIR_GENERATED_TESTS means the user asks to inspect, fix, repair, heal, resolve, correct, or update a failed generated/Cucumber test, including natural phrasing like "I see some failures, can you fix it?", "fix the test", "heal this", or assertion-text corrections like "the actual assertion text was X".
 - If the user provides an actual assertion sentence/text/message after a failed generated test, classify it as REPAIR_GENERATED_TESTS, even if they do not repeat "fix". Examples: "The actual sentence is --> Please enter a valid number.", "The actual sentence is \"Please enter a valid number\"", "The page says \"Bill Payment Complete\", not \"amount validation error\"".
 - DOWNLOAD_FRAMEWORK means the user wants the generated framework zip/download.
 - Put website targets in url. Normalize bare domains if possible.

@@ -803,6 +803,82 @@ class IntentParserTest {
     }
 
     @Test
+    void detectsConversationalGeneratedTestRerunBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "can you rerun the test for me?"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "ALL",
+                command.getTarget()
+        );
+    }
+
+    @Test
+    void detectsGeneratedTestUpdateBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Update the generated tests to include Product Listing, Product Sorting, and Product Details scenarios."
+                );
+
+        assertEquals(
+                "GENERATE_FEATURE",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "generated",
+                command.getFeatureName()
+        );
+    }
+
+    @Test
+    void doesNotTreatRuntimeTestDataUpdateAsGeneratedTestUpdate() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "update test data username is standard_user and password is secret_sauce"
+                );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "standard_user",
+                command.getVariables()
+                        .get("username")
+        );
+    }
+
+    @Test
     void detectsGeneratedTestRepairRequestBeforeOpenAi() {
 
         IntentParser parser =
@@ -819,6 +895,46 @@ class IntentParserTest {
         assertEquals(
                 "REPAIR_GENERATED_TESTS",
                 command.getIntent()
+        );
+    }
+
+    @Test
+    void detectsDirectGeneratedRepairCommandsBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand fixCommand =
+                parser.parse(
+                        "fix the test for me"
+                );
+
+        AICommand healCommand =
+                parser.parse(
+                        "please heal this"
+                );
+
+        AICommand resolveCommand =
+                parser.parse(
+                        "resolve the last generated test"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                fixCommand.getIntent()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                healCommand.getIntent()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                resolveCommand.getIntent()
         );
     }
 
@@ -964,6 +1080,66 @@ class IntentParserTest {
         assertEquals(
                 "REPAIR_GENERATED_TESTS",
                 quotedCommand.getIntent()
+        );
+    }
+
+    @Test
+    void detectsElementTextCorrectionAsGeneratedRepairRequestBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand expectedTextCommand =
+                parser.parse(
+                        "The expected element text should be \"Name (A to Z)\"."
+                );
+
+        AICommand elementTextCommand =
+                parser.parse(
+                        "The element text should be \"Name (A to Z)\""
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                expectedTextCommand.getIntent()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                elementTextCommand.getIntent()
+        );
+
+        assertTrue(
+                expectedTextCommand.getVariables()
+                        .isEmpty()
+        );
+    }
+
+    @Test
+    void treatsNaturalSortElementHintAsGeneratedRepairInsteadOfRuntimeData() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "The element is Name (A to Z) and Name (Z to A)"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertTrue(
+                command.getVariables()
+                        .isEmpty()
         );
     }
 
