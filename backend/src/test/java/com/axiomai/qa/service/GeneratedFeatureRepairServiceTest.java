@@ -789,6 +789,85 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void repairsObviousUsernamePasswordPlaceholderMismatch() {
+
+        String feature =
+                """
+                        Feature: login
+
+                        @login @generated
+                        Scenario: Login succeeds
+                          Given user launches "https://example.test/login"
+                          When user enters "${password}" into "username"
+                          And user enters "${username}" into "password"
+                          And user clicks "login button"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "The last test failed as the username field is getting filled with value provided for password.",
+                                ""
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("When user enters \"${username}\" into \"username\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user enters \"${password}\" into \"password\"")
+        );
+    }
+
+    @Test
+    void learnedPassengerGuidanceCanTriggerDeterministicRepairWhenOutputIsSparse() {
+
+        String feature =
+                """
+                        Feature: select flight
+
+                        @select_flight @generated @positive
+                        Scenario: User successfully selects a return flight journey
+                          Given user launches "https://travel.agileway.net/login"
+                          When user clicks "continue"
+                          Then user should see "Select your departure flight"
+                          And user clicks "outbound flight"
+                          And user clicks "return flight"
+                          And user clicks "continue"
+                          Then flow should complete successfully
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "Generated test command finished with exit code 1",
+                                "Learned local repair patterns for this session:\n- travel-passenger-details: For Agile Travel return journeys, after flight-search Continue, assert First Name and Last Name, enter passenger names, then click next."
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"First Name\"")
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("And user clicks \"next\"")
+        );
+    }
+
+    @Test
     void updatesAssertionTextWhenUserProvidesUnquotedActualSentenceFollowUp() {
 
         String feature =

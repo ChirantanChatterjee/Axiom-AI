@@ -66,19 +66,6 @@ public class IntentParser {
                     .build();
         }
 
-        if (
-                containsGeneratedTestRepairRequest(message)
-        ) {
-
-            return AICommand.builder()
-
-                    .intent("REPAIR_GENERATED_TESTS")
-
-                    .message(message)
-
-                    .build();
-        }
-
         AICommand compoundCommand =
                 parseCompoundCommand(
                         message,
@@ -90,6 +77,19 @@ public class IntentParser {
         ) {
 
             return compoundCommand;
+        }
+
+        if (
+                containsGeneratedTestRepairRequest(message)
+        ) {
+
+            return AICommand.builder()
+
+                    .intent("REPAIR_GENERATED_TESTS")
+
+                    .message(message)
+
+                    .build();
         }
 
         if (
@@ -533,6 +533,21 @@ public class IntentParser {
             return null;
         }
 
+        long distinctIntents =
+                commands.stream()
+                        .map(AICommand::getIntent)
+                        .filter(intent -> intent != null)
+                        .map(String::toUpperCase)
+                        .distinct()
+                        .count();
+
+        if (
+                distinctIntents < 2
+        ) {
+
+            return null;
+        }
+
         return AICommand.builder()
                 .intent("COMPOUND_COMMAND")
                 .commands(commands)
@@ -556,7 +571,7 @@ public class IntentParser {
 
         String[] parts =
                 Pattern.compile(
-                                "(?i)\\s+(?:and\\s+then|then|after\\s+that)\\s+|;\\s*|\\s+and\\s+(?=(?:can\\s+you\\s+|please\\s+)?(?:run|execute|start|create|generate|add|write|produce|update|modify|extend)\\b)"
+                                "(?i)\\s+(?:and\\s+then|then|after\\s+that)\\s+|;\\s*|\\s+and\\s+(?=(?:can\\s+you\\s+|please\\s+)?(?:run|execute|start|create|generate|add|write|produce|update|modify|extend|fix|repair|resolve|heal|rectify|correct|stabilize|analyse|analyze|diagnose|inspect)\\b)"
                         )
                         .split(message);
 
@@ -630,6 +645,16 @@ public class IntentParser {
                             extractTagExpression(clause)
                     )
                     .variables(variables)
+                    .message(clause)
+                    .build();
+        }
+
+        if (
+                containsGeneratedTestRepairRequest(clause)
+        ) {
+
+            return AICommand.builder()
+                    .intent("REPAIR_GENERATED_TESTS")
                     .message(clause)
                     .build();
         }
@@ -1714,7 +1739,27 @@ public class IntentParser {
                         ||
                         lower.contains("look at")
                         ||
-                        lower.contains("check");
+                        lower.contains("check")
+                        ||
+                        lower.contains("analyse")
+                        ||
+                        lower.contains("analyze")
+                        ||
+                        lower.contains("diagnose")
+                        ||
+                        lower.contains("inspect")
+                        ||
+                        lower.contains("stabilize")
+                        ||
+                        lower.contains("make it pass")
+                        ||
+                        lower.contains("make the test pass")
+                        ||
+                        lower.contains("make tests pass")
+                        ||
+                        lower.contains("use what you learned")
+                        ||
+                        lower.contains("apply learned");
 
         boolean generatedTestContext =
                 lower.contains("last test")
@@ -1758,11 +1803,42 @@ public class IntentParser {
                         ||
                         lower.contains("check it again");
 
-        return failureSignal
+        boolean diagnosticRequest =
+                (
+                        lower.contains("why")
+                                ||
+                                lower.contains("analyse")
+                                ||
+                                lower.contains("analyze")
+                                ||
+                                lower.contains("diagnose")
+                                ||
+                                lower.contains("inspect")
+                                ||
+                                lower.contains("investigate")
+                )
+                        &&
+                        (
+                                lower.contains("failed")
+                                        ||
+                                        lower.contains("failure")
+                                        ||
+                                        lower.contains("error")
+                                        ||
+                                        lower.contains("last")
+                        );
+
+        return generatedTestContext
                 &&
-                repairSignal
-                &&
-                generatedTestContext;
+                (
+                        (
+                                failureSignal
+                                        &&
+                                        repairSignal
+                        )
+                                ||
+                                diagnosticRequest
+                );
     }
 
     private boolean containsDirectGeneratedRepairCommand(
@@ -1789,10 +1865,20 @@ public class IntentParser {
 
         boolean repairVerb =
                 Pattern.compile(
-                                "\\b(?:fix|repair|resolve|heal|rectify|correct)\\b"
+                                "\\b(?:fix|repair|resolve|heal|rectify|correct|stabilize|stabilise|analy[sz]e|diagnose|inspect|investigate)\\b"
                         )
                         .matcher(lower)
-                        .find();
+                        .find()
+                        ||
+                        lower.contains("make it pass")
+                        ||
+                        lower.contains("make the test pass")
+                        ||
+                        lower.contains("make tests pass")
+                        ||
+                        lower.contains("use what you learned")
+                        ||
+                        lower.contains("apply learned");
 
         if (
                 !repairVerb

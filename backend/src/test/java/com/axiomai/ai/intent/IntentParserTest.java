@@ -1143,6 +1143,86 @@ class IntentParserTest {
         );
     }
 
+    @Test
+    void detectsDiagnosticFailureCommandsBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Can you diagnose why the last generated test failed?"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+    }
+
+    @Test
+    void detectsLearnedRepairCommandsBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Use what you learned and make this test pass"
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getIntent()
+        );
+    }
+
+    @Test
+    void detectsRepairThenRerunAsCompoundCommand() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "fix the last generated test and then rerun the same test"
+                );
+
+        assertEquals(
+                "COMPOUND_COMMAND",
+                command.getIntent()
+        );
+
+        assertEquals(
+                2,
+                command.getCommands()
+                        .size()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                command.getCommands()
+                        .get(0)
+                        .getIntent()
+        );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getCommands()
+                        .get(1)
+                        .getIntent()
+        );
+    }
+
     private static class StubOpenAIIntentService
             extends OpenAIIntentService {
 

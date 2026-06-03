@@ -181,6 +181,25 @@ public class GeneratedFeatureRepairService {
             );
         }
 
+        FeatureRepair credentialFieldRepair =
+                repairCredentialFieldValueMismatch(
+                        repairedContent,
+                        latestOutput,
+                        userInstruction
+                );
+
+        if (
+                credentialFieldRepair.changed()
+        ) {
+
+            repairedContent =
+                    credentialFieldRepair.content();
+
+            allChanges.addAll(
+                    credentialFieldRepair.changes()
+            );
+        }
+
         FeatureRepair actionTargetRepair =
                 repairIncorrectGeneratedActionTarget(
                         repairedContent,
@@ -384,6 +403,251 @@ public class GeneratedFeatureRepairService {
                         .distinct()
                         .toList()
         );
+    }
+
+    private FeatureRepair repairCredentialFieldValueMismatch(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        if (
+                content == null
+                        ||
+                        content.isBlank()
+        ) {
+
+            return new FeatureRepair(
+                    content == null
+                            ? ""
+                            : content,
+                    List.of()
+            );
+        }
+
+        String evidence =
+                combinedOutput(
+                        combinedOutput(
+                                content,
+                                latestOutput
+                        ),
+                        userInstruction
+                )
+                        .toLowerCase();
+
+        boolean mismatchEvidence =
+                evidence.contains("username field")
+                        ||
+                        evidence.contains("password field")
+                        ||
+                        evidence.contains("filled with password")
+                        ||
+                        evidence.contains("getting filled with password")
+                        ||
+                        evidence.contains("value provided for password")
+                        ||
+                        evidence.contains("value provided for username")
+                        ||
+                        evidence.contains("wrong value")
+                        ||
+                        evidence.contains("incorrect value");
+
+        Pattern enterPattern =
+                Pattern.compile(
+                        "^(\\s*)(When|And) user enters \"([^\"]+)\" into \"([^\"]+)\"\\s*(?:#.*)?$",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        for (
+                String line
+                : content.lines()
+                .toList()
+        ) {
+
+            Matcher enter =
+                    enterPattern.matcher(line);
+
+            if (
+                    enter.matches()
+            ) {
+
+                String value =
+                        enter.group(3);
+
+                String target =
+                        enter.group(4);
+
+                if (
+                        looksLikeUsernameTarget(target)
+                                &&
+                                looksLikePasswordValue(value)
+                                &&
+                                (
+                                        mismatchEvidence
+                                                ||
+                                                isRuntimePlaceholder(value)
+                                )
+                ) {
+
+                    line =
+                            enterStep(
+                                    enter.group(1),
+                                    enter.group(2),
+                                    "${username}",
+                                    target
+                            );
+
+                    changes.add(
+                            "Changed username field input from password value to ${username}."
+                    );
+
+                } else if (
+                        looksLikePasswordTarget(target)
+                                &&
+                                looksLikeUsernameValue(value)
+                                &&
+                                (
+                                        mismatchEvidence
+                                                ||
+                                                isRuntimePlaceholder(value)
+                                )
+                ) {
+
+                    line =
+                            enterStep(
+                                    enter.group(1),
+                                    enter.group(2),
+                                    "${password}",
+                                    target
+                            );
+
+                    changes.add(
+                            "Changed password field input from username value to ${password}."
+                    );
+                }
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes.stream()
+                        .distinct()
+                        .toList()
+        );
+    }
+
+    private String enterStep(
+            String indent,
+            String keyword,
+            String value,
+            String target
+    ) {
+
+        return indent
+                + keyword
+                + " user enters \""
+                + sanitizeStepText(value)
+                + "\" into \""
+                + sanitizeStepText(target)
+                + "\"";
+    }
+
+    private boolean looksLikeUsernameTarget(
+            String target
+    ) {
+
+        if (
+                target == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                target.toLowerCase();
+
+        return lower.contains("username")
+                ||
+                lower.equals("user")
+                ||
+                lower.contains("login id")
+                ||
+                lower.contains("email");
+    }
+
+    private boolean looksLikePasswordTarget(
+            String target
+    ) {
+
+        return target != null
+                &&
+                target.toLowerCase()
+                        .contains("password");
+    }
+
+    private boolean looksLikePasswordValue(
+            String value
+    ) {
+
+        if (
+                value == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                value.toLowerCase();
+
+        return lower.equals("${password}")
+                ||
+                lower.equals("${pass}")
+                ||
+                lower.contains("password");
+    }
+
+    private boolean looksLikeUsernameValue(
+            String value
+    ) {
+
+        if (
+                value == null
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                value.toLowerCase();
+
+        return lower.equals("${username}")
+                ||
+                lower.equals("${user}")
+                ||
+                lower.contains("username");
+    }
+
+    private boolean isRuntimePlaceholder(
+            String value
+    ) {
+
+        return value != null
+                &&
+                value.matches("\\$\\{[A-Za-z][A-Za-z0-9_]*}");
     }
 
     private FeatureRepair repairGeneratedSortOptionSelection(

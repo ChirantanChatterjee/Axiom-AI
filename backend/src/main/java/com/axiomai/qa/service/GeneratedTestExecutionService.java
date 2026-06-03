@@ -410,11 +410,21 @@ public class GeneratedTestExecutionService {
             String latestOutput =
                     latestQueuedExecutionOutput(sessionId);
 
+            String learnedRepairGuidance =
+                    frameworkLearningService
+                            .runtimeRepairGuidance(sessionId);
+
+            String deterministicRepairInstruction =
+                    combineRepairInstruction(
+                            userInstruction,
+                            learnedRepairGuidance
+                    );
+
             GeneratedFeatureRepairService.RepairResult deterministicRepair =
                     generatedFeatureRepairService.repair(
                             frameworkRoot,
                             latestOutput,
-                            userInstruction
+                            deterministicRepairInstruction
                     );
 
             GeneratedFeatureRepairService.RepairResult repair;
@@ -436,7 +446,7 @@ public class GeneratedTestExecutionService {
                                 .repair(
                                         frameworkRoot,
                                         latestOutput,
-                                        userInstruction
+                                        deterministicRepairInstruction
                                 );
 
                 if (
@@ -530,6 +540,41 @@ public class GeneratedTestExecutionService {
                     e
             );
         }
+    }
+
+    private String combineRepairInstruction(
+            String userInstruction,
+            String learnedRepairGuidance
+    ) {
+
+        String user =
+                userInstruction == null
+                        ? ""
+                        : userInstruction.trim();
+
+        String learned =
+                learnedRepairGuidance == null
+                        ? ""
+                        : learnedRepairGuidance.trim();
+
+        if (
+                learned.isBlank()
+        ) {
+
+            return user;
+        }
+
+        if (
+                user.isBlank()
+        ) {
+
+            return learned;
+        }
+
+        return user
+                + System.lineSeparator()
+                + System.lineSeparator()
+                + learned;
     }
 
     private GeneratedFeatureRepairService.RepairResult withFallbackRepairMetadata(

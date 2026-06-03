@@ -1127,10 +1127,20 @@ public class AIOrchestratorService {
 
         boolean repairVerb =
                 java.util.regex.Pattern.compile(
-                                "\\b(?:fix|repair|resolve|heal|rectify|correct)\\b"
+                                "\\b(?:fix|repair|resolve|heal|rectify|correct|stabilize|stabilise|analy[sz]e|diagnose|inspect|investigate)\\b"
                         )
                         .matcher(lower)
-                        .find();
+                        .find()
+                        ||
+                        lower.contains("make it pass")
+                        ||
+                        lower.contains("make the test pass")
+                        ||
+                        lower.contains("make tests pass")
+                        ||
+                        lower.contains("use what you learned")
+                        ||
+                        lower.contains("apply learned");
 
         if (
                 !repairVerb
