@@ -12,6 +12,8 @@ import com.axiomai.workspace.AutomationWorkspaceService;
 import com.axiomai.workspace.GeneratedArtifact;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -279,6 +281,47 @@ class AIOrchestratorServiceTest {
         assertNotEquals(
                 "EXECUTE_GENERATED_TESTS",
                 orchestrator.capturedCommand.getIntent()
+        );
+    }
+
+    @Test
+    void structuredVariablesUseExplicitUpdateTestDataIntent() {
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        CapturingAICommandOrchestrator orchestrator =
+                new CapturingAICommandOrchestrator();
+
+        AIOrchestratorService service =
+                service(
+                        orchestrator,
+                        workspaceService
+                );
+
+        service.processMessage(
+                "Submitted runtime values for product.",
+                "chat-one",
+                null,
+                null,
+                false,
+                "UPDATE_TEST_DATA",
+                Map.of(
+                        "product",
+                        "Sauce Labs Bolt T-Shirt"
+                )
+        );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                orchestrator.capturedCommand.getIntent()
+        );
+
+        assertEquals(
+                "Sauce Labs Bolt T-Shirt",
+                orchestrator.capturedCommand
+                        .getVariables()
+                        .get("product")
         );
     }
 

@@ -272,6 +272,82 @@ class WorkspaceTenantIsolationTest {
     }
 
     @Test
+    void chatControllerPersistsStructuredVariablesWithoutClearTextValues() {
+
+        StubAIOrchestratorService orchestratorService =
+                new StubAIOrchestratorService();
+
+        StubWorkspaceAccessService accessService =
+                new StubWorkspaceAccessService();
+
+        StubWorkspaceChatSessionService chatSessionService =
+                new StubWorkspaceChatSessionService();
+
+        AIChatController controller =
+                new AIChatController(
+                        orchestratorService,
+                        accessService,
+                        chatSessionService
+                );
+
+        ChatRequest request =
+                new ChatRequest(
+                        "password is secret_sauce",
+                        "session-a",
+                        "https://example.test",
+                        "example.test",
+                        false
+                );
+
+        request.setIntent("UPDATE_TEST_DATA");
+        request.setVariables(
+                Map.of(
+                        "password",
+                        "secret_sauce"
+                )
+        );
+
+        controller.chat(
+                request,
+                "token-a"
+        );
+
+        Map<String, Object> persistedUserMessage =
+                chatSessionService.lastMessages.get(0);
+
+        assertEquals(
+                "Submitted runtime values for password.",
+                persistedUserMessage.get("text")
+        );
+
+        assertEquals(
+                "variables",
+                persistedUserMessage.get("type")
+        );
+
+        assertEquals(
+                Map.of(
+                        "password",
+                        "Saved"
+                ),
+                persistedUserMessage.get("data")
+        );
+
+        assertEquals(
+                "UPDATE_TEST_DATA",
+                orchestratorService.lastExplicitIntent
+        );
+
+        assertEquals(
+                Map.of(
+                        "password",
+                        "secret_sauce"
+                ),
+                orchestratorService.lastExplicitVariables
+        );
+    }
+
+    @Test
     void legacyUnownedSessionsCannotBeArbitrarilyClaimed() {
 
         StubAuthService authService =
@@ -771,6 +847,10 @@ class WorkspaceTenantIsolationTest {
 
         private int processCalls;
 
+        private String lastExplicitIntent;
+
+        private Map<String, String> lastExplicitVariables;
+
         private StubAIOrchestratorService() {
 
             super(
@@ -787,10 +867,16 @@ class WorkspaceTenantIsolationTest {
                 String sessionId,
                 String websiteUrl,
                 String domainName,
-                Boolean frameworkLocked
+                Boolean frameworkLocked,
+                String explicitIntent,
+                Map<String, String> explicitVariables
         ) {
 
             processCalls++;
+            lastExplicitIntent =
+                    explicitIntent;
+            lastExplicitVariables =
+                    explicitVariables;
 
             return AIResponse.builder()
                     .success(true)

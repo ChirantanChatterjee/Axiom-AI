@@ -51,7 +51,9 @@ public class AIChatController {
                         sessionId,
                         request.getWebsiteUrl(),
                         request.getDomainName(),
-                        request.getFrameworkLocked()
+                        request.getFrameworkLocked(),
+                        request.getIntent(),
+                        request.getVariables()
                 );
 
         try {
@@ -95,8 +97,30 @@ public class AIChatController {
         Map<String, Object> userMessage =
                 new LinkedHashMap<>();
 
+        Map<String, String> maskedVariables =
+                maskedVariableSummary(
+                        request.getVariables()
+                );
+
         userMessage.put("sender", "user");
-        userMessage.put("text", request.getMessage());
+        userMessage.put(
+                "text",
+                maskedVariables.isEmpty()
+                        ? request.getMessage()
+                        : structuredVariableMessage(maskedVariables)
+        );
+
+        if (
+                !maskedVariables.isEmpty()
+        ) {
+
+            userMessage.put("type", "variables");
+            userMessage.put(
+                    "data",
+                    maskedVariables
+            );
+        }
+
         messages.add(userMessage);
 
         Map<String, Object> aiMessage =
@@ -111,6 +135,49 @@ public class AIChatController {
         messages.add(aiMessage);
 
         return messages;
+    }
+
+    private Map<String, String> maskedVariableSummary(
+            Map<String, String> variables
+    ) {
+
+        Map<String, String> summary =
+                new LinkedHashMap<>();
+
+        if (
+                variables == null
+                        ||
+                        variables.isEmpty()
+        ) {
+
+            return summary;
+        }
+
+        variables.keySet()
+                .stream()
+                .filter(variable ->
+                        variable != null
+                                &&
+                                !variable.isBlank()
+                )
+                .forEach(variable -> summary.put(
+                        variable,
+                        "Saved"
+                ));
+
+        return summary;
+    }
+
+    private String structuredVariableMessage(
+            Map<String, String> maskedVariables
+    ) {
+
+        return "Submitted runtime values for "
+                + String.join(
+                        ", ",
+                        maskedVariables.keySet()
+                )
+                + ".";
     }
 
 }

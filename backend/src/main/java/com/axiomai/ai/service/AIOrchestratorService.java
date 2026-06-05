@@ -96,6 +96,40 @@ public class AIOrchestratorService {
 
     ) {
 
+        return processMessage(
+                message,
+                sessionId,
+                websiteUrl,
+                domainName,
+                frameworkLocked,
+                null,
+                null
+        );
+    }
+
+    public AIResponse processMessage(
+
+            String message,
+
+            String sessionId,
+
+            String websiteUrl,
+
+            String domainName,
+
+            Boolean frameworkLocked,
+
+            String explicitIntent,
+
+            Map<String, String> explicitVariables
+
+    ) {
+
+        String safeMessage =
+                message == null
+                        ? ""
+                        : message;
+
         String userId =
                 resolveUserId(sessionId);
 
@@ -130,9 +164,15 @@ public class AIOrchestratorService {
         // =================================================
 
         AICommand command =
-                intentParser.parse(message);
+                intentParser.parse(safeMessage);
 
         command.setUserId(userId);
+
+        applyStructuredRequestFields(
+                command,
+                explicitIntent,
+                explicitVariables
+        );
 
         // =================================================
         // NORMALIZATION
@@ -140,7 +180,7 @@ public class AIOrchestratorService {
 
         normalizeCommand(
                 command,
-                message
+                safeMessage
         );
 
         // =================================================
@@ -149,7 +189,7 @@ public class AIOrchestratorService {
 
         recoverConversationalIntent(
                 command,
-                message,
+                safeMessage,
                 session,
                 workspace
         );
@@ -558,6 +598,79 @@ public class AIOrchestratorService {
     // =====================================================
     // NORMALIZATION
     // =====================================================
+
+    private void applyStructuredRequestFields(
+
+            AICommand command,
+
+            String explicitIntent,
+
+            Map<String, String> explicitVariables
+
+    ) {
+
+        if (
+                explicitIntent != null
+                        &&
+                        !explicitIntent.isBlank()
+        ) {
+
+            command.setIntent(
+                    explicitIntent.trim()
+            );
+        }
+
+        Map<String, String> structuredVariables =
+                cleanStructuredVariables(
+                        explicitVariables
+                );
+
+        if (
+                !structuredVariables.isEmpty()
+        ) {
+
+            command.setVariables(
+                    structuredVariables
+            );
+        }
+    }
+
+    private Map<String, String> cleanStructuredVariables(
+            Map<String, String> variables
+    ) {
+
+        Map<String, String> cleanVariables =
+                new LinkedHashMap<>();
+
+        if (
+                variables == null
+                        ||
+                        variables.isEmpty()
+        ) {
+
+            return cleanVariables;
+        }
+
+        variables.forEach((name, value) -> {
+            if (
+                    name == null
+                            ||
+                            name.isBlank()
+                            ||
+                            value == null
+            ) {
+
+                return;
+            }
+
+            cleanVariables.put(
+                    name.trim(),
+                    value
+            );
+        });
+
+        return cleanVariables;
+    }
 
     private void normalizeCommand(
 

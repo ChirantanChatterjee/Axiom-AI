@@ -973,6 +973,108 @@ textarea:disabled {
   color: #24313a;
 }
 
+.runtime-variable-form {
+  display: grid;
+  gap: 12px;
+}
+
+.runtime-variable-note {
+  color: #536972;
+  line-height: 1.55;
+}
+
+.runtime-variable-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(78, 103, 112, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.runtime-variable-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+}
+
+.runtime-variable-table th,
+.runtime-variable-table td {
+  padding: 13px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(78, 103, 112, 0.10);
+}
+
+.runtime-variable-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.runtime-variable-table th {
+  color: #24313a;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.runtime-variable-table th:first-child {
+  width: 54%;
+}
+
+.runtime-variable-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.runtime-variable-name span {
+  color: #24313a;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.runtime-variable-name strong {
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: #425862;
+  background: #edf7f2;
+  border: 1px solid rgba(81, 111, 116, 0.10);
+  font-size: 12px;
+}
+
+.runtime-variable-input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid rgba(78, 103, 112, 0.16);
+  border-radius: 8px;
+  color: #24313a;
+  background: rgba(255, 255, 255, 0.86);
+  outline: none;
+}
+
+.runtime-variable-input:focus {
+  border-color: rgba(214, 107, 73, 0.62);
+  box-shadow: 0 0 0 3px rgba(214, 107, 73, 0.14);
+}
+
+.runtime-variable-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.runtime-variable-submit {
+  appearance: none;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ce5735, #ec7b3f);
+  font-weight: 900;
+  box-shadow: 0 14px 30px rgba(206, 87, 53, 0.22);
+}
+
 .missing-variable-card code {
   display: block;
   margin-top: 12px;
@@ -1464,6 +1566,40 @@ textarea:disabled {
     grid-template-columns: 1fr;
   }
 
+  .runtime-variable-table {
+    min-width: 0;
+  }
+
+  .runtime-variable-table thead {
+    display: none;
+  }
+
+  .runtime-variable-table,
+  .runtime-variable-table tbody,
+  .runtime-variable-table tr,
+  .runtime-variable-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .runtime-variable-table tr {
+    padding: 13px 14px;
+    border-bottom: 1px solid rgba(78, 103, 112, 0.10);
+  }
+
+  .runtime-variable-table tr:last-child {
+    border-bottom: 0;
+  }
+
+  .runtime-variable-table td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .runtime-variable-table td + td {
+    margin-top: 12px;
+  }
+
   .chat-header,
   .help-header {
     align-items: flex-start;
@@ -1890,6 +2026,48 @@ body {
   color: #ffffff;
 }
 
+.runtime-variable-note {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.runtime-variable-table-wrap {
+  background: rgba(0, 0, 0, 0.20);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.runtime-variable-table th {
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.runtime-variable-table td {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.runtime-variable-table tr {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.runtime-variable-name span {
+  color: #ffffff;
+}
+
+.runtime-variable-name strong {
+  color: #ffffff;
+  background: rgba(255, 105, 36, 0.18);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.runtime-variable-input {
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.32);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.runtime-variable-input::placeholder {
+  color: rgba(255, 255, 255, 0.46);
+}
+
 .missing-variable-card code {
   color: #ffffff;
   background: rgba(0, 0, 0, 0.34);
@@ -2060,6 +2238,9 @@ body {
 .response-box,
 .session-lock-card,
 .missing-variable-card,
+.runtime-variable-table-wrap,
+.runtime-variable-input,
+.runtime-variable-submit,
 .variable-pill,
 .tag-pill,
 .missing-variable-card code,

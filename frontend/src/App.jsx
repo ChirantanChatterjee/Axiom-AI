@@ -75,7 +75,7 @@ const isLocalBackendUrl = (value) => {
     return LOCAL_BACKEND_HOSTS.has(
       new URL(value).hostname
     );
-  } catch (_error) {
+  } catch {
     return false;
   }
 };
@@ -618,6 +618,60 @@ const isSensitiveKey = (key) => {
     lower.includes("otp");
 };
 
+const runtimeVariablesForMessage = (data) => {
+  const variables =
+    [];
+
+  const addVariable = (value) => {
+    if (
+      typeof value !== "string" ||
+      !value.trim()
+    ) {
+      return;
+    }
+
+    const normalized =
+      value.trim();
+
+    if (!variables.includes(normalized)) {
+      variables.push(normalized);
+    }
+  };
+
+  (data?.missingVariables || [])
+    .forEach(addVariable);
+
+  (data?.variableDetails || [])
+    .forEach(detail =>
+      addVariable(detail?.variable)
+    );
+
+  return variables;
+};
+
+const emptyRuntimeValueMap = (variables) =>
+  Object.fromEntries(
+    variables.map(variable => [
+      variable,
+      ""
+    ])
+  );
+
+const runtimeDetailsForVariable = (data, variable) =>
+  (data?.variableDetails || [])
+    .filter(detail =>
+      detail?.variable === variable
+    );
+
+const savedVariableSummary = (variables) =>
+  Object.fromEntries(
+    Object.keys(variables || {})
+      .map(variable => [
+        variable,
+        "Saved"
+      ])
+  );
+
 const isHandledStructuredType = (type) => {
   return type === "tags" ||
     type === "generated-test-execution" ||
@@ -651,7 +705,7 @@ const normalizeBackendUrl = (url) => {
 
         return `${apiBaseUrl.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
       }
-    } catch (_error) {
+    } catch {
       return url;
     }
 
@@ -1552,8 +1606,58 @@ function AdminView({
 
 function StructuredMessage({
   msg,
-  onDownloadFramework
+  onDownloadFramework,
+  onSubmitRuntimeVariables,
+  submittingRuntimeVariables = false
 }) {
+  const runtimeVariables =
+    useMemo(
+      () =>
+        msg.type === "missing-variables"
+          ? runtimeVariablesForMessage(msg.data)
+          : [],
+      [
+        msg.type,
+        msg.data
+      ]
+    );
+
+  const [runtimeValues, setRuntimeValues] =
+    useState(() =>
+      emptyRuntimeValueMap(runtimeVariables)
+    );
+
+  const hasMissingRuntimeValue =
+    runtimeVariables.some(variable =>
+      !runtimeValues[variable]?.trim()
+    );
+
+  const submitRuntimeValues = (event) => {
+    event.preventDefault();
+
+    if (
+      runtimeVariables.length === 0 ||
+      hasMissingRuntimeValue ||
+      submittingRuntimeVariables
+    ) {
+      return;
+    }
+
+    const submittedVariables =
+      Object.fromEntries(
+        runtimeVariables.map(variable => [
+          variable,
+          runtimeValues[variable] || ""
+        ])
+      );
+
+    onSubmitRuntimeVariables?.(submittedVariables);
+
+    setRuntimeValues(
+      emptyRuntimeValueMap(runtimeVariables)
+    );
+  };
+
   return (
     <>
       <div className="plain-text">
@@ -1725,64 +1829,123 @@ function StructuredMessage({
       {
         msg.type === "missing-variables" &&
         msg.data && (
-          <div className="missing-variable-card">
+          <form
+            className="missing-variable-card runtime-variable-form"
+            onSubmit={submitRuntimeValues}
+          >
             <strong>Runtime values needed</strong>
 
-            <div className="variable-container">
-              {
-                msg.data.missingVariables.map(variable => (
-                  <div
-                    key={variable}
-                    className="variable-pill"
-                  >
-                    <span>{variable}</span>
-                    <strong>Required</strong>
-                  </div>
-                ))
-              }
-            </div>
+            <p className="runtime-variable-note">
+              Enter each value directly in this table. AIF submits these as structured runtime data instead of parsing the chat text.
+            </p>
 
-            {
-              msg.data.variableDetails &&
-              msg.data.variableDetails.length > 0 && (
-                <div className="variable-context-list">
+            <div className="runtime-variable-table-wrap">
+              <table className="runtime-variable-table">
+                <thead>
+                  <tr>
+                    <th>Required variable</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+
+                <tbody>
                   {
-                    msg.data.variableDetails.map((detail, index) => (
-                      <div
-                        key={`${detail.variable || "variable"}-${index}`}
-                        className="variable-context-row"
-                      >
-                        <strong>{detail.variable}</strong>
-                        {
-                          detail.hint && (
-                            <span>{detail.hint}</span>
-                          )
-                        }
-                        {
-                          detail.scenario && (
-                            <small>Scenario: {detail.scenario}</small>
-                          )
-                        }
-                        {
-                          detail.step && (
-                            <code>{detail.step}</code>
-                          )
-                        }
-                      </div>
+                    runtimeVariables.map(variable => (
+                      <tr key={variable}>
+                        <td>
+                          <div className="runtime-variable-name">
+                            <span>{variable}</span>
+                            <strong>Required</strong>
+                          </div>
+
+                          {
+                            runtimeDetailsForVariable(
+                              msg.data,
+                              variable
+                            ).length > 0 && (
+                              <div className="variable-context-list">
+                                {
+                                  runtimeDetailsForVariable(
+                                    msg.data,
+                                    variable
+                                  ).map((detail, index) => (
+                                    <div
+                                      key={`${detail.variable || "variable"}-${index}`}
+                                      className="variable-context-row"
+                                    >
+                                      {
+                                        detail.hint && (
+                                          <span>{detail.hint}</span>
+                                        )
+                                      }
+                                      {
+                                        detail.scenario && (
+                                          <small>Scenario: {detail.scenario}</small>
+                                        )
+                                      }
+                                      {
+                                        detail.step && (
+                                          <code>{detail.step}</code>
+                                        )
+                                      }
+                                    </div>
+                                  ))
+                                }
+                              </div>
+                            )
+                          }
+                        </td>
+
+                        <td>
+                          <input
+                            className="runtime-variable-input"
+                            type={
+                              isSensitiveKey(variable)
+                                ? "password"
+                                : "text"
+                            }
+                            value={runtimeValues[variable] || ""}
+                            onChange={(event) =>
+                              setRuntimeValues(prev => ({
+                                ...prev,
+                                [variable]: event.target.value
+                              }))
+                            }
+                            placeholder={`Enter ${variable}`}
+                            autoComplete={
+                              isSensitiveKey(variable)
+                                ? "new-password"
+                                : "off"
+                            }
+                            disabled={submittingRuntimeVariables}
+                            required
+                          />
+                        </td>
+                      </tr>
                     ))
                   }
-                </div>
-              )
-            }
+                </tbody>
+              </table>
+            </div>
 
-            {
-              msg.data.example && (
-                <code>
-                  {msg.data.example}
-                </code>
-              )
-            }
-          </div>
+            <div className="runtime-variable-actions">
+              <button
+                type="submit"
+                className="runtime-variable-submit"
+                disabled={
+                  runtimeVariables.length === 0 ||
+                  hasMissingRuntimeValue ||
+                  submittingRuntimeVariables
+                }
+              >
+                {
+                  submittingRuntimeVariables
+                    ? "Saving..."
+                    : "Save values and continue"
+                }
+              </button>
+            </div>
+          </form>
         )
       }
 
@@ -2259,25 +2422,36 @@ function App() {
 
   useEffect(
     () => {
-      if (!authSessionToken) {
-        setChatSyncReady(true);
-        return undefined;
-      }
-
-      if (
-        remoteLoadedTokenRef.current === authSessionToken
-      ) {
-        setChatSyncReady(true);
-        return undefined;
-      }
-
       let cancelled =
         false;
 
-      setChatSyncReady(false);
+      const hydrateChatState = async () => {
+        if (!authSessionToken) {
+          if (!cancelled) {
+            setChatSyncReady(true);
+          }
 
-      loadRemoteChatState(authUser)
-        .then(nextState => {
+          return;
+        }
+
+        if (
+          remoteLoadedTokenRef.current === authSessionToken
+        ) {
+          if (!cancelled) {
+            setChatSyncReady(true);
+          }
+
+          return;
+        }
+
+        if (!cancelled) {
+          setChatSyncReady(false);
+        }
+
+        try {
+          const nextState =
+            await loadRemoteChatState(authUser);
+
           if (cancelled) {
             return;
           }
@@ -2288,8 +2462,8 @@ function App() {
           setActiveChatId(nextState.activeChatId);
           setDeletingChatIds([]);
           setChatSyncReady(true);
-        })
-        .catch(error => {
+
+        } catch (error) {
           reportChatSyncFailure(
             "hydrate",
             error
@@ -2298,14 +2472,23 @@ function App() {
           if (!cancelled) {
             setChatSyncReady(true);
           }
-        });
+        }
+      };
+
+      const hydrateTimer =
+        window.setTimeout(
+          hydrateChatState,
+          0
+        );
 
       return () => {
         cancelled = true;
+        window.clearTimeout(hydrateTimer);
       };
     },
     [
-      authSessionToken
+      authSessionToken,
+      authUser
     ]
   );
 
@@ -2700,6 +2883,59 @@ function App() {
     );
   };
 
+  const appendAiChatResponse = (chatId, responseData) => {
+    const responseType =
+      responseData.type || "info";
+
+    const compactData =
+      compactResponseData(
+        responseType,
+        responseData.data || null
+      );
+
+    applyResponseToChatMetadata(
+      chatId,
+      responseType,
+      compactData
+    );
+
+    const aiMessage = {
+      sender: "ai",
+      text:
+        responseData.message ||
+        "Execution completed.",
+      data: compactData,
+      downloadUrl:
+        responseData.downloadUrl ||
+        compactData?.downloadUrl ||
+        compactData?.artifact?.downloadUrl ||
+        null,
+      reportUrl:
+        normalizeBackendUrl(
+          responseData.reportUrl ||
+          compactData?.reportUrl ||
+          compactData?.reportPath ||
+          null
+        ),
+      type: responseType
+    };
+
+    appendMessage(
+      chatId,
+      aiMessage
+    );
+
+    if (
+      responseType === "generated-test-execution-queued" &&
+      compactData?.jobId
+    ) {
+      pollGeneratedExecutionJob(
+        chatId,
+        compactData.jobId
+      );
+    }
+  };
+
   const updateAuthForm = (patch) => {
     setAuthForm(prev => ({
       ...prev,
@@ -2939,6 +3175,97 @@ function App() {
     }
   };
 
+  const submitRuntimeVariables = async (variables) => {
+    if (
+      !activeChat ||
+      loadingChatId
+    ) {
+      return;
+    }
+
+    const submittedVariables =
+      Object.fromEntries(
+        Object.entries(variables || {})
+          .map(([key, value]) => [
+            key.trim(),
+            String(value ?? "")
+          ])
+          .filter(([key, value]) =>
+            key && value.trim()
+          )
+      );
+
+    const variableNames =
+      Object.keys(submittedVariables);
+
+    if (variableNames.length === 0) {
+      return;
+    }
+
+    const chatId =
+      activeChat.id;
+
+    const userText =
+      `Submitted runtime values for ${variableNames.join(", ")}.`;
+
+    appendMessage(
+      chatId,
+      {
+        sender: "user",
+        text: userText,
+        type: "variables",
+        data: savedVariableSummary(submittedVariables)
+      }
+    );
+
+    try {
+      setLoadingChatId(chatId);
+
+      const response =
+        await axios.post(
+          `${API_BASE_URL}/api/ai/chat`,
+          {
+            message: userText,
+            intent: "UPDATE_TEST_DATA",
+            variables: submittedVariables,
+            sessionId: chatId,
+            websiteUrl: activeChat.websiteUrl,
+            domainName: activeChat.domainName,
+            frameworkLocked: activeChat.frameworkLocked
+          },
+          {
+            headers: {
+              ...authHeaders(authUser)
+            }
+          }
+        );
+
+      appendAiChatResponse(
+        chatId,
+        response.data
+      );
+
+    } catch (error) {
+      appendMessage(
+        chatId,
+        {
+          sender: "ai",
+          text:
+            error.response?.data?.message ||
+            "AIF backend connection failed.",
+          type: "error"
+        }
+      );
+
+    } finally {
+      setLoadingChatId(current =>
+        current === chatId
+          ? null
+          : current
+      );
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !activeChat || loadingChatId) return;
 
@@ -2989,56 +3316,10 @@ function App() {
           }
         );
 
-      const responseType =
-        response.data.type || "info";
-
-      const compactData =
-        compactResponseData(
-          responseType,
-          response.data.data || null
-        );
-
-      applyResponseToChatMetadata(
+      appendAiChatResponse(
         chatId,
-        responseType,
-        compactData
+        response.data
       );
-
-      const aiMessage = {
-        sender: "ai",
-        text:
-          response.data.message ||
-          "Execution completed.",
-        data: compactData,
-        downloadUrl:
-          response.data.downloadUrl ||
-          compactData?.downloadUrl ||
-          compactData?.artifact?.downloadUrl ||
-          null,
-        reportUrl:
-          normalizeBackendUrl(
-            response.data.reportUrl ||
-            compactData?.reportUrl ||
-            compactData?.reportPath ||
-            null
-          ),
-        type: responseType
-      };
-
-      appendMessage(
-        chatId,
-        aiMessage
-      );
-
-      if (
-        responseType === "generated-test-execution-queued" &&
-        compactData?.jobId
-      ) {
-        pollGeneratedExecutionJob(
-          chatId,
-          compactData.jobId
-        );
-      }
 
     } catch (error) {
       appendMessage(
@@ -3422,6 +3703,8 @@ function App() {
                           <StructuredMessage
                             msg={msg}
                             onDownloadFramework={downloadFramework}
+                            onSubmitRuntimeVariables={submitRuntimeVariables}
+                            submittingRuntimeVariables={loadingChatId === activeChat?.id}
                           />
                         </div>
                       </motion.div>

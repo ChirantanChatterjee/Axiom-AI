@@ -689,6 +689,43 @@ public class GeneratedTestExecutionService {
                         .getFrameworkRoot(sessionId);
 
         if (
+                hasSessionId(sessionId)
+                        &&
+                        generatedFrameworkPersistenceService != null
+        ) {
+
+            try {
+
+                if (
+                        generatedFrameworkPersistenceService
+                                .restoreFramework(sessionId)
+                                &&
+                                isRunnableFramework(sessionRoot)
+                ) {
+
+                    return Optional.of(sessionRoot);
+                }
+
+            } catch (RuntimeException e) {
+
+                if (
+                        isRunnableFramework(sessionRoot)
+                ) {
+
+                    log.warn(
+                            "Unable to refresh generated framework for session {}; using local copy.",
+                            sessionId,
+                            e
+                    );
+
+                    return Optional.of(sessionRoot);
+                }
+
+                throw e;
+            }
+        }
+
+        if (
                 isRunnableFramework(sessionRoot)
         ) {
 
@@ -696,12 +733,12 @@ public class GeneratedTestExecutionService {
         }
 
         if (
-                sessionId != null
-                        &&
-                        !sessionId.isBlank()
+                hasSessionId(sessionId)
         ) {
 
             if (
+                    generatedFrameworkPersistenceService != null
+                            &&
                     generatedFrameworkPersistenceService
                             .restoreFramework(sessionId)
                             &&
@@ -717,9 +754,20 @@ public class GeneratedTestExecutionService {
         return latestRunnableFramework();
     }
 
+    private boolean hasSessionId(
+            String sessionId
+    ) {
+
+        return sessionId != null
+                &&
+                !sessionId.isBlank();
+    }
+
     private String missingFrameworkMessage() {
 
         if (
+                generatedFrameworkPersistenceService != null
+                        &&
                 generatedFrameworkPersistenceService
                         .isPersistenceConfigured()
         ) {
