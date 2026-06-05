@@ -853,6 +853,59 @@ class IntentParserTest {
     }
 
     @Test
+    void detectsRequirementBackedAddTestsRequestAsFeatureGeneration() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        """
+                                Please add tests for
+
+                                Product Listing - The inventory page must display all products with name, price, image, and description.
+
+                                Product Sorting - Sorting options (A-Z, Z-A, Price Low-High, Price High-Low) must reorder items correctly.
+
+                                Product Details - Clicking a product must open a detail page with accurate information
+                                """
+                );
+
+        assertEquals(
+                "GENERATE_FEATURE",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "generated",
+                command.getFeatureName()
+        );
+    }
+
+    @Test
+    void detectsAddTestsForFailureBehaviorAsFeatureGeneration() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Add tests for failed login error message validation."
+                );
+
+        assertEquals(
+                "GENERATE_FEATURE",
+                command.getIntent()
+        );
+    }
+
+    @Test
     void doesNotTreatRuntimeTestDataUpdateAsGeneratedTestUpdate() {
 
         IntentParser parser =

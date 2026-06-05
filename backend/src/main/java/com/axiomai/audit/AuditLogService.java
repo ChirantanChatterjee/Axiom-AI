@@ -48,6 +48,7 @@ public class AuditLogService {
 
     private final ObjectMapper objectMapper;
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordSuccess(
             String userId,
             String sessionId,
@@ -68,6 +69,7 @@ public class AuditLogService {
         );
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordFailure(
             String userId,
             String sessionId,
@@ -88,6 +90,7 @@ public class AuditLogService {
         );
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordDenied(
             String userId,
             String sessionId,

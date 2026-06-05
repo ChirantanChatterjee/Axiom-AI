@@ -80,19 +80,6 @@ public class IntentParser {
         }
 
         if (
-                containsGeneratedTestRepairRequest(message)
-        ) {
-
-            return AICommand.builder()
-
-                    .intent("REPAIR_GENERATED_TESTS")
-
-                    .message(message)
-
-                    .build();
-        }
-
-        if (
                 containsGeneratedTestUpdateIntent(message)
         ) {
 
@@ -116,6 +103,19 @@ public class IntentParser {
                     )
                     .variables(variables)
                     .message(message)
+                    .build();
+        }
+
+        if (
+                containsGeneratedTestRepairRequest(message)
+        ) {
+
+            return AICommand.builder()
+
+                    .intent("REPAIR_GENERATED_TESTS")
+
+                    .message(message)
+
                     .build();
         }
 
@@ -1011,14 +1011,6 @@ public class IntentParser {
                         lower.contains("runtime variable")
                         ||
                         lower.contains("runtime value")
-                        ||
-                        lower.contains("failed")
-                        ||
-                        lower.contains("failing")
-                        ||
-                        lower.contains("failure")
-                        ||
-                        lower.contains("error")
         ) {
 
             return false;
@@ -1051,13 +1043,57 @@ public class IntentParser {
                         ||
                         lower.contains("tests_to_add");
 
+        boolean failureReference =
+                lower.contains("failed")
+                        ||
+                        lower.contains("failing")
+                        ||
+                        lower.contains("failure")
+                        ||
+                        lower.contains("error");
+
+        if (
+                failureReference
+                        &&
+                        !containsExplicitNewGeneratedTestRequest(lower)
+        ) {
+
+            return false;
+        }
+
         return updateVerb
                 &&
                 (
                         testArtifact
                                 ||
                                 testUpdateShape
-                );
+                        );
+    }
+
+    private boolean containsExplicitNewGeneratedTestRequest(
+            String lower
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        return Pattern.compile(
+                        "\\b(?:add|append|include|cover|create|generate|write|produce|extend|enhance|improve)\\s+(?:more\\s+|additional\\s+|these\\s+|new\\s+)?(?:generated\\s+)?(?:tests?|scenarios?|test\\s+cases?|coverage)\\b"
+                )
+                .matcher(lower)
+                .find()
+                ||
+                Pattern.compile(
+                                "\\b(?:tests?|scenarios?|test\\s+cases?|coverage)\\s+(?:for|around|covering|to\\s+cover)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
     }
 
     private String extractTagExpression(
@@ -2244,7 +2280,10 @@ public class IntentParser {
         }
 
         if (
-                lower.contains("form")
+                containsWholeWord(
+                        lower,
+                        "form"
+                )
         ) {
 
             return "form";

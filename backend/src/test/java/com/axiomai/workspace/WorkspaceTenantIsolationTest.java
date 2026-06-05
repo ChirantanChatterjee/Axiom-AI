@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -68,6 +69,60 @@ class WorkspaceTenantIsolationTest {
         assertEquals(
                 0,
                 accessService.deleteOwnershipCalls
+        );
+    }
+
+    @Test
+    void userCanDeleteOwnChatHistoryWithoutWorkspaceOwnership() {
+
+        StubWorkspaceCleanupService cleanupService =
+                new StubWorkspaceCleanupService();
+
+        StubWorkspaceAccessService accessService =
+                new StubWorkspaceAccessService();
+
+        accessService.requireAccessException =
+                new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "This workspace is not assigned to the current user."
+                );
+
+        StubWorkspaceChatSessionService chatSessionService =
+                new StubWorkspaceChatSessionService();
+
+        chatSessionService.deleteForCurrentUserResult =
+                true;
+
+        WorkspaceSessionController controller =
+                new WorkspaceSessionController(
+                        cleanupService,
+                        accessService,
+                        chatSessionService
+                );
+
+        WorkspaceCleanupResult result =
+                controller.deleteSession(
+                        "chat-only-session",
+                        "token-a"
+                );
+
+        assertFalse(
+                result.workspaceSessionDeleted()
+        );
+
+        assertEquals(
+                0,
+                cleanupService.cleanupCalls
+        );
+
+        assertEquals(
+                0,
+                accessService.deleteOwnershipCalls
+        );
+
+        assertEquals(
+                1,
+                chatSessionService.deleteForCurrentUserCalls
         );
     }
 
@@ -755,6 +810,10 @@ class WorkspaceTenantIsolationTest {
 
         private String lastSessionId;
 
+        private boolean deleteForCurrentUserResult;
+
+        private int deleteForCurrentUserCalls;
+
         private List<Map<String, Object>> lastMessages =
                 List.of();
 
@@ -771,6 +830,17 @@ class WorkspaceTenantIsolationTest {
         public void delete(
                 String sessionId
         ) {
+        }
+
+        @Override
+        public boolean deleteForCurrentUser(
+                String token,
+                String sessionId
+        ) {
+
+            deleteForCurrentUserCalls++;
+
+            return deleteForCurrentUserResult;
         }
 
         @Override

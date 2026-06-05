@@ -96,6 +96,7 @@ Rules:
 - GENERATE_FRAMEWORK means the user wants a full automation framework for a website.
 - GENERATE_FEATURE means the user wants a specific feature/scenario/test created or updated.
 - Phrases such as "generate more tests", "update generated tests", "add these tests", "extend coverage", "add edge cases", "add negative tests", or "create boundary scenarios" for a named feature are GENERATE_FEATURE.
+- Requests to add, create, generate, write, extend, or cover tests from new requirements are GENERATE_FEATURE even if the requirements mention errors or failed-login behavior. Only classify as REPAIR_GENERATED_TESTS when the user is fixing an already failed/broken generated test run.
 - Treat "bill pay", "billpay", "bill payment", and "pay bill" as featureName "bill pay".
 - UPDATE_TEST_DATA means the user provides values such as username, password, email, search term, firstName, lastName, or other field data. Do not classify assertion-text corrections or failure explanations like "there is only a Next button" as UPDATE_TEST_DATA.
 - EXECUTE_FEATURE means the user wants to run a named generated feature.

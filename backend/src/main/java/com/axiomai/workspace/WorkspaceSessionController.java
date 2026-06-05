@@ -49,11 +49,48 @@ public class WorkspaceSessionController {
             @RequestHeader("X-AIF-Session") String token
     ) {
 
-        String normalizedSessionId =
-                workspaceAccessService.requireAccess(
-                        token,
-                        sessionId
-                );
+        String normalizedSessionId;
+
+        try {
+
+            normalizedSessionId =
+                    workspaceAccessService.requireAccess(
+                            token,
+                            sessionId
+                    );
+
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+
+            if (
+                    !isUnassignedWorkspaceAccessFailure(e)
+                            ||
+                            !workspaceChatSessionService.deleteForCurrentUser(
+                                    token,
+                                    sessionId
+                            )
+            ) {
+
+                throw e;
+            }
+
+            normalizedSessionId =
+                    normalizeSessionId(sessionId);
+
+            auditWorkspaceDeleted(
+                    token,
+                    normalizedSessionId,
+                    Map.of("cleanup", "chat-only")
+            );
+
+            return new WorkspaceCleanupResult(
+                    normalizedSessionId,
+                    false,
+                    false,
+                    0,
+                    0,
+                    null
+            );
+        }
 
         WorkspaceCleanupResult result =
                 workspaceCleanupService.cleanup(
@@ -70,7 +107,8 @@ public class WorkspaceSessionController {
 
         auditWorkspaceDeleted(
                 token,
-                normalizedSessionId
+                normalizedSessionId,
+                Map.of("cleanup", "completed")
         );
 
         return result;
@@ -140,7 +178,8 @@ public class WorkspaceSessionController {
 
     private void auditWorkspaceDeleted(
             String token,
-            String sessionId
+            String sessionId,
+            Map<String, ?> details
     ) {
 
         if (
@@ -156,8 +195,54 @@ public class WorkspaceSessionController {
                 "workspace.session.deleted",
                 "WORKSPACE_SESSION",
                 sessionId,
-                Map.of("cleanup", "completed")
+                details
         );
+    }
+
+    private boolean isUnassignedWorkspaceAccessFailure(
+            org.springframework.web.server.ResponseStatusException exception
+    ) {
+
+        if (
+                exception == null
+                        ||
+                        exception.getStatusCode()
+                                .value() != 403
+        ) {
+
+            return false;
+        }
+
+        String reason =
+                exception.getReason();
+
+        return reason != null
+                &&
+                (
+                        reason.contains("not assigned")
+                                ||
+                                reason.contains("unassigned")
+                );
+    }
+
+    private String normalizeSessionId(
+            String sessionId
+    ) {
+
+        if (
+                sessionId == null
+                        ||
+                        sessionId.isBlank()
+        ) {
+
+            return "";
+        }
+
+        return sessionId.trim()
+                .replaceAll(
+                        "[^A-Za-z0-9._-]",
+                        "-"
+                );
     }
 
     private String safeCurrentUserId(

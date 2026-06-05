@@ -245,6 +245,39 @@ public class WorkspaceChatSessionService {
         );
     }
 
+    @Transactional
+    public boolean deleteForCurrentUser(
+            String token,
+            String sessionId
+    ) {
+
+        AifUserEntity user =
+                authService.requireUser(token);
+
+        String normalizedSessionId =
+                normalizeSessionId(sessionId);
+
+        WorkspaceChatSessionEntity entity =
+                repository.findById(normalizedSessionId)
+                        .orElse(null);
+
+        if (
+                entity == null
+        ) {
+
+            return false;
+        }
+
+        assertOwner(
+                entity,
+                user
+        );
+
+        repository.delete(entity);
+
+        return true;
+    }
+
     private WorkspaceChatSessionDto toDto(
             WorkspaceChatSessionEntity entity
     ) {

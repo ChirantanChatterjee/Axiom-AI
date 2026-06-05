@@ -4,12 +4,17 @@ import com.axiomai.audit.entity.AuditLogEntity;
 import com.axiomai.audit.repository.AuditLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AuditLogServiceTest {
@@ -81,6 +86,50 @@ class AuditLogServiceTest {
 
         assertFalse(
                 detailsJson.contains("secret_sauce")
+        );
+    }
+
+    @Test
+    void auditConvenienceMethodsStartNewWriteTransactions() throws Exception {
+
+        assertRequiresNewTransaction(
+                "recordSuccess"
+        );
+        assertRequiresNewTransaction(
+                "recordFailure"
+        );
+        assertRequiresNewTransaction(
+                "recordDenied"
+        );
+    }
+
+    private void assertRequiresNewTransaction(
+            String methodName
+    ) throws Exception {
+
+        Method method =
+                AuditLogService.class.getMethod(
+                        methodName,
+                        String.class,
+                        String.class,
+                        String.class,
+                        String.class,
+                        String.class,
+                        Map.class
+                );
+
+        Transactional transactional =
+                method.getAnnotation(
+                        Transactional.class
+                );
+
+        assertNotNull(
+                transactional
+        );
+
+        assertEquals(
+                Propagation.REQUIRES_NEW,
+                transactional.propagation()
         );
     }
 
