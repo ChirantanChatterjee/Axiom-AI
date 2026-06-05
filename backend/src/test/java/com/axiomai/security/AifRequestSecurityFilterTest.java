@@ -88,6 +88,100 @@ class AifRequestSecurityFilterTest {
     }
 
     @Test
+    void protectedApiErrorIncludesCorsHeaders()
+            throws Exception {
+
+        authService.requireUserException =
+                new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Missing session token."
+                );
+
+        MockHttpServletRequest request =
+                request(
+                        "POST",
+                        "/api/ai/chat"
+                );
+
+        request.addHeader(
+                "Origin",
+                "https://aif-pi.vercel.app"
+        );
+
+        MockHttpServletResponse response =
+                new MockHttpServletResponse();
+
+        filter.doFilter(
+                request,
+                response,
+                new MockFilterChain()
+        );
+
+        assertEquals(
+                HttpStatus.UNAUTHORIZED.value(),
+                response.getStatus()
+        );
+
+        assertEquals(
+                "https://aif-pi.vercel.app",
+                response.getHeader("Access-Control-Allow-Origin")
+        );
+
+        assertEquals(
+                "true",
+                response.getHeader("Access-Control-Allow-Credentials")
+        );
+    }
+
+    @Test
+    void corsPreflightReturnsNoContentWithoutAuth()
+            throws Exception {
+
+        MockHttpServletRequest request =
+                request(
+                        "OPTIONS",
+                        "/api/ai/chat"
+                );
+
+        request.addHeader(
+                "Origin",
+                "https://aif-pi.vercel.app"
+        );
+        request.addHeader(
+                "Access-Control-Request-Method",
+                "POST"
+        );
+        request.addHeader(
+                "Access-Control-Request-Headers",
+                "content-type,x-aif-session"
+        );
+
+        MockHttpServletResponse response =
+                new MockHttpServletResponse();
+
+        filter.doFilter(
+                request,
+                response,
+                new MockFilterChain()
+        );
+
+        assertEquals(
+                HttpStatus.NO_CONTENT.value(),
+                response.getStatus()
+        );
+
+        assertEquals(
+                "https://aif-pi.vercel.app",
+                response.getHeader("Access-Control-Allow-Origin")
+        );
+
+        assertEquals(
+                0,
+                authService.requireUserCalls
+        );
+    }
+
+    @Test
     void workspaceEndpointAllowsValidSession()
             throws Exception {
 

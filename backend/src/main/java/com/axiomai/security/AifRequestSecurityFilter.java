@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -29,6 +32,15 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
     public static final String SESSION_HEADER =
             "X-AIF-Session";
 
+    private static final String DEFAULT_ALLOWED_ORIGINS =
+            "https://aif-pi.vercel.app,http://localhost:5173,http://localhost:3000,http://localhost:8080";
+
+    private static final String ALLOWED_METHODS =
+            "GET,POST,PUT,PATCH,DELETE,OPTIONS";
+
+    private static final String ALLOWED_HEADERS =
+            "Accept,Authorization,Content-Type,X-AIF-Session,X-Requested-With";
+
     private static final Set<String> PUBLIC_POST_PATHS =
             Set.of(
                     "/api/auth/signup",
@@ -37,6 +49,9 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
             );
 
     private final AuthService authService;
+
+    @Value("${aif.cors.allowed-origins:${aif.cors.allowed-origin-patterns:" + DEFAULT_ALLOWED_ORIGINS + "}}")
+    private String allowedOrigins;
 
     private AuditLogService auditLogService;
 
@@ -60,6 +75,24 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
                 request,
                 response
         );
+
+        addCorsHeaders(
+                request,
+                response
+        );
+
+        if (
+                "OPTIONS".equalsIgnoreCase(
+                        request.getMethod()
+                )
+        ) {
+
+            response.setStatus(
+                    HttpServletResponse.SC_NO_CONTENT
+            );
+
+            return;
+        }
 
         String path =
                 path(request);
@@ -243,6 +276,156 @@ public class AifRequestSecurityFilter extends OncePerRequestFilter {
                     "max-age=31536000; includeSubDomains"
             );
         }
+    }
+
+    private void addCorsHeaders(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+
+        String origin =
+                normalizeOrigin(
+                        request.getHeader("Origin")
+                );
+
+        if (
+                origin == null
+        ) {
+
+            return;
+        }
+
+        if (
+                !isAllowedOrigin(origin)
+        ) {
+
+            return;
+        }
+
+        response.setHeader(
+                "Access-Control-Allow-Origin",
+                origin
+        );
+        response.setHeader(
+                "Access-Control-Allow-Credentials",
+                "true"
+        );
+        response.setHeader(
+                "Access-Control-Allow-Methods",
+                ALLOWED_METHODS
+        );
+        response.setHeader(
+                "Access-Control-Allow-Headers",
+                ALLOWED_HEADERS
+        );
+        response.setHeader(
+                "Access-Control-Expose-Headers",
+                "Content-Disposition"
+        );
+        response.addHeader(
+                "Vary",
+                "Origin"
+        );
+        response.addHeader(
+                "Vary",
+                "Access-Control-Request-Method"
+        );
+        response.addHeader(
+                "Vary",
+                "Access-Control-Request-Headers"
+        );
+    }
+
+    private boolean isAllowedOrigin(
+            String origin
+    ) {
+
+        return Arrays.stream(
+                        configuredAllowedOrigins()
+                )
+                .anyMatch(origin::equals);
+    }
+
+    private String[] configuredAllowedOrigins() {
+
+        String[] configured =
+                Arrays.stream(
+                                safeAllowedOrigins()
+                                        .split(",")
+                        )
+                        .map(this::normalizeOrigin)
+                        .filter(origin -> origin != null)
+                        .filter(this::isSafeExactOrigin)
+                        .toArray(String[]::new);
+
+        if (
+                configured.length > 0
+        ) {
+
+            return configured;
+        }
+
+        return Arrays.stream(
+                        DEFAULT_ALLOWED_ORIGINS.split(",")
+                )
+                .map(this::normalizeOrigin)
+                .filter(origin -> origin != null)
+                .toArray(String[]::new);
+    }
+
+    private String safeAllowedOrigins() {
+
+        return allowedOrigins == null
+                ||
+                allowedOrigins.isBlank()
+                ? DEFAULT_ALLOWED_ORIGINS
+                : allowedOrigins;
+    }
+
+    private String normalizeOrigin(
+            String origin
+    ) {
+
+        if (
+                origin == null
+        ) {
+
+            return null;
+        }
+
+        String normalized =
+                origin.trim();
+
+        while (
+                normalized.endsWith("/")
+        ) {
+
+            normalized =
+                    normalized.substring(
+                            0,
+                            normalized.length() - 1
+                    );
+        }
+
+        return normalized.isBlank()
+                ? null
+                : normalized;
+    }
+
+    private boolean isSafeExactOrigin(
+            String origin
+    ) {
+
+        String lower =
+                origin.toLowerCase(Locale.ROOT);
+
+        return (lower.startsWith("https://")
+                ||
+                lower.startsWith("http://localhost:")
+                ||
+                lower.startsWith("http://127.0.0.1:"))
+                &&
+                !origin.contains("*");
     }
 
     private boolean isPublicRequest(
