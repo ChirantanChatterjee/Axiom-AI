@@ -5,10 +5,15 @@ import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
 import com.axiomai.qa.generator.flow.FlowPageObjectGenerator;
 import com.axiomai.qa.generator.flow.FlowStepDefinitionGenerator;
 import com.axiomai.reporting.service.ReportArtifactService;
+import com.axiomai.ml.AIFMLPredictionService;
+import com.axiomai.ml.AIFRepairMLContext;
+import com.axiomai.ml.AIFTrainingDataService;
+import com.axiomai.ml.RepairRecommendationLabel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -87,6 +92,30 @@ public class GeneratedTestExecutionService {
 
     private final GeneratedTestExecutionQueueService
             generatedTestExecutionQueueService;
+
+    private AIFMLPredictionService
+            aifMLPredictionService;
+
+    private AIFTrainingDataService
+            aifTrainingDataService;
+
+    @Autowired(required = false)
+    public void setAifMLPredictionService(
+            AIFMLPredictionService aifMLPredictionService
+    ) {
+
+        this.aifMLPredictionService =
+                aifMLPredictionService;
+    }
+
+    @Autowired(required = false)
+    public void setAifTrainingDataService(
+            AIFTrainingDataService aifTrainingDataService
+    ) {
+
+        this.aifTrainingDataService =
+                aifTrainingDataService;
+    }
 
     public GeneratedTestCatalog listTags(
             String sessionId
@@ -410,6 +439,9 @@ public class GeneratedTestExecutionService {
             String latestOutput =
                     latestQueuedExecutionOutput(sessionId);
 
+            AIFRepairMLContext mlRepairContext =
+                    analyzeRepairWithML(latestOutput);
+
             String learnedRepairGuidance =
                     frameworkLearningService
                             .runtimeRepairGuidance(sessionId);
@@ -446,7 +478,8 @@ public class GeneratedTestExecutionService {
                                 .repair(
                                         frameworkRoot,
                                         latestOutput,
-                                        deterministicRepairInstruction
+                                        deterministicRepairInstruction,
+                                        mlRepairContext
                                 );
 
                 if (
@@ -473,6 +506,12 @@ public class GeneratedTestExecutionService {
                                     repair.getFailureSummary(),
                                     repair.getChanges()
                             );
+
+            recordRepairTrainingExample(
+                    latestOutput,
+                    mlRepairContext,
+                    repair
+            );
 
             boolean supportFilesChanged =
                     false;
@@ -575,6 +614,170 @@ public class GeneratedTestExecutionService {
                 + System.lineSeparator()
                 + System.lineSeparator()
                 + learned;
+    }
+
+    private AIFRepairMLContext analyzeRepairWithML(
+            String latestOutput
+    ) {
+
+        if (
+                aifMLPredictionService == null
+        ) {
+
+            return null;
+        }
+
+        try {
+
+            return aifMLPredictionService.analyzeRepairContext(
+                    latestOutput
+            );
+
+        } catch (RuntimeException e) {
+
+            log.debug(
+                    "AIF ML repair analysis unavailable: {}",
+                    e.getMessage()
+            );
+
+            return null;
+        }
+    }
+
+    private void recordRepairTrainingExample(
+            String latestOutput,
+            AIFRepairMLContext mlRepairContext,
+            GeneratedFeatureRepairService.RepairResult repair
+    ) {
+
+        if (
+                aifTrainingDataService == null
+                        ||
+                        repair == null
+                        ||
+                        !repair.isChanged()
+        ) {
+
+            return;
+        }
+
+        try {
+
+            Map<String, Object> metadata =
+                    new LinkedHashMap<>();
+
+            metadata.put(
+                    "repairSource",
+                    repair.getRepairSource()
+            );
+            metadata.put(
+                    "failureSummary",
+                    repair.getFailureSummary()
+            );
+            metadata.put(
+                    "changes",
+                    repair.getChanges()
+            );
+            metadata.put(
+                    "changedFiles",
+                    repair.getChangedFiles()
+            );
+
+            aifTrainingDataService.recordRepairOutcome(
+                    latestOutput,
+                    mlRepairContext,
+                    inferRepairStrategy(repair),
+                    true,
+                    metadata
+            );
+
+        } catch (RuntimeException e) {
+
+            log.debug(
+                    "Unable to record AIF ML repair training example: {}",
+                    e.getMessage()
+            );
+        }
+    }
+
+    private String inferRepairStrategy(
+            GeneratedFeatureRepairService.RepairResult repair
+    ) {
+
+        String evidence =
+                String.join(
+                                " ",
+                                repair.getChanges() == null
+                                        ? List.of()
+                                        : repair.getChanges()
+                        )
+                        .toLowerCase();
+
+        if (
+                evidence.contains("locator")
+                        ||
+                        evidence.contains("selector")
+                        ||
+                        evidence.contains("target")
+        ) {
+
+            return RepairRecommendationLabel.UPDATE_LOCATOR.name();
+        }
+
+        if (
+                evidence.contains("wait")
+                        ||
+                        evidence.contains("timeout")
+        ) {
+
+            return RepairRecommendationLabel.ADD_WAIT.name();
+        }
+
+        if (
+                evidence.contains("assert")
+                        ||
+                        evidence.contains("expected")
+                        ||
+                        evidence.contains("text")
+        ) {
+
+            return RepairRecommendationLabel.FIX_ASSERTION.name();
+        }
+
+        if (
+                evidence.contains("data")
+                        ||
+                        evidence.contains("credential")
+                        ||
+                        evidence.contains("username")
+                        ||
+                        evidence.contains("password")
+        ) {
+
+            return RepairRecommendationLabel.UPDATE_TEST_DATA.name();
+        }
+
+        if (
+                evidence.contains("popup")
+                        ||
+                        evidence.contains("modal")
+                        ||
+                        evidence.contains("overlay")
+        ) {
+
+            return RepairRecommendationLabel.HANDLE_POPUP.name();
+        }
+
+        if (
+                "OpenAI".equalsIgnoreCase(
+                        repair.getRepairSource()
+                )
+        ) {
+
+            return RepairRecommendationLabel.ESCALATE_TO_OPENAI.name();
+        }
+
+        return RepairRecommendationLabel.RETRY_ACTION.name();
     }
 
     private GeneratedFeatureRepairService.RepairResult withFallbackRepairMetadata(

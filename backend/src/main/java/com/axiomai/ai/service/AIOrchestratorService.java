@@ -7,6 +7,7 @@ import com.axiomai.ai.intent.IntentParser;
 import com.axiomai.ai.orchestrator.AICommandOrchestrator;
 import com.axiomai.core.memory.ExecutionMemoryService;
 import com.axiomai.core.session.ExecutionSession;
+import com.axiomai.ml.AIFTrainingDataService;
 import com.axiomai.security.SensitiveLogSanitizer;
 import com.axiomai.workspace.AutomationSession;
 import com.axiomai.workspace.AutomationWorkspaceService;
@@ -39,6 +40,9 @@ public class AIOrchestratorService {
     private AuditLogService
             auditLogService;
 
+    private AIFTrainingDataService
+            aifTrainingDataService;
+
     @Autowired(required = false)
     public void setAuditLogService(
             AuditLogService auditLogService
@@ -46,6 +50,15 @@ public class AIOrchestratorService {
 
         this.auditLogService =
                 auditLogService;
+    }
+
+    @Autowired(required = false)
+    public void setAifTrainingDataService(
+            AIFTrainingDataService aifTrainingDataService
+    ) {
+
+        this.aifTrainingDataService =
+                aifTrainingDataService;
     }
 
     // =====================================================
@@ -241,6 +254,13 @@ public class AIOrchestratorService {
                     command,
                     response,
                     auditAction
+            );
+
+            recordSuccessfulIntentTrainingExample(
+                    safeMessage,
+                    userId,
+                    command,
+                    response
             );
 
             return response;
@@ -486,6 +506,70 @@ public class AIOrchestratorService {
         }
 
         return details;
+    }
+
+    private void recordSuccessfulIntentTrainingExample(
+            String message,
+            String userId,
+            AICommand command,
+            AIResponse response
+    ) {
+
+        if (
+                aifTrainingDataService == null
+                        ||
+                        response == null
+                        ||
+                        !response.isSuccess()
+                        ||
+                        command == null
+        ) {
+
+            return;
+        }
+
+        try {
+
+            Map<String, Object> metadata =
+                    new LinkedHashMap<>();
+
+            metadata.put(
+                    "userId",
+                    userId
+            );
+            metadata.put(
+                    "intent",
+                    command.getIntent()
+            );
+            metadata.put(
+                    "responseType",
+                    response.getType()
+            );
+            metadata.put(
+                    "target",
+                    command.getTarget()
+            );
+            metadata.put(
+                    "featureName",
+                    command.getFeatureName()
+            );
+
+            aifTrainingDataService.recordIntentOutcome(
+                    message,
+                    null,
+                    command.getIntent(),
+                    null,
+                    true,
+                    metadata
+            );
+
+        } catch (RuntimeException e) {
+
+            log.debug(
+                    "Unable to record AIF ML intent training example: {}",
+                    e.getMessage()
+            );
+        }
     }
 
     private void putIfPresent(

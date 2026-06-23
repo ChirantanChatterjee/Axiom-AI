@@ -8,6 +8,8 @@ import com.microsoft.playwright.Page;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 public class SelectorFallbackEngine {
 
@@ -16,6 +18,10 @@ public class SelectorFallbackEngine {
     // =====================================================
 
     private static LLMElementLocator llmElementLocator;
+
+    private static Function<List<String>, List<String>> mlSelectorRanker;
+
+    private static BiConsumer<String, List<String>> mlLocatorSuccessRecorder;
 
     // =====================================================
     // INITIALIZE AI LOCATOR
@@ -26,6 +32,22 @@ public class SelectorFallbackEngine {
     ) {
 
         llmElementLocator = locator;
+    }
+
+    public static void setMlSelectorRanker(
+            Function<List<String>, List<String>> selectorRanker
+    ) {
+
+        mlSelectorRanker =
+                selectorRanker;
+    }
+
+    public static void setMlLocatorSuccessRecorder(
+            BiConsumer<String, List<String>> locatorSuccessRecorder
+    ) {
+
+        mlLocatorSuccessRecorder =
+                locatorSuccessRecorder;
     }
 
     // =====================================================
@@ -83,11 +105,14 @@ public class SelectorFallbackEngine {
         // COMMON TEST ATTRIBUTE VARIANTS
         // =================================================
 
+        List<String> equivalentSelectors =
+                equivalentTestAttributeSelectors(
+                        step.getSelector()
+                );
+
         for (
                 String selector
-                : equivalentTestAttributeSelectors(
-                step.getSelector()
-        )
+                : equivalentSelectors
         ) {
 
             try {
@@ -97,12 +122,17 @@ public class SelectorFallbackEngine {
 
                 if (locator.count() > 0) {
 
-                    System.out.println(
-                            "[AI HEALING] TEST ATTRIBUTE SUCCESS -> "
-                                    + selector
-                    );
+                        System.out.println(
+                                "[AI HEALING] TEST ATTRIBUTE SUCCESS -> "
+                                        + selector
+                        );
 
-                    return locator.first();
+                        recordLocatorSuccess(
+                                selector,
+                                equivalentSelectors
+                        );
+
+                        return locator.first();
                 }
 
             } catch (Exception ignored) {
@@ -119,7 +149,9 @@ public class SelectorFallbackEngine {
         // =================================================
 
         List<String> fallbacks =
-                step.getFallbackSelectors();
+                rankedSelectors(
+                        step.getFallbackSelectors()
+                );
 
         if (fallbacks != null) {
 
@@ -146,6 +178,11 @@ public class SelectorFallbackEngine {
                         System.out.println(
                                 "[AI HEALING] FALLBACK SUCCESS -> "
                                         + fallback
+                        );
+
+                        recordLocatorSuccess(
+                                fallback,
+                                fallbacks
                         );
 
                         return locator.first();
@@ -219,6 +256,68 @@ public class SelectorFallbackEngine {
                 "Unable to locate element for target: "
                         + step.getTarget()
         );
+    }
+
+    private static List<String> rankedSelectors(
+            List<String> selectors
+    ) {
+
+        if (
+                selectors == null
+                        ||
+                        selectors.isEmpty()
+                        ||
+                        mlSelectorRanker == null
+        ) {
+
+            return selectors;
+        }
+
+        try {
+
+            List<String> ranked =
+                    mlSelectorRanker.apply(
+                            new ArrayList<>(selectors)
+                    );
+
+            return ranked == null
+                    ||
+                    ranked.isEmpty()
+                    ? selectors
+                    : ranked;
+
+        } catch (Exception ignored) {
+
+            return selectors;
+        }
+    }
+
+    private static void recordLocatorSuccess(
+            String selector,
+            List<String> candidates
+    ) {
+
+        if (
+                mlLocatorSuccessRecorder == null
+                        ||
+                        candidates == null
+                        ||
+                        candidates.isEmpty()
+        ) {
+
+            return;
+        }
+
+        try {
+
+            mlLocatorSuccessRecorder.accept(
+                    selector,
+                    new ArrayList<>(candidates)
+            );
+
+        } catch (Exception ignored) {
+
+        }
     }
 
     private static List<String> equivalentTestAttributeSelectors(

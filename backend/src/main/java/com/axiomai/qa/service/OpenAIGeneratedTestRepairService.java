@@ -1,6 +1,7 @@
 package com.axiomai.qa.service;
 
 import com.axiomai.ai.service.OpenAIService;
+import com.axiomai.ml.AIFRepairMLContext;
 import com.axiomai.security.SensitiveLogSanitizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,6 +50,21 @@ public class OpenAIGeneratedTestRepairService {
             String userInstruction
     ) {
 
+        return repair(
+                frameworkRoot,
+                previousExecutionOutput,
+                userInstruction,
+                null
+        );
+    }
+
+    public OpenAIRepairAttempt repair(
+            Path frameworkRoot,
+            String previousExecutionOutput,
+            String userInstruction,
+            AIFRepairMLContext mlContext
+    ) {
+
         if (
                 frameworkRoot == null
                         ||
@@ -79,7 +95,8 @@ public class OpenAIGeneratedTestRepairService {
                             repairPrompt(
                                     files,
                                     previousExecutionOutput,
-                                    userInstruction
+                                    userInstruction,
+                                    mlContext
                             )
                     );
 
@@ -116,7 +133,8 @@ public class OpenAIGeneratedTestRepairService {
     private String repairPrompt(
             Map<String, String> files,
             String previousExecutionOutput,
-            String userInstruction
+            String userInstruction,
+            AIFRepairMLContext mlContext
     ) throws IOException {
 
         Map<String, Object> payload =
@@ -141,6 +159,21 @@ public class OpenAIGeneratedTestRepairService {
                         )
                 )
         );
+
+        if (
+                mlContext != null
+        ) {
+
+            payload.put(
+                    "aifCustomMlContext",
+                    redactSensitiveText(
+                            truncate(
+                                    mlContext.toPromptSection(),
+                                    8_000
+                            )
+                    )
+            );
+        }
 
         List<Map<String, String>> filePayload =
                 new ArrayList<>();

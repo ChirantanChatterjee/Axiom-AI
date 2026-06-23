@@ -5,7 +5,11 @@ import com.axiomai.ai.execution.AIExecutionPlan;
 import com.axiomai.ai.model.GPTIntentResponse;
 import com.axiomai.ai.planner.ScenarioPlanner;
 import com.axiomai.ai.service.OpenAIIntentService;
+import com.axiomai.ml.AIFMLPredictionService;
+import com.axiomai.ml.IntentClassificationLabel;
+import com.axiomai.ml.MLPrediction;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -25,6 +29,18 @@ public class IntentParser {
 
     private final ScenarioPlanner
             scenarioPlanner;
+
+    private AIFMLPredictionService
+            aifMLPredictionService;
+
+    @Autowired(required = false)
+    public void setAifMLPredictionService(
+            AIFMLPredictionService aifMLPredictionService
+    ) {
+
+        this.aifMLPredictionService =
+                aifMLPredictionService;
+    }
 
     // =====================================================
     // MAIN PARSER
@@ -155,6 +171,9 @@ public class IntentParser {
                     .build();
         }
 
+        MLPrediction mlIntentPrediction =
+                predictIntentWithML(message);
+
         GPTIntentResponse response =
 
                 openAIIntentService
@@ -173,7 +192,8 @@ public class IntentParser {
                 containsFeatureGenerationIntent(message)
         ) {
 
-            return AICommand.builder()
+            AICommand command =
+                    AICommand.builder()
 
                     .intent("GENERATE_FEATURE")
 
@@ -205,6 +225,12 @@ public class IntentParser {
                     .message(message)
 
                     .build();
+
+            return completeMlIntentPrediction(
+                    command,
+                    mlIntentPrediction,
+                    true
+            );
         }
 
         // =====================================================
@@ -221,7 +247,8 @@ public class IntentParser {
                                 .equalsIgnoreCase("UNKNOWN")
         ) {
 
-            return AICommand.builder()
+            AICommand command =
+                    AICommand.builder()
 
                     .intent(
                             response.getIntent()
@@ -259,6 +286,30 @@ public class IntentParser {
                     .message(message)
 
                     .build();
+
+            return completeMlIntentPrediction(
+                    command,
+                    mlIntentPrediction,
+                    true
+            );
+        }
+
+        AICommand mlCommand =
+                commandFromMLPrediction(
+                        mlIntentPrediction,
+                        message,
+                        variables
+                );
+
+        if (
+                mlCommand != null
+        ) {
+
+            return completeMlIntentPrediction(
+                    mlCommand,
+                    mlIntentPrediction,
+                    true
+            );
         }
 
         // =====================================================
@@ -276,7 +327,8 @@ public class IntentParser {
                             message
                     );
 
-            return AICommand.builder()
+            AICommand command =
+                    AICommand.builder()
 
                     .intent("AI_EXECUTION")
 
@@ -285,13 +337,26 @@ public class IntentParser {
                     .message(message)
 
                     .build();
+
+            return completeMlIntentPrediction(
+                    command,
+                    mlIntentPrediction,
+                    true
+            );
         }
 
         // =====================================================
         // FALLBACK
         // =====================================================
 
-        return localRuleParse(message);
+        AICommand command =
+                localRuleParse(message);
+
+        return completeMlIntentPrediction(
+                command,
+                mlIntentPrediction,
+                true
+        );
     }
 
     // =====================================================
@@ -2851,6 +2916,167 @@ public class IntentParser {
         }
 
         return second;
+    }
+
+    private MLPrediction predictIntentWithML(
+            String message
+    ) {
+
+        if (
+                aifMLPredictionService == null
+        ) {
+
+            return null;
+        }
+
+        try {
+
+            return aifMLPredictionService.predictIntent(
+                    message
+            );
+
+        } catch (RuntimeException ignored) {
+
+            return null;
+        }
+    }
+
+    private AICommand completeMlIntentPrediction(
+            AICommand command,
+            MLPrediction prediction,
+            boolean openAiFallbackUsed
+    ) {
+
+        if (
+                aifMLPredictionService != null
+                        &&
+                        prediction != null
+        ) {
+
+            try {
+
+                aifMLPredictionService.completePrediction(
+                        prediction,
+                        openAiFallbackUsed,
+                        toMlIntentLabel(
+                                command == null
+                                        ? null
+                                        : command.getIntent()
+                        )
+                );
+
+            } catch (RuntimeException ignored) {
+
+            }
+        }
+
+        return command;
+    }
+
+    private AICommand commandFromMLPrediction(
+            MLPrediction prediction,
+            String message,
+            Map<String, String> variables
+    ) {
+
+        if (
+                prediction == null
+                        ||
+                        !prediction.isHighConfidence()
+                        ||
+                        prediction.getPredictedLabel() == null
+        ) {
+
+            return null;
+        }
+
+        IntentClassificationLabel label;
+
+        try {
+
+            label =
+                    IntentClassificationLabel.valueOf(
+                            prediction.getPredictedLabel()
+                    );
+
+        } catch (IllegalArgumentException e) {
+
+            return null;
+        }
+
+        return switch (label) {
+            case GENERATE_FRAMEWORK -> AICommand.builder()
+                    .intent("GENERATE_FRAMEWORK")
+                    .flowName(
+                            firstNonBlank(
+                                    extractFeatureName(message),
+                                    "generated"
+                            )
+                    )
+                    .url(
+                            extractUrl(message)
+                    )
+                    .variables(variables)
+                    .message(message)
+                    .build();
+            case EXECUTE_FLOW -> AICommand.builder()
+                    .intent("EXECUTE_FLOW")
+                    .target(
+                            extractExecutionTarget(message)
+                    )
+                    .variables(variables)
+                    .message(message)
+                    .build();
+            case SHOW_REPORT -> AICommand.builder()
+                    .intent("SHOW_REPORT")
+                    .message(message)
+                    .build();
+            case SHOW_DB -> AICommand.builder()
+                    .intent("SHOW_DB")
+                    .message(message)
+                    .build();
+            case REPAIR_TEST -> AICommand.builder()
+                    .intent("REPAIR_GENERATED_TESTS")
+                    .message(message)
+                    .build();
+            case UNKNOWN -> null;
+        };
+    }
+
+    private String toMlIntentLabel(
+            String intent
+    ) {
+
+        if (
+                intent == null
+                        ||
+                        intent.isBlank()
+        ) {
+
+            return IntentClassificationLabel.UNKNOWN.name();
+        }
+
+        return switch (
+                intent.trim()
+                        .toUpperCase()
+        ) {
+            case "GENERATE_FRAMEWORK",
+                 "GENERATE_FEATURE" ->
+                    IntentClassificationLabel.GENERATE_FRAMEWORK.name();
+            case "EXECUTE_FLOW",
+                 "EXECUTE_FEATURE",
+                 "EXECUTE_GENERATED_TESTS",
+                 "AI_EXECUTION" ->
+                    IntentClassificationLabel.EXECUTE_FLOW.name();
+            case "SHOW_REPORT" ->
+                    IntentClassificationLabel.SHOW_REPORT.name();
+            case "SHOW_DB" ->
+                    IntentClassificationLabel.SHOW_DB.name();
+            case "REPAIR_GENERATED_TESTS" ->
+                    IntentClassificationLabel.REPAIR_TEST.name();
+            default ->
+                    IntentClassificationLabel.UNKNOWN.name();
+        };
     }
 
     private String extractDomain(
