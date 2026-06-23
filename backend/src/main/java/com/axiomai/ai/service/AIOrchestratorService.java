@@ -16,7 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -249,18 +251,25 @@ public class AIOrchestratorService {
                             command
                     );
 
+            boolean intentTrainingSaved =
+                    recordSuccessfulIntentTrainingExample(
+                            safeMessage,
+                            userId,
+                            command,
+                            response
+                    );
+
+            appendAifIntelligenceMessages(
+                    response,
+                    command,
+                    intentTrainingSaved
+            );
+
             auditAiCompleted(
                     userId,
                     command,
                     response,
                     auditAction
-            );
-
-            recordSuccessfulIntentTrainingExample(
-                    safeMessage,
-                    userId,
-                    command,
-                    response
             );
 
             return response;
@@ -508,7 +517,7 @@ public class AIOrchestratorService {
         return details;
     }
 
-    private void recordSuccessfulIntentTrainingExample(
+    private boolean recordSuccessfulIntentTrainingExample(
             String message,
             String userId,
             AICommand command,
@@ -523,9 +532,13 @@ public class AIOrchestratorService {
                         !response.isSuccess()
                         ||
                         command == null
+                        ||
+                        "RETRAIN_ML_MODELS".equalsIgnoreCase(
+                                command.getIntent()
+                        )
         ) {
 
-            return;
+            return false;
         }
 
         try {
@@ -554,11 +567,11 @@ public class AIOrchestratorService {
                     command.getFeatureName()
             );
 
-            aifTrainingDataService.recordIntentOutcome(
+            return aifTrainingDataService.recordIntentOutcome(
                     message,
-                    null,
+                    command.getMlIntentPredictedLabel(),
                     command.getIntent(),
-                    null,
+                    command.getMlIntentConfidence(),
                     true,
                     metadata
             );
@@ -569,7 +582,129 @@ public class AIOrchestratorService {
                     "Unable to record AIF ML intent training example: {}",
                     e.getMessage()
             );
+
+            return false;
         }
+    }
+
+    private void appendAifIntelligenceMessages(
+            AIResponse response,
+            AICommand command,
+            boolean intentTrainingSaved
+    ) {
+
+        if (
+                response == null
+                        ||
+                        !response.isSuccess()
+                        ||
+                        command == null
+        ) {
+
+            return;
+        }
+
+        List<String> lines =
+                new ArrayList<>();
+
+        if (
+                Boolean.TRUE.equals(
+                        command.getMlIntentHighConfidence()
+                )
+                        &&
+                        command.getMlIntentPredictedLabel() != null
+        ) {
+
+            lines.add(
+                    (
+                            command.isMlAssistedRouting()
+                                    ? "AIF ML used: "
+                                    : "AIF ML signal: "
+                    )
+                            + firstNonBlank(
+                            command.getMlIntentModelName(),
+                            "IntentClassificationModel"
+                    )
+                            + " predicted "
+                            + command.getMlIntentPredictedLabel()
+                            + " with "
+                            + confidence(
+                            command.getMlIntentConfidence()
+                    )
+                            + " confidence."
+            );
+        }
+
+        if (
+                intentTrainingSaved
+        ) {
+
+            lines.add(
+                    "AIF learned from this successful command."
+            );
+        }
+
+        appendIntelligenceBlock(
+                response,
+                lines
+        );
+    }
+
+    private void appendIntelligenceBlock(
+            AIResponse response,
+            List<String> lines
+    ) {
+
+        if (
+                lines == null
+                        ||
+                        lines.isEmpty()
+        ) {
+
+            return;
+        }
+
+        String existing =
+                response.getMessage() == null
+                        ? ""
+                        : response.getMessage();
+
+        StringBuilder message =
+                new StringBuilder(existing);
+
+        if (
+                !existing.isBlank()
+        ) {
+
+            message.append("\n\n");
+        }
+
+        message.append("AIF intelligence:");
+
+        for (
+                String line
+                : lines
+        ) {
+
+            message.append("\n- ")
+                    .append(line);
+        }
+
+        response.setMessage(
+                message.toString()
+        );
+    }
+
+    private String confidence(
+            Double value
+    ) {
+
+        return String.format(
+                "%.2f",
+                value == null
+                        ? 0.0
+                        : value
+        );
     }
 
     private void putIfPresent(

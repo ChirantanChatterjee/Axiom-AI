@@ -32,11 +32,14 @@ import com.axiomai.qa.service.GeneratedTestExecutionService;
 import com.axiomai.qa.service.GeneratedProjectWriterService;
 import com.axiomai.qa.service.RequirementTestCaseGeneratorService;
 import com.axiomai.qa.service.WebsiteCrawlerService;
+import com.axiomai.ml.AIFModelTrainingService;
+import com.axiomai.ml.MLModelTrainingResult;
 import com.axiomai.security.SensitiveLogSanitizer;
 import com.axiomai.workspace.AutomationSession;
 import com.axiomai.workspace.AutomationWorkspaceService;
 import com.axiomai.workspace.GeneratedArtifact;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -106,6 +109,18 @@ public class AICommandOrchestrator {
 
     private final PublicBaseUrlResolver
             publicBaseUrlResolver;
+
+    private AIFModelTrainingService
+            aifModelTrainingService;
+
+    @Autowired(required = false)
+    public void setAifModelTrainingService(
+            AIFModelTrainingService aifModelTrainingService
+    ) {
+
+        this.aifModelTrainingService =
+                aifModelTrainingService;
+    }
 
     @Value("${aif.generated-tests.execution-mode:${AIF_GENERATED_TEST_EXECUTION_MODE:worker}}")
     private String generatedTestExecutionMode;
@@ -215,6 +230,9 @@ public class AICommandOrchestrator {
 
                 case "SHOW_DB" ->
                         showDatabase();
+
+                case "RETRAIN_ML_MODELS" ->
+                        retrainMlModels(command);
 
                 default -> AIResponse.builder()
 
@@ -375,6 +393,115 @@ public class AICommandOrchestrator {
                 stepResults,
                 latestResponse
         );
+    }
+
+    private AIResponse retrainMlModels(
+            AICommand command
+    ) {
+
+        if (
+                aifModelTrainingService == null
+        ) {
+
+            return AIResponse.builder()
+                    .success(false)
+                    .message("AIF custom ML training is not available in this runtime.")
+                    .type("error")
+                    .build();
+        }
+
+        String target =
+                command == null
+                        ? null
+                        : command.getTarget();
+
+        if (
+                target != null
+                        &&
+                        !target.isBlank()
+        ) {
+
+            MLModelTrainingResult result =
+                    aifModelTrainingService.retrainModel(
+                            target
+                    );
+
+            return AIResponse.builder()
+                    .success(
+                            result.isTrained()
+                    )
+                    .message(
+                            trainingResultMessage(result)
+                    )
+                    .type("ml_training")
+                    .data(result)
+                    .build();
+        }
+
+        Map<String, MLModelTrainingResult> results =
+                aifModelTrainingService.retrainAllModels();
+
+        boolean trainedAny =
+                results.values()
+                        .stream()
+                        .anyMatch(
+                                MLModelTrainingResult::isTrained
+                        );
+
+        StringBuilder message =
+                new StringBuilder(
+                        "AIF custom ML retraining completed."
+                );
+
+        for (
+                MLModelTrainingResult result
+                : results.values()
+        ) {
+
+            message.append("\n- ")
+                    .append(
+                            trainingResultMessage(result)
+                    );
+        }
+
+        return AIResponse.builder()
+                .success(trainedAny)
+                .message(
+                        message.toString()
+                )
+                .type("ml_training")
+                .data(results)
+                .build();
+    }
+
+    private String trainingResultMessage(
+            MLModelTrainingResult result
+    ) {
+
+        if (
+                result == null
+        ) {
+
+            return "AIF model training did not return a result.";
+        }
+
+        if (
+                result.isTrained()
+        ) {
+
+            return "AIF model retrained: "
+                    + result.getModelName()
+                    + " "
+                    + result.getVersion()
+                    + " trained on "
+                    + result.getTrainingExampleCount()
+                    + " examples.";
+        }
+
+        return "AIF model training skipped: "
+                + result.getModelName()
+                + " - "
+                + result.getMessage();
     }
 
     private Map<String, Object> compoundStepResult(

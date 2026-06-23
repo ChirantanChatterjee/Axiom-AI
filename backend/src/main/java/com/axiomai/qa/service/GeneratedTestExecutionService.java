@@ -8,6 +8,7 @@ import com.axiomai.reporting.service.ReportArtifactService;
 import com.axiomai.ml.AIFMLPredictionService;
 import com.axiomai.ml.AIFRepairMLContext;
 import com.axiomai.ml.AIFTrainingDataService;
+import com.axiomai.ml.MLPrediction;
 import com.axiomai.ml.RepairRecommendationLabel;
 import lombok.Builder;
 import lombok.Getter;
@@ -507,11 +508,12 @@ public class GeneratedTestExecutionService {
                                     repair.getChanges()
                             );
 
-            recordRepairTrainingExample(
-                    latestOutput,
-                    mlRepairContext,
-                    repair
-            );
+            boolean mlRepairTrainingSaved =
+                    recordRepairTrainingExample(
+                            latestOutput,
+                            mlRepairContext,
+                            repair
+                    );
 
             boolean supportFilesChanged =
                     false;
@@ -566,7 +568,9 @@ public class GeneratedTestExecutionService {
                     .message(
                             buildRepairMessage(
                                     repair,
-                                    learned
+                                    learned,
+                                    mlRepairContext,
+                                    mlRepairTrainingSaved
                             )
                     )
                     .build();
@@ -644,7 +648,7 @@ public class GeneratedTestExecutionService {
         }
     }
 
-    private void recordRepairTrainingExample(
+    private boolean recordRepairTrainingExample(
             String latestOutput,
             AIFRepairMLContext mlRepairContext,
             GeneratedFeatureRepairService.RepairResult repair
@@ -658,7 +662,7 @@ public class GeneratedTestExecutionService {
                         !repair.isChanged()
         ) {
 
-            return;
+            return false;
         }
 
         try {
@@ -683,7 +687,7 @@ public class GeneratedTestExecutionService {
                     repair.getChangedFiles()
             );
 
-            aifTrainingDataService.recordRepairOutcome(
+            return aifTrainingDataService.recordRepairOutcome(
                     latestOutput,
                     mlRepairContext,
                     inferRepairStrategy(repair),
@@ -697,6 +701,8 @@ public class GeneratedTestExecutionService {
                     "Unable to record AIF ML repair training example: {}",
                     e.getMessage()
             );
+
+            return false;
         }
     }
 
@@ -1655,7 +1661,9 @@ public class GeneratedTestExecutionService {
 
     private String buildRepairMessage(
             GeneratedFeatureRepairService.RepairResult repair,
-            boolean learned
+            boolean learned,
+            AIFRepairMLContext mlRepairContext,
+            boolean mlRepairTrainingSaved
     ) {
 
         StringBuilder message =
@@ -1724,6 +1732,12 @@ public class GeneratedTestExecutionService {
                         .append("\n");
             }
         }
+
+        appendRepairMlSummary(
+                message,
+                mlRepairContext,
+                mlRepairTrainingSaved
+        );
 
         if (
                 !repair.isChanged()
@@ -1832,6 +1846,116 @@ public class GeneratedTestExecutionService {
         );
 
         return message.toString();
+    }
+
+    private void appendRepairMlSummary(
+            StringBuilder message,
+            AIFRepairMLContext mlRepairContext,
+            boolean mlRepairTrainingSaved
+    ) {
+
+        List<String> lines =
+                new ArrayList<>();
+
+        if (
+                mlRepairContext != null
+        ) {
+
+            addPredictionLine(
+                    lines,
+                    "AIF ML used: ",
+                    mlRepairContext.getFailurePrediction(),
+                    "predicted"
+            );
+
+            addPredictionLine(
+                    lines,
+                    "AIF ML used: ",
+                    mlRepairContext.getRepairPrediction(),
+                    "recommended"
+            );
+        }
+
+        if (
+                mlRepairTrainingSaved
+        ) {
+
+            lines.add(
+                    "AIF learned from this successful repair."
+            );
+        }
+
+        if (
+                lines.isEmpty()
+        ) {
+
+            return;
+        }
+
+        message.append("\n\nAIF intelligence:");
+
+        for (
+                String line
+                : lines
+        ) {
+
+            message.append("\n- ")
+                    .append(line);
+        }
+    }
+
+    private void addPredictionLine(
+            List<String> lines,
+            String prefix,
+            MLPrediction prediction,
+            String verb
+    ) {
+
+        if (
+                prediction == null
+                        ||
+                        prediction.getPredictedLabel() == null
+                        ||
+                        !prediction.isHighConfidence()
+        ) {
+
+            return;
+        }
+
+        lines.add(
+                prefix
+                        + firstNonBlank(
+                        prediction.getModelName(),
+                        "AIFModel"
+                )
+                        + " "
+                        + verb
+                        + " "
+                        + prediction.getPredictedLabel()
+                        + " with "
+                        + String.format(
+                        "%.2f",
+                        prediction.getConfidence()
+                )
+                        + " confidence."
+        );
+    }
+
+    private String firstNonBlank(
+            String first,
+            String second
+    ) {
+
+        if (
+                first != null
+                        &&
+                        !first.isBlank()
+        ) {
+
+            return first;
+        }
+
+        return second;
     }
 
     private boolean isRuntimeDataFailure(

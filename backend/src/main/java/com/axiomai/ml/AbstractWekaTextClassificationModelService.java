@@ -215,7 +215,15 @@ public abstract class AbstractWekaTextClassificationModelService<L extends Enum<
                     .modelPath(
                             modelPath.toString()
                     )
-                    .message("Trained Weka text classification model.")
+                    .message(
+                            "AIF model retrained: "
+                                    + modelName()
+                                    + " "
+                                    + version
+                                    + " trained on "
+                                    + usable.size()
+                                    + " examples."
+                    )
                     .build();
 
         } catch (Exception e) {

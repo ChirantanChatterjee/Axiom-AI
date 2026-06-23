@@ -82,6 +82,19 @@ public class IntentParser {
                     .build();
         }
 
+        if (
+                containsAifMlRetrainingRequest(message)
+        ) {
+
+            return AICommand.builder()
+                    .intent("RETRAIN_ML_MODELS")
+                    .target(
+                            extractAifMlModelName(message)
+                    )
+                    .message(message)
+                    .build();
+        }
+
         AICommand compoundCommand =
                 parseCompoundCommand(
                         message,
@@ -2947,6 +2960,12 @@ public class IntentParser {
             boolean openAiFallbackUsed
     ) {
 
+        attachMlIntentPrediction(
+                command,
+                prediction,
+                false
+        );
+
         if (
                 aifMLPredictionService != null
                         &&
@@ -2969,6 +2988,48 @@ public class IntentParser {
 
             }
         }
+
+        return command;
+    }
+
+    private AICommand attachMlIntentPrediction(
+            AICommand command,
+            MLPrediction prediction,
+            boolean assistedRouting
+    ) {
+
+        if (
+                command == null
+                        ||
+                        prediction == null
+        ) {
+
+            return command;
+        }
+
+        command.setMlIntentModelName(
+                prediction.getModelName()
+        );
+        command.setMlIntentModelVersion(
+                prediction.getModelVersion()
+        );
+        command.setMlIntentPredictedLabel(
+                prediction.getPredictedLabel()
+        );
+        command.setMlIntentConfidence(
+                prediction.getConfidence()
+        );
+        command.setMlIntentHighConfidence(
+                prediction.isHighConfidence()
+        );
+        command.setMlIntentPredictionMode(
+                prediction.getPredictionMode()
+        );
+        command.setMlAssistedRouting(
+                command.isMlAssistedRouting()
+                        ||
+                        assistedRouting
+        );
 
         return command;
     }
@@ -3004,7 +3065,8 @@ public class IntentParser {
             return null;
         }
 
-        return switch (label) {
+        AICommand command =
+                switch (label) {
             case GENERATE_FRAMEWORK -> AICommand.builder()
                     .intent("GENERATE_FRAMEWORK")
                     .flowName(
@@ -3041,6 +3103,76 @@ public class IntentParser {
                     .build();
             case UNKNOWN -> null;
         };
+
+        return attachMlIntentPrediction(
+                command,
+                prediction,
+                true
+        );
+    }
+
+    private boolean containsAifMlRetrainingRequest(
+            String message
+    ) {
+
+        String lower =
+                message == null
+                        ? ""
+                        : message.toLowerCase();
+
+        return (
+                lower.contains("retrain")
+                        ||
+                        lower.contains("train")
+        ) && (
+                lower.contains("aif ml")
+                        ||
+                        lower.contains("custom ml")
+                        ||
+                        lower.contains("ml model")
+                        ||
+                        lower.contains("machine learning")
+        );
+    }
+
+    private String extractAifMlModelName(
+            String message
+    ) {
+
+        String lower =
+                message == null
+                        ? ""
+                        : message.toLowerCase();
+
+        if (
+                lower.contains("repair")
+        ) {
+
+            return "RepairRecommendationModel";
+        }
+
+        if (
+                lower.contains("failure")
+        ) {
+
+            return "FailureClassificationModel";
+        }
+
+        if (
+                lower.contains("locator")
+        ) {
+
+            return "LocatorRecoveryModel";
+        }
+
+        if (
+                lower.contains("intent")
+        ) {
+
+            return "IntentClassificationModel";
+        }
+
+        return null;
     }
 
     private String toMlIntentLabel(

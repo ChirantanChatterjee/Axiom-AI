@@ -72,6 +72,24 @@ public class AICommand {
     private String message;
 
     // =====================================================
+    // AIF CUSTOM ML SIGNAL
+    // =====================================================
+
+    private String mlIntentModelName;
+
+    private String mlIntentModelVersion;
+
+    private String mlIntentPredictedLabel;
+
+    private Double mlIntentConfidence;
+
+    private Boolean mlIntentHighConfidence;
+
+    private String mlIntentPredictionMode;
+
+    private boolean mlAssistedRouting;
+
+    // =====================================================
     // AI EXECUTION PLAN
     // =====================================================
 

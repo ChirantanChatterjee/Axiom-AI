@@ -92,7 +92,7 @@ public class AIFTrainingDataService {
         return Optional.of(saved);
     }
 
-    public void recordIntentOutcome(
+    public boolean recordIntentOutcome(
             String userCommand,
             String predictedLabel,
             String finalIntent,
@@ -108,10 +108,10 @@ public class AIFTrainingDataService {
                 acceptedLabel == null
         ) {
 
-            return;
+            return false;
         }
 
-        recordTrainingExample(
+        return recordTrainingExample(
                 AIFMLModelNames.INTENT_CLASSIFICATION,
                 userCommand,
                 predictedLabel,
@@ -120,10 +120,11 @@ public class AIFTrainingDataService {
                 MLSourceType.USER_CHAT,
                 metadata,
                 successful
-        );
+        )
+                .isPresent();
     }
 
-    public void recordRepairOutcome(
+    public boolean recordRepairOutcome(
             String failureContext,
             AIFRepairMLContext mlContext,
             String finalRepairStrategy,
@@ -137,8 +138,11 @@ public class AIFTrainingDataService {
                         mlContext == null
         ) {
 
-            return;
+            return false;
         }
+
+        boolean saved =
+                false;
 
         MLPrediction failurePrediction =
                 mlContext.getFailurePrediction();
@@ -149,7 +153,8 @@ public class AIFTrainingDataService {
                         failurePrediction.getPredictedLabel() != null
         ) {
 
-            recordTrainingExample(
+            saved =
+                    recordTrainingExample(
                     AIFMLModelNames.FAILURE_CLASSIFICATION,
                     failureContext,
                     failurePrediction.getPredictedLabel(),
@@ -158,13 +163,17 @@ public class AIFTrainingDataService {
                     MLSourceType.FAILED_TEST,
                     metadata,
                     true
-            );
+            )
+                            .isPresent()
+                    ||
+                    saved;
         }
 
         MLPrediction repairPrediction =
                 mlContext.getRepairPrediction();
 
-        recordTrainingExample(
+        saved =
+                recordTrainingExample(
                 AIFMLModelNames.REPAIR_RECOMMENDATION,
                 failureContext,
                 repairPrediction == null
@@ -177,7 +186,12 @@ public class AIFTrainingDataService {
                 MLSourceType.REPAIR_RESULT,
                 metadata,
                 true
-        );
+        )
+                        .isPresent()
+                ||
+                saved;
+
+        return saved;
     }
 
     public void recordLocatorRecovery(
