@@ -4,7 +4,12 @@ WORKDIR /frontend
 
 COPY frontend/package*.json ./
 
-RUN npm ci
+ENV npm_config_fetch_retries=5
+ENV npm_config_fetch_retry_mintimeout=20000
+ENV npm_config_fetch_retry_maxtimeout=120000
+ENV npm_config_fetch_timeout=300000
+
+RUN npm ci --no-audit --prefer-online
 
 COPY frontend/ ./
 
