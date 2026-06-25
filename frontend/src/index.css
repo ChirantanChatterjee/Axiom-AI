@@ -2460,3 +2460,69 @@ textarea:disabled {
   font-family: var(--aif-inter-font-final) !important;
   font-style: normal !important;
 }
+
+/* Chat page color isolation: keep these scoped away from the login screen. */
+.app .message-content,
+.app .ai .message-content,
+.app .user .message-content {
+  color: #000000 !important;
+  background: #ffffff !important;
+  border: 1px solid #4a4a4a !important;
+  box-shadow: none !important;
+}
+
+.app .execution-card {
+  border: 1px solid #6b6b6b !important;
+  box-shadow: none !important;
+}
+
+.app .execution-card:has(.status-pass) {
+  background: #E6FEEB !important;
+}
+
+.app .execution-card:has(.status-fail) {
+  background: #F6B3A4 !important;
+}
+
+.app .response-box,
+.app .ai .response-box {
+  color: #000000 !important;
+  background: #E6FEFC !important;
+  border: 1px solid #6b6b6b !important;
+  box-shadow: none !important;
+}
+
+.app .input-shell {
+  background: #E6FEE9 !important;
+  border: 2px solid #014609 !important;
+  box-shadow: none !important;
+}
+
+.app .input-shell:focus-within {
+  border-color: #014609 !important;
+  box-shadow: 0 0 0 4px rgba(1, 70, 9, 0.16) !important;
+}
+
+.app .input-shell textarea {
+  color: #000000 !important;
+  caret-color: #000000 !important;
+  background: transparent !important;
+}
+
+.app .input-shell textarea::placeholder {
+  color: rgba(0, 0, 0, 0.58) !important;
+}
+
+.app .status-pass,
+.app .ai .execution-card .status-pass,
+.app .execution-card .status-pass,
+.app .testcase-row .status-pass {
+  color: var(--aif-status-pass) !important;
+}
+
+.app .status-fail,
+.app .ai .execution-card .status-fail,
+.app .execution-card .status-fail,
+.app .testcase-row .status-fail {
+  color: var(--aif-status-fail) !important;
+}
