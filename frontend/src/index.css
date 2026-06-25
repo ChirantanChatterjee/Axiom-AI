@@ -4601,7 +4601,7 @@ body,
 :root {
   --aif-primary-fill-final: #E3725E;
   --aif-primary-border-final: #E3B45E;
-  --aif-session-fill-final: #FCE874;
+  --aif-session-fill-final: #FBECE9;
   --aif-session-border-final: #FCA474;
   --aif-sidebar-pane-final: #FFCBA0;
   --aif-messages-pane-final: #FFFFF6;
@@ -4772,7 +4772,7 @@ body,
    ========================================================= */
 
 :root {
-  --aif-ai-message-fill-final: #FEFBE6;
+  --aif-ai-message-fill-final: #FBECE9;
   --aif-ai-message-border-final: #E3725E;
   --aif-chat-input-fill-final: #FBECE9;
   --aif-chat-input-border-final: #E3725E;
@@ -5014,7 +5014,7 @@ body,
   --aif-minimal-border-soft: rgba(0, 0, 0, 0.09);
   --aif-minimal-border-strong: rgba(0, 0, 0, 0.22);
   --aif-minimal-shadow: 0 14px 34px rgba(0, 0, 0, 0.06);
-  --aif-framework-session-fill: #FCE874;
+  --aif-framework-session-fill: #ffffff;
   --aif-framework-session-border: #D94126;
   --aif-status-pass: #25835c;
   --aif-status-fail: #ad3e3e;
