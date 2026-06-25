@@ -4772,7 +4772,7 @@ body,
    ========================================================= */
 
 :root {
-  --aif-ai-message-fill-final: #FFCBA0;
+  --aif-ai-message-fill-final: #FEF3B9;
   --aif-ai-message-border-final: #E3725E;
   --aif-chat-input-fill-final: #FBECE9;
   --aif-chat-input-border-final: #E3725E;
@@ -5014,8 +5014,8 @@ body,
   --aif-minimal-border-soft: rgba(0, 0, 0, 0.09);
   --aif-minimal-border-strong: rgba(0, 0, 0, 0.22);
   --aif-minimal-shadow: 0 14px 34px rgba(0, 0, 0, 0.06);
-  --aif-framework-session-fill: #CFE35E;
-  --aif-framework-session-border: #5E8DE3;
+  --aif-framework-session-fill: #FCE874;
+  --aif-framework-session-border: #D94126;
   --aif-status-pass: #25835c;
   --aif-status-fail: #ad3e3e;
 }
@@ -5129,7 +5129,7 @@ body,
 .input-shell,
 .runtime-variable-submit {
   color: var(--aif-minimal-black) !important;
-  background: var(--aif-minimal-white) !important;
+  background: #D94126 !important;
   border: 1px solid var(--aif-minimal-border) !important;
   box-shadow: none !important;
 }
