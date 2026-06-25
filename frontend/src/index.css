@@ -5360,3 +5360,174 @@ body,
 ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.20) !important;
 }
+
+/* =====================================================
+   Chat UI requested refinements - user panel, send CTA,
+   AIF brand treatment, and pass/fail response surfaces
+   ===================================================== */
+
+:root {
+  --aif-chat-user-panel-fill: #CCFC74;
+  --aif-chat-send-fill: #D94126;
+  --aif-chat-ink: #000000;
+  --aif-chat-paper: #ffffff;
+  --aif-chat-paper-border: rgba(0, 0, 0, 0.18);
+  --aif-chat-pass-bg: #F1FFE8;
+  --aif-chat-pass-border: #BFEFA9;
+  --aif-chat-fail-bg: #FFF0EF;
+  --aif-chat-fail-border: #F0B6B0;
+}
+
+/* 1. Signed-in user panel in the chat sidebar */
+.app .sidebar .user-panel {
+  color: var(--aif-chat-ink) !important;
+  background: var(--aif-chat-user-panel-fill) !important;
+  border: 1px solid rgba(0, 0, 0, 0.18) !important;
+  box-shadow: none !important;
+}
+
+.app .sidebar .user-panel strong,
+.app .sidebar .user-panel span {
+  color: var(--aif-chat-ink) !important;
+}
+
+/* 2. Chat submit/send button */
+.app .input-area button {
+  color: #ffffff !important;
+  background: var(--aif-chat-send-fill) !important;
+  border: 1px solid var(--aif-chat-send-fill) !important;
+  box-shadow: none !important;
+}
+
+.app .input-area button svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app .input-area button:hover {
+  background: #C93620 !important;
+  border-color: #C93620 !important;
+  box-shadow: 0 0 0 4px rgba(217, 65, 38, 0.16) !important;
+}
+
+/* 3. AIF Runtime Intelligence brand treatment in chat UI only */
+.app .sidebar-brand {
+  position: relative !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 12px 14px !important;
+  color: var(--aif-chat-ink) !important;
+  background: var(--aif-chat-paper) !important;
+  border: 1px solid var(--aif-chat-paper-border) !important;
+  border-radius: 12px 10px 14px 9px !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+.app .sidebar-brand::before,
+.app .sidebar-brand::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 10px !important;
+  right: 10px !important;
+  height: 3px !important;
+  background:
+          radial-gradient(circle at 4px 2px, transparent 0 3px, var(--aif-chat-paper) 3.2px),
+          var(--aif-chat-paper) !important;
+  opacity: 0.95 !important;
+  pointer-events: none !important;
+}
+
+.app .sidebar-brand::before {
+  top: -2px !important;
+}
+
+.app .sidebar-brand::after {
+  bottom: -2px !important;
+  transform: rotate(180deg) !important;
+}
+
+.app .sidebar-brand .brand-emblem,
+.app .sidebar-brand .brand-emblem.compact {
+  flex: 0 0 auto !important;
+  color: var(--aif-chat-ink) !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.22) !important;
+  box-shadow: none !important;
+}
+
+.app .sidebar-brand .brand-emblem::first-letter,
+.app .sidebar-brand .brand-emblem.compact::first-letter {
+  color: var(--aif-chat-send-fill) !important;
+}
+
+.app .sidebar-brand h1 {
+  margin: 0 !important;
+  color: var(--aif-chat-ink) !important;
+  font-family: Inter, "Arial Narrow", Arial, ui-sans-serif, system-ui, sans-serif !important;
+  font-size: 32px !important;
+  font-weight: 900 !important;
+  line-height: 0.95 !important;
+  letter-spacing: -0.065em !important;
+  text-transform: none !important;
+}
+
+.app .sidebar-brand h1::first-letter {
+  color: var(--aif-chat-send-fill) !important;
+}
+
+.app .sidebar-brand p {
+  margin-top: 4px !important;
+  color: var(--aif-chat-ink) !important;
+  font-family: Inter, "Arial Narrow", Arial, ui-sans-serif, system-ui, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.035em !important;
+  text-transform: uppercase !important;
+}
+
+/* 4. Light pass/fail result backgrounds for AIF responses */
+.app .ai .message-content:has(.status-pass),
+.app .ai .message-content:has(.execution-card .status-pass),
+.app .ai .message-content:has(.testcase-row .status-pass),
+.app .execution-card:has(.status-pass),
+.app .response-box:has(.status-pass) {
+  color: var(--aif-chat-ink) !important;
+  background: var(--aif-chat-pass-bg) !important;
+  border: 1px solid var(--aif-chat-pass-border) !important;
+  box-shadow: none !important;
+}
+
+.app .ai .message-content:has(.status-fail),
+.app .ai .message-content:has(.execution-card .status-fail),
+.app .ai .message-content:has(.testcase-row .status-fail),
+.app .execution-card:has(.status-fail),
+.app .response-box:has(.status-fail) {
+  color: var(--aif-chat-ink) !important;
+  background: var(--aif-chat-fail-bg) !important;
+  border: 1px solid var(--aif-chat-fail-border) !important;
+  box-shadow: none !important;
+}
+
+.app .ai .message-content:has(.status-pass) *,
+.app .ai .message-content:has(.status-fail) *,
+.app .execution-card:has(.status-pass) *,
+.app .execution-card:has(.status-fail) *,
+.app .response-box:has(.status-pass) *,
+.app .response-box:has(.status-fail) * {
+  color: var(--aif-chat-ink) !important;
+}
+
+.app .ai .message-content:has(.status-pass) .status-pass,
+.app .execution-card:has(.status-pass) .status-pass,
+.app .response-box:has(.status-pass) .status-pass {
+  color: var(--aif-status-pass, #25835c) !important;
+  font-weight: 900 !important;
+}
+
+.app .ai .message-content:has(.status-fail) .status-fail,
+.app .execution-card:has(.status-fail) .status-fail,
+.app .response-box:has(.status-fail) .status-fail {
+  color: var(--aif-status-fail, #ad3e3e) !important;
+  font-weight: 900 !important;
+}
