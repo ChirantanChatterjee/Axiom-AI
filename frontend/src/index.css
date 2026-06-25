@@ -4600,3 +4600,30 @@ body,
   color: #ffffff;
   caret-color: #ffffff;
 }
+
+.execution-card,
+.execution-card *,
+.missing-variable-card,
+.missing-variable-card *,
+.runtime-variable-form,
+.runtime-variable-form * {
+  color: #ffffff;
+}
+
+.runtime-variable-form input,
+.runtime-variable-form textarea,
+.runtime-variable-form select {
+  color: #ffffff;
+  caret-color: #ffffff;
+}
+
+.runtime-variable-form input::placeholder,
+.runtime-variable-form textarea::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.execution-card svg,
+.missing-variable-card svg,
+.runtime-variable-form svg {
+  color: #ffffff;
+}
