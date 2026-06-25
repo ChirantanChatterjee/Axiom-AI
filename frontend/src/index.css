@@ -4212,3 +4212,386 @@ body,
     transition: none !important;
   }
 }
+
+/* Four-color palette pass */
+
+:root {
+  --color-1: #E3725E;
+  --color-2: #CFE35E;
+  --color-3: #5ECFE3;
+  --color-4: #725EE3;
+
+  --aif-primary: #E3725E;
+  --aif-secondary: #CFE35E;
+  --aif-accent-cyan: #5ECFE3;
+  --aif-accent-purple: #725EE3;
+
+  --aif-text-primary: #000000;
+  --aif-text-secondary: rgba(0, 0, 0, 0.76);
+  --aif-text-muted: rgba(0, 0, 0, 0.58);
+
+  --aif-border-soft: rgba(0, 0, 0, 0.12);
+  --aif-border-medium: rgba(0, 0, 0, 0.18);
+  --aif-shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.12);
+
+  --aif-bg: #FFF7F4;
+  --aif-bg-warm: #F4FBFF;
+  --aif-surface: rgba(255, 255, 255, 0.76);
+  --aif-surface-dark: rgba(255, 255, 255, 0.58);
+  --aif-surface-warm: rgba(227, 114, 94, 0.14);
+  --aif-surface-soft: rgba(94, 207, 227, 0.14);
+  --aif-surface-peach: rgba(207, 227, 94, 0.18);
+  --aif-primary-surface: var(--aif-primary);
+  --aif-primary-surface-hover: #CF5F50;
+  --aif-secondary-surface: var(--aif-accent-purple);
+  --aif-accent-surface: rgba(207, 227, 94, 0.42);
+  --aif-blue-accent-surface: rgba(94, 207, 227, 0.34);
+  --aif-border: var(--aif-border-soft);
+  --aif-border-strong: var(--aif-border-medium);
+
+  --aif-pastel-orange: var(--aif-primary);
+  --aif-pastel-orange-soft: rgba(94, 207, 227, 0.34);
+  --aif-pastel-orange-light: rgba(255, 255, 255, 0.76);
+  --aif-apricot-glow: rgba(227, 114, 94, 0.24);
+  --aif-orange-glow-soft: rgba(94, 207, 227, 0.22);
+  --aif-sidebar-glass: rgba(255, 255, 255, 0.58);
+  --aif-sidebar-card: rgba(94, 207, 227, 0.18);
+  --aif-sidebar-card-active: rgba(227, 114, 94, 0.26);
+}
+
+.auth-page {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(227, 114, 94, 0.24), transparent 34%),
+    radial-gradient(circle at 72% 30%, rgba(94, 207, 227, 0.22), transparent 38%),
+    radial-gradient(circle at 50% 90%, rgba(207, 227, 94, 0.20), transparent 42%),
+    radial-gradient(circle at 85% 82%, rgba(114, 94, 227, 0.18), transparent 36%),
+    linear-gradient(135deg, #FFF7F4 0%, #F4FBFF 48%, #FAFFF0 100%);
+}
+
+.auth-page::before {
+  background:
+    radial-gradient(circle at 22% 24%, rgba(227, 114, 94, 0.20), transparent 26%),
+    radial-gradient(circle at 72% 18%, rgba(94, 207, 227, 0.22), transparent 28%),
+    radial-gradient(circle at 46% 78%, rgba(207, 227, 94, 0.18), transparent 34%),
+    radial-gradient(circle at 86% 74%, rgba(114, 94, 227, 0.16), transparent 30%);
+}
+
+.auth-page::after {
+  background:
+    linear-gradient(115deg, rgba(227, 114, 94, 0.12), rgba(94, 207, 227, 0.10) 46%, rgba(207, 227, 94, 0.12));
+  border-color: var(--aif-border-soft);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.54),
+    var(--aif-shadow-soft);
+}
+
+.app::before {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(227, 114, 94, 0.16), transparent 32%),
+    radial-gradient(circle at 82% 26%, rgba(94, 207, 227, 0.16), transparent 38%),
+    radial-gradient(circle at 54% 88%, rgba(207, 227, 94, 0.12), transparent 34%);
+}
+
+.sidebar {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(227, 114, 94, 0.26), transparent 34%),
+    radial-gradient(circle at 78% 40%, rgba(94, 207, 227, 0.20), transparent 42%),
+    radial-gradient(circle at 28% 88%, rgba(207, 227, 94, 0.16), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.58));
+  border-right-color: var(--aif-border-soft);
+  box-shadow: var(--aif-shadow-soft);
+}
+
+.sidebar::before {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(227, 114, 94, 0.20), transparent 42%),
+    radial-gradient(circle at 70% 70%, rgba(94, 207, 227, 0.18), transparent 48%),
+    radial-gradient(circle at 16% 82%, rgba(207, 227, 94, 0.12), transparent 38%);
+}
+
+.auth-brand {
+  background:
+    radial-gradient(circle at 20% 16%, rgba(227, 114, 94, 0.20), transparent 34%),
+    radial-gradient(circle at 88% 78%, rgba(114, 94, 227, 0.14), transparent 36%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.80), rgba(244, 251, 255, 0.64));
+  border-color: var(--aif-border-soft);
+  box-shadow: var(--aif-shadow-soft);
+}
+
+.auth-brand::before {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.auth-panel,
+.field-control,
+.auth-tabs,
+.auth-tabs button.active,
+.email-presets button,
+.auth-error,
+.auth-art-wrap,
+.auth-device,
+.auth-scenery::before,
+.auth-scenery::after,
+.runtime-visual,
+.runtime-chip,
+.runtime-code-chip {
+  border-color: var(--aif-border-soft);
+  box-shadow: var(--aif-shadow-soft);
+}
+
+.auth-panel {
+  background: rgba(255, 255, 255, 0.76);
+  border-color: var(--aif-border-soft);
+  box-shadow: var(--aif-shadow-soft);
+}
+
+.auth-tabs,
+.field-control,
+.email-presets button {
+  background: rgba(94, 207, 227, 0.14);
+  border-color: var(--aif-border-soft);
+}
+
+.auth-tabs button.active {
+  background:
+    linear-gradient(135deg, rgba(207, 227, 94, 0.42), rgba(94, 207, 227, 0.24));
+}
+
+.field-control:focus-within,
+.input-shell:focus-within,
+.runtime-variable-input:focus {
+  border-color: rgba(94, 207, 227, 0.72);
+  box-shadow: 0 0 0 4px rgba(94, 207, 227, 0.20);
+}
+
+.auth-capabilities div,
+.user-panel,
+.sidebar-action,
+.logout-button,
+.history-count,
+.delete-chat-button,
+.email-presets button,
+.secondary-action {
+  background: rgba(94, 207, 227, 0.18);
+  border-color: var(--aif-border-soft);
+}
+
+.auth-capabilities div:hover,
+.delete-chat-button:hover {
+  background: rgba(94, 207, 227, 0.26);
+  border-color: var(--aif-border-medium);
+}
+
+.chat-select-button {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(94, 207, 227, 0.16));
+  border-color: var(--aif-border-soft);
+}
+
+.chat-select-button:hover {
+  background:
+    linear-gradient(145deg, rgba(94, 207, 227, 0.22), rgba(255, 255, 255, 0.62));
+  border-color: var(--aif-border-medium);
+}
+
+.chat-history-item.active .chat-select-button,
+.sidebar-action.active,
+.metric-card:hover,
+.metric-card.active {
+  background:
+    linear-gradient(135deg, rgba(227, 114, 94, 0.28), rgba(114, 94, 227, 0.22));
+  border-color: var(--aif-border-medium);
+  box-shadow: var(--aif-shadow-soft);
+}
+
+.new-chat-button,
+.upload-framework-button,
+.input-area button,
+.report-link,
+.auth-submit,
+.runtime-variable-submit {
+  color: var(--aif-text-primary);
+  background: linear-gradient(135deg, #E3725E, #725EE3);
+  border-color: var(--aif-border-medium);
+  box-shadow: 0 18px 45px rgba(114, 94, 227, 0.18);
+}
+
+.new-chat-button:hover,
+.upload-framework-button:hover,
+.input-area button:hover,
+.report-link:hover,
+.auth-submit:hover:not(:disabled),
+.runtime-variable-submit:hover {
+  background: linear-gradient(135deg, #EC8371, #725EE3);
+}
+
+.tag-pill,
+.variable-pill,
+.runtime-variable-name strong,
+.help-section code,
+.missing-variable-card code,
+.status-pass {
+  color: var(--aif-text-primary);
+  background: rgba(207, 227, 94, 0.42);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.status-fail,
+.auth-error {
+  color: var(--aif-text-primary);
+  background: rgba(227, 114, 94, 0.32);
+  border-color: rgba(0, 0, 0, 0.16);
+}
+
+.thinking-dot {
+  background: linear-gradient(135deg, #5ECFE3, #725EE3);
+}
+
+.profile-avatar,
+.provider-mark {
+  background: linear-gradient(135deg, #E3725E, #725EE3);
+}
+
+.testcase-header,
+.runtime-variable-table th {
+  background: rgba(114, 94, 227, 0.18);
+}
+
+.runtime-visual {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(227, 114, 94, 0.18), transparent 33%),
+    radial-gradient(circle at 18% 22%, rgba(94, 207, 227, 0.16), transparent 28%),
+    radial-gradient(circle at 80% 78%, rgba(207, 227, 94, 0.14), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.50), rgba(114, 94, 227, 0.08));
+}
+
+.runtime-grid {
+  background-image:
+    radial-gradient(rgba(94, 207, 227, 0.45) 1px, transparent 1px),
+    linear-gradient(rgba(114, 94, 227, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(114, 94, 227, 0.12) 1px, transparent 1px);
+}
+
+.runtime-core {
+  background:
+    linear-gradient(145deg, rgba(227, 114, 94, 0.86), rgba(114, 94, 227, 0.78));
+  border-color: var(--aif-border-medium);
+  box-shadow:
+    0 0 0 12px rgba(94, 207, 227, 0.10),
+    0 28px 64px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.runtime-orbit {
+  border-color: rgba(114, 94, 227, 0.34);
+}
+
+.runtime-orbit-inner {
+  border-color: rgba(94, 207, 227, 0.34);
+}
+
+.runtime-line {
+  background: linear-gradient(90deg, transparent, rgba(94, 207, 227, 0.76), transparent);
+}
+
+.runtime-chip,
+.runtime-code-chip {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(94, 207, 227, 0.16));
+  border-color: var(--aif-border-soft);
+}
+
+.runtime-chip-pass {
+  background:
+    linear-gradient(135deg, rgba(207, 227, 94, 0.46), rgba(94, 207, 227, 0.20));
+}
+
+.auth-page,
+.auth-brand,
+.auth-panel,
+.auth-tabs button,
+.auth-form-heading h2,
+.field-label,
+.field-label span,
+.field-control,
+.field-control input,
+.email-presets button,
+.sidebar,
+.sidebar-brand h1,
+.user-panel strong,
+.history-header h3,
+.history-count,
+.chat-select-button,
+.chat-list-text strong,
+.delete-chat-button,
+.session-summary h3,
+.session-summary p,
+.chat-header h2,
+.help-header h2,
+.message-content,
+.plain-text,
+.tag-card,
+.execution-card,
+.db-card,
+.db-row,
+.db-row strong,
+.testcase-row,
+.testcase-row strong,
+.runtime-variable-name span,
+.runtime-variable-name strong,
+.runtime-variable-input,
+.missing-variable-card,
+.missing-variable-card > strong,
+.variable-context-row,
+.variable-context-row strong,
+.report-link,
+.profile-card h3,
+.profile-details strong,
+.metric-card strong,
+.admin-detail-heading h3,
+.admin-detail-heading strong,
+.admin-detail-row strong,
+.runtime-core,
+.runtime-chip strong,
+.runtime-code-chip {
+  color: var(--aif-text-primary);
+}
+
+.brand-row span,
+.auth-brand p,
+.auth-form-heading p,
+.auth-capabilities div,
+.field-control svg,
+.field-control input::placeholder,
+.sidebar-brand p,
+.user-panel span,
+.chat-list-text span,
+.session-summary span,
+.chat-header span,
+.help-header span,
+.tag-description,
+.runtime-variable-note,
+.runtime-variable-name span,
+.variable-context-row span,
+.variable-context-row small,
+.profile-card p,
+.profile-details span,
+.metric-card span,
+.metric-card small,
+.admin-detail-heading span,
+.admin-detail-row span,
+.admin-empty,
+.input-meta,
+.input-shell textarea::placeholder,
+.runtime-chip span,
+.runtime-core small {
+  color: var(--aif-text-secondary);
+}
+
+.input-shell textarea {
+  color: var(--aif-text-primary);
+}
+
+.response-box {
+  color: #f8fbf8;
+}
