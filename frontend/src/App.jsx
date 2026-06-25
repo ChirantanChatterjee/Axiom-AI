@@ -23,7 +23,6 @@ import {
   FiUser
 } from "react-icons/fi";
 
-import heroArt from "./assets/hero.png";
 import {
   isSupabaseConfigured,
   supabase
@@ -846,6 +845,60 @@ const adminValue = (value) => {
   return String(value);
 };
 
+function RuntimeVaultVisual() {
+  return (
+    <div
+      className="runtime-visual"
+      aria-hidden="true"
+    >
+      <div className="runtime-grid"></div>
+      <div className="runtime-orbit runtime-orbit-outer"></div>
+      <div className="runtime-orbit runtime-orbit-inner"></div>
+      <div className="runtime-line runtime-line-one"></div>
+      <div className="runtime-line runtime-line-two"></div>
+      <div className="runtime-line runtime-line-three"></div>
+
+      <div className="runtime-core">
+        <span>AIF</span>
+        <small>Runtime Core</small>
+      </div>
+
+      <div className="runtime-chip runtime-chip-generate">
+        <span>GENERATE</span>
+        <strong>Framework</strong>
+      </div>
+
+      <div className="runtime-chip runtime-chip-tags">
+        <span>TAGS</span>
+        <strong>@auto</strong>
+      </div>
+
+      <div className="runtime-chip runtime-chip-run">
+        <span>RUN</span>
+        <strong>Queued</strong>
+      </div>
+
+      <div className="runtime-chip runtime-chip-report">
+        <span>REPORT</span>
+        <strong>Ready</strong>
+      </div>
+
+      <div className="runtime-chip runtime-chip-pass">
+        <span>PASS</span>
+        <strong>Stable</strong>
+      </div>
+
+      <div className="runtime-code-chip runtime-code-left">
+        locator.selfHeal()
+      </div>
+
+      <div className="runtime-code-chip runtime-code-right">
+        repair.prompt++
+      </div>
+    </div>
+  );
+}
+
 function AuthScreen({
   mode,
   form,
@@ -858,259 +911,231 @@ function AuthScreen({
 }) {
   return (
     <div className="auth-page">
-      <div
-        className="auth-scenery"
-        aria-hidden="true"
-      >
-        <div className="auth-sun"></div>
-        <div className="auth-mountain auth-mountain-1"></div>
-        <div className="auth-mountain auth-mountain-2"></div>
-        <div className="auth-mountain auth-mountain-3"></div>
-        <div className="auth-device auth-device-left">
-          <span>@generated</span>
-          <strong>12</strong>
-          <small>tags</small>
-        </div>
-        <div className="auth-device auth-device-center">
-          <span>AIF</span>
-          <strong>PASS</strong>
-          <small>report ready</small>
-        </div>
-        <div className="auth-device auth-device-right">
-          <span>@checkout</span>
-          <strong>RUN</strong>
-          <small>queued</small>
-        </div>
-      </div>
-
-      <motion.section
-        className="auth-brand"
-        initial={{
-          opacity: 0,
-          x: -18
-        }}
-        animate={{
-          opacity: 1,
-          x: 0
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 96,
-          damping: 18
-        }}
-      >
-        <div className="brand-row">
-          <div className="brand-emblem">
-            AIF
-          </div>
-
-          <div>
-            <span>Agent Infrastructure Foundation</span>
-            <h1>AIF Runtime</h1>
-          </div>
-        </div>
-
-        <p>
-          Generate frameworks, derive Gherkin tests, execute tags, and keep each website context isolated in its own chat.
-        </p>
-
-        <div className="auth-art-wrap">
-          <img
-            src={heroArt}
-            alt="AIF layered automation workspace"
-          />
-        </div>
-
-        <div className="auth-capabilities">
-          <div>
-            <FiShield />
-            Session scoped framework memory
-          </div>
-
-          <div>
-            <FiMessageSquare />
-            Chat driven test execution
-          </div>
-
-          <div>
-            <FiBookOpen />
-            Built in command guidance
-          </div>
-        </div>
-      </motion.section>
-
-      <motion.section
-        className="auth-panel"
-        initial={{
-          opacity: 0,
-          y: 18
-        }}
-        animate={{
-          opacity: 1,
-          y: 0
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 110,
-          damping: 20,
-          delay: 0.08
-        }}
-      >
-        <div className="auth-tabs">
-          <motion.button
-            type="button"
-            className={mode === "login" ? "active" : ""}
-            onClick={() => onModeChange("login")}
-            whileHover={{
-              y: -1
-            }}
-            whileTap={{
-              scale: 0.98
-            }}
-          >
-            Log in
-          </motion.button>
-
-          <motion.button
-            type="button"
-            className={mode === "signup" ? "active" : ""}
-            onClick={() => onModeChange("signup")}
-            whileHover={{
-              y: -1
-            }}
-            whileTap={{
-              scale: 0.98
-            }}
-          >
-            Sign up
-          </motion.button>
-        </div>
-
-        <form
-          className="auth-form"
-          onSubmit={onSubmit}
+      <div className="login-stage">
+        <motion.section
+          className="auth-brand"
+          initial={{
+            opacity: 0,
+            x: -18
+          }}
+          animate={{
+            opacity: 1,
+            x: 0
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 96,
+            damping: 18
+          }}
         >
-          <div className="auth-form-heading">
-            <h2>
-              {
-                mode === "login"
-                  ? "Welcome back"
-                  : "Create your workspace"
-              }
-            </h2>
+          <div className="brand-row">
+            <div className="brand-emblem">
+              AIF
+            </div>
 
-            <p>
-              {
-                mode === "login"
-                  ? "Use your email and password to open your chat sessions."
-                  : "Use an email address and password to create your workspace."
-              }
-            </p>
+            <div>
+              <span>Agent Infrastructure Foundation</span>
+              <h1>AIF Runtime</h1>
+            </div>
           </div>
 
-          {
-            error && (
-              <div className="auth-error">
-                {error}
-              </div>
-            )
-          }
+          <p>
+            Generate frameworks, execute flows, repair failures, and preserve session-scoped automation intelligence in one runtime.
+          </p>
 
-          {
-            mode === "signup" && (
-              <label className="field-label">
-                <span>Name</span>
-                <div className="field-control">
-                  <FiUser />
-                  <input
-                    value={form.displayName}
-                    onChange={(event) => onFormChange({
-                      displayName: event.target.value
-                    })}
-                    placeholder="Your name"
-                    autoComplete="name"
-                  />
-                </div>
-              </label>
-            )
-          }
+          <RuntimeVaultVisual />
 
-          <label className="field-label">
-            <span>Email</span>
-            <div className="field-control">
-              <FiMail />
-              <input
-                value={form.email}
-                onChange={(event) => onFormChange({
-                  email: event.target.value
-                })}
-                placeholder="name@example.com"
-                type="email"
-                autoComplete="email"
-                required
-              />
+          <div className="auth-capabilities">
+            <div>
+              <FiShield />
+              Session-scoped framework memory
             </div>
-          </label>
 
-          <div className="email-presets">
-            <button
+            <div>
+              <FiMessageSquare />
+              Chat-driven test execution
+            </div>
+
+            <div>
+              <FiBookOpen />
+              AI repair and report intelligence
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section
+          className="auth-panel"
+          initial={{
+            opacity: 0,
+            y: 18
+          }}
+          animate={{
+            opacity: 1,
+            y: 0
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 110,
+            damping: 20,
+            delay: 0.08
+          }}
+        >
+          <div className="auth-tabs">
+            <motion.button
               type="button"
-              onClick={() => onPresetDomain("company.com")}
+              className={mode === "login" ? "active" : ""}
+              onClick={() => onModeChange("login")}
+              whileHover={{
+                y: -1
+              }}
+              whileTap={{
+                scale: 0.98
+              }}
             >
-              Work email
-            </button>
+              Log in
+            </motion.button>
+
+            <motion.button
+              type="button"
+              className={mode === "signup" ? "active" : ""}
+              onClick={() => onModeChange("signup")}
+              whileHover={{
+                y: -1
+              }}
+              whileTap={{
+                scale: 0.98
+              }}
+            >
+              Sign up
+            </motion.button>
           </div>
 
-          <label className="field-label">
-            <span>Password</span>
-            <div className="field-control">
-              <FiLock />
-              <input
-                value={form.password}
-                onChange={(event) => onFormChange({
-                  password: event.target.value
-                })}
-                placeholder="Minimum 8 characters"
-                type="password"
-                autoComplete={
-                  mode === "login"
-                    ? "current-password"
-                    : "new-password"
-                }
-                required
-              />
-            </div>
-          </label>
-
-          <motion.button
-            type="submit"
-            className="auth-submit"
-            disabled={loading}
-            whileHover={
-              loading
-                ? undefined
-                : {
-                  y: -2
-                }
-            }
-            whileTap={
-              loading
-                ? undefined
-                : {
-                  scale: 0.985
-                }
-            }
+          <form
+            className="auth-form"
+            onSubmit={onSubmit}
           >
+            <div className="auth-form-heading">
+              <h2>
+                {
+                  mode === "login"
+                    ? "Welcome back"
+                    : "Create your workspace"
+                }
+              </h2>
+
+              <p>
+                {
+                  mode === "login"
+                    ? "Use your email and password to open your chat sessions."
+                    : "Use an email address and password to create your workspace."
+                }
+              </p>
+            </div>
+
             {
-              loading
-                ? "Working..."
-                : mode === "login"
-                  ? "Log in"
-                  : "Create account"
+              error && (
+                <div className="auth-error">
+                  {error}
+                </div>
+              )
             }
-          </motion.button>
-        </form>
-      </motion.section>
+
+            {
+              mode === "signup" && (
+                <label className="field-label">
+                  <span>Name</span>
+                  <div className="field-control">
+                    <FiUser />
+                    <input
+                      value={form.displayName}
+                      onChange={(event) => onFormChange({
+                        displayName: event.target.value
+                      })}
+                      placeholder="Your name"
+                      autoComplete="name"
+                    />
+                  </div>
+                </label>
+              )
+            }
+
+            <label className="field-label">
+              <span>Email</span>
+              <div className="field-control">
+                <FiMail />
+                <input
+                  value={form.email}
+                  onChange={(event) => onFormChange({
+                    email: event.target.value
+                  })}
+                  placeholder="name@example.com"
+                  type="email"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+            </label>
+
+            <div className="email-presets">
+              <button
+                type="button"
+                onClick={() => onPresetDomain("company.com")}
+              >
+                Work email
+              </button>
+            </div>
+
+            <label className="field-label">
+              <span>Password</span>
+              <div className="field-control">
+                <FiLock />
+                <input
+                  value={form.password}
+                  onChange={(event) => onFormChange({
+                    password: event.target.value
+                  })}
+                  placeholder="Minimum 8 characters"
+                  type="password"
+                  autoComplete={
+                    mode === "login"
+                      ? "current-password"
+                      : "new-password"
+                  }
+                  required
+                />
+              </div>
+            </label>
+
+            <motion.button
+              type="submit"
+              className="auth-submit"
+              disabled={loading}
+              whileHover={
+                loading
+                  ? undefined
+                  : {
+                    y: -2
+                  }
+              }
+              whileTap={
+                loading
+                  ? undefined
+                  : {
+                    scale: 0.985
+                  }
+              }
+            >
+              {
+                loading
+                  ? "Working..."
+                  : mode === "login"
+                    ? "Log in"
+                    : "Create account"
+              }
+            </motion.button>
+          </form>
+        </motion.section>
+      </div>
     </div>
   );
 }
@@ -3422,7 +3447,10 @@ function App() {
 
         <div className="chat-history-section">
           <div className="history-header">
-            <h3>Chats</h3>
+            <h3>Framework sessions</h3>
+            <span className="history-count">
+              {chats.length}
+            </span>
           </div>
 
           <div className="chat-history-list">
