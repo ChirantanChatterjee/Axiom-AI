@@ -4216,15 +4216,15 @@ body,
 /* Four-color palette pass */
 
 :root {
-  --color-1: #E3725E;
+  --color-1: #E35336;
   --color-2: #CFE35E;
-  --color-3: #5ECFE3;
-  --color-4: #725EE3;
+  --color-3: #CFE35E;
+  --color-4: #E3B45E;
 
-  --aif-primary: #E3725E;
+  --aif-primary: #E35336;
   --aif-secondary: #CFE35E;
-  --aif-accent-cyan: #5ECFE3;
-  --aif-accent-purple: #725EE3;
+  --aif-accent-cyan: #CFE35E;
+  --aif-accent-purple: #E3B45E;
 
   --aif-text-primary: #000000;
   --aif-text-secondary: rgba(0, 0, 0, 0.76);
@@ -4411,7 +4411,7 @@ body,
 .auth-submit,
 .runtime-variable-submit {
   color: var(--aif-text-primary);
-  background: linear-gradient(135deg, #E3725E, #725EE3);
+  background: linear-gradient(135deg, #E35336, #E3B45E);
   border-color: var(--aif-border-medium);
   box-shadow: 0 18px 45px rgba(114, 94, 227, 0.18);
 }
@@ -4422,7 +4422,7 @@ body,
 .report-link:hover,
 .auth-submit:hover:not(:disabled),
 .runtime-variable-submit:hover {
-  background: linear-gradient(135deg, #EC8371, #725EE3);
+  background: linear-gradient(135deg, #EC8371, #E3B45E);
 }
 
 .tag-pill,
@@ -4444,12 +4444,12 @@ body,
 }
 
 .thinking-dot {
-  background: linear-gradient(135deg, #5ECFE3, #725EE3);
+  background: linear-gradient(135deg, #CFE35E, #E3B45E);
 }
 
 .profile-avatar,
 .provider-mark {
-  background: linear-gradient(135deg, #E3725E, #725EE3);
+  background: linear-gradient(135deg, #E35336, #E3B45E);
 }
 
 .testcase-header,
