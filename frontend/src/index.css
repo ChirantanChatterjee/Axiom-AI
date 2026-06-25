@@ -5129,8 +5129,8 @@ body,
 .input-shell,
 .runtime-variable-submit {
   color: var(--aif-minimal-black) !important;
-  background: #FEFBE6 !important;
-  border: 1px solid var(--aif-minimal-border) !important;
+  background: #ffffff !important;
+  border: 2px solid #D94126 !important;
   box-shadow: none !important;
 }
 
@@ -5367,7 +5367,7 @@ body,
    ===================================================== */
 
 :root {
-  --aif-chat-user-panel-fill: #CCFC74;
+  --aif-chat-user-panel-fill: #FBECE9;
   --aif-chat-send-fill: #D94126;
   --aif-chat-ink: #000000;
   --aif-chat-paper: #ffffff;
@@ -5382,7 +5382,7 @@ body,
 .app .sidebar .user-panel {
   color: var(--aif-chat-ink) !important;
   background: var(--aif-chat-user-panel-fill) !important;
-  border: 1px solid rgba(0, 0, 0, 0.18) !important;
+  border: 2px solid #88FC74 !important;
   box-shadow: none !important;
 }
 
