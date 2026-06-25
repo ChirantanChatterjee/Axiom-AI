@@ -54,6 +54,32 @@ class AIFMLModelServiceTest {
     }
 
     @Test
+    void heuristicFailureClassifierIdentifiesLocatorMismatch() {
+
+        FailureClassificationModelService service =
+                new FailureClassificationModelService(
+                        registryWithNoActiveModel(),
+                        featureExtractor(),
+                        properties(),
+                        confidenceDecisionService()
+                );
+
+        MLPrediction prediction =
+                service.predict(
+                        "The generated test typed into the wrong textbox. action-evidence.json shows intendedFieldName Multiple Color Names."
+                );
+
+        assertEquals(
+                FailureClassificationLabel.LOCATOR_MISMATCH.name(),
+                prediction.getPredictedLabel()
+        );
+
+        assertTrue(
+                prediction.isHighConfidence()
+        );
+    }
+
+    @Test
     void heuristicFailureClassifierIdentifiesUndefinedCucumberSteps() {
 
         FailureClassificationModelService service =
@@ -97,6 +123,32 @@ class AIFMLModelServiceTest {
 
         assertEquals(
                 RepairRecommendationLabel.ESCALATE_TO_OPENAI.name(),
+                prediction.getPredictedLabel()
+        );
+
+        assertTrue(
+                prediction.isHighConfidence()
+        );
+    }
+
+    @Test
+    void heuristicRepairRecommenderUsesRuntimeEvidenceForLocatorMismatch() {
+
+        RepairRecommendationModelService service =
+                new RepairRecommendationModelService(
+                        registryWithNoActiveModel(),
+                        featureExtractor(),
+                        properties(),
+                        confidenceDecisionService()
+                );
+
+        MLPrediction prediction =
+                service.predict(
+                        "The generated test entered text into the wrong field and runtime action evidence contains finalResolvedSelector."
+                );
+
+        assertEquals(
+                RepairRecommendationLabel.REPAIR_LOCATORS_WITH_RUNTIME_EVIDENCE.name(),
                 prediction.getPredictedLabel()
         );
 

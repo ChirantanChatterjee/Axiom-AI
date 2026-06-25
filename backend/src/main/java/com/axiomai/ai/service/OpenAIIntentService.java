@@ -103,8 +103,8 @@ Rules:
 - EXECUTE_FLOW means the user wants to run a detected or stored flow.
 - SHOW_GENERATED_TEST_TAGS means the user asks for available generated-test tags.
 - EXECUTE_GENERATED_TESTS means the user wants to run generated Cucumber tests by tag, all generated tests, or a named generated test feature.
-- REPAIR_GENERATED_TESTS means the user asks to inspect, fix, repair, heal, resolve, correct, or update a failed generated/Cucumber test, including natural phrasing like "I see some failures, can you fix it?", "fix the test", "heal this", or assertion-text corrections like "the actual assertion text was X".
-- If the user provides an actual assertion sentence/text/message after a failed generated test, classify it as REPAIR_GENERATED_TESTS, even if they do not repeat "fix". Examples: "The actual sentence is --> Please enter a valid number.", "The actual sentence is \"Please enter a valid number\"", "The page says \"Bill Payment Complete\", not \"amount validation error\"".
+- REPAIR_GENERATED_TESTS means the user asks to inspect, fix, repair, heal, resolve, correct, or update a failed generated/Cucumber test, including natural phrasing like "I see some failures, can you fix it?", "fix the test", "heal this", locator corrections like "the field locator used for \"email\" field is incorrect", assertion-text corrections like "the actual assertion text was X", or invalid-step removal like "the step \"click old button\" is invalid, remove it".
+- If the user provides an actual assertion sentence/text/message/expectation after a failed generated test, classify it as REPAIR_GENERATED_TESTS, even if they do not repeat "fix". Examples: "The actual sentence is --> Please enter a valid number.", "The actual sentence is \"Please enter a valid number\"", "The assertion is incorrect because the actual expectation should be \"Bill Payment Complete\"", "The page says \"Bill Payment Complete\", not \"amount validation error\"".
 - DOWNLOAD_FRAMEWORK means the user wants the generated framework zip/download.
 - Put website targets in url. Normalize bare domains if possible.
 - Put data values in variables as a JSON object with lower-case keys.

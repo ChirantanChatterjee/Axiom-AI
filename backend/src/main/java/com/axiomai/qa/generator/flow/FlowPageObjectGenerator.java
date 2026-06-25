@@ -119,6 +119,11 @@ public class FlowPageObjectGenerator {
 
                     public void enter(String target, String value) {
 
+                        fillField(target, value);
+                    }
+
+                    public void fillField(String target, String value) {
+
                         dismissCookieBanner();
 
                         if (handleSpecialEnter(target, value)) {
@@ -128,7 +133,7 @@ public class FlowPageObjectGenerator {
                         Locator locator = resolveEditable(target);
 
                         if (locator != null) {
-                            fillOrType(locator, value);
+                            fillOrTypeWithEvidence(target, locator, value, "resolveEditable");
                             confirmFieldIfNeeded(target, value);
                             return;
                         }
@@ -154,7 +159,7 @@ public class FlowPageObjectGenerator {
                         );
 
                         if (focused != null && isEditable(focused)) {
-                            fillOrType(focused, value);
+                            fillOrTypeWithEvidence(target, focused, value, "focusedEditableFallback");
                             confirmFieldIfNeeded(target, value);
                             return;
                         }
@@ -171,7 +176,7 @@ public class FlowPageObjectGenerator {
                             );
 
                             if (visibleInput != null && isEditable(visibleInput)) {
-                                fillOrType(visibleInput, value);
+                                fillOrTypeWithEvidence(target, visibleInput, value, "visibleEditableFallback");
                                 confirmFieldIfNeeded(target, value);
                                 return;
                             }
@@ -242,6 +247,30 @@ public class FlowPageObjectGenerator {
 
                             throw new AssertionError(
                                     "Expected page to contain text: " + expectedText
+                            );
+                        }
+                    }
+
+                    public void shouldNotSee(String unexpectedText) {
+
+                        page.waitForTimeout(500);
+
+                        String body;
+
+                        try {
+                            body = page.locator("body").innerText();
+                        } catch (RuntimeException e) {
+                            body = "";
+                        }
+
+                        if (
+                                matchesExpectation(unexpectedText, body)
+                        ) {
+
+                            recordAssertionFailure("not " + unexpectedText, body);
+
+                            throw new AssertionError(
+                                    "Expected page not to contain text: " + unexpectedText
                             );
                         }
                     }
@@ -1965,7 +1994,7 @@ public class FlowPageObjectGenerator {
                             return false;
                         }
 
-                        fillOrType(input, value);
+                        fillOrTypeWithEvidence(target, input, value, "makeMyTripLocation");
                         page.waitForTimeout(900);
 
                         String escapedValue = cssText(value);
@@ -2268,6 +2297,390 @@ public class FlowPageObjectGenerator {
                         }
                     }
 
+                    private void fillOrTypeWithEvidence(String target, Locator locator, String value, String resolutionStrategy) {
+
+                        Path beforeScreenshot =
+                                captureActionScreenshot("before", target);
+
+                        try {
+
+                            fillOrType(locator, value);
+
+                            Path afterScreenshot =
+                                    captureActionScreenshot("after", target);
+
+                            Path domSnapshot =
+                                    captureActionDom(locator, target);
+
+                            recordActionEvidence(
+                                    target,
+                                    value,
+                                    resolutionStrategy,
+                                    locator,
+                                    beforeScreenshot,
+                                    afterScreenshot,
+                                    domSnapshot,
+                                    ""
+                            );
+
+                        } catch (RuntimeException e) {
+
+                            Path failureScreenshot =
+                                    captureActionScreenshot("failure", target);
+
+                            recordActionEvidence(
+                                    target,
+                                    value,
+                                    resolutionStrategy,
+                                    locator,
+                                    beforeScreenshot,
+                                    failureScreenshot,
+                                    null,
+                                    e.getMessage()
+                            );
+
+                            throw e;
+                        }
+                    }
+
+                    private Path actionRuntimeDir() {
+
+                        try {
+                            Path dir = Path.of("target", "aif-runtime");
+                            Files.createDirectories(dir);
+                            return dir;
+                        } catch (java.io.IOException e) {
+                            return null;
+                        }
+                    }
+
+                    private Path captureActionScreenshot(String phase, String target) {
+
+                        try {
+                            Path dir = actionRuntimeDir();
+
+                            if (dir == null) {
+                                return null;
+                            }
+
+                            Path screenshot = dir.resolve(
+                                    "action-"
+                                            + System.currentTimeMillis()
+                                            + "-"
+                                            + phase
+                                            + "-"
+                                            + sanitizeArtifactName(target)
+                                            + ".png"
+                            );
+
+                            page.screenshot(
+                                    new Page.ScreenshotOptions()
+                                            .setPath(screenshot)
+                                            .setFullPage(true)
+                            );
+
+                            return screenshot;
+                        } catch (RuntimeException ignored) {
+                            return null;
+                        }
+                    }
+
+                    private Path captureActionDom(Locator locator, String target) {
+
+                        try {
+                            Path dir = actionRuntimeDir();
+
+                            if (dir == null || locator == null) {
+                                return null;
+                            }
+
+                            Object outerHtml =
+                                    locator.evaluate("el => el.outerHTML || ''");
+
+                            Path snapshot = dir.resolve(
+                                    "action-"
+                                            + System.currentTimeMillis()
+                                            + "-dom-"
+                                            + sanitizeArtifactName(target)
+                                            + ".html"
+                            );
+
+                            Files.writeString(
+                                    snapshot,
+                                    outerHtml == null
+                                            ? ""
+                                            : String.valueOf(outerHtml)
+                            );
+
+                            return snapshot;
+                        } catch (RuntimeException | java.io.IOException ignored) {
+                            return null;
+                        }
+                    }
+
+                    private void recordActionEvidence(
+                            String target,
+                            String value,
+                            String resolutionStrategy,
+                            Locator locator,
+                            Path beforeScreenshot,
+                            Path afterScreenshot,
+                            Path domSnapshot,
+                            String error
+                    ) {
+
+                        try {
+                            Path dir = actionRuntimeDir();
+
+                            if (dir == null) {
+                                return;
+                            }
+
+                            Map<String, String> element =
+                                    elementEvidenceMetadata(locator);
+
+                            String object =
+                                    "{"
+                                            + "\\"timestamp\\":\\"" + System.currentTimeMillis() + "\\","
+                                            + "\\"pageUrl\\":\\"" + jsonEscape(page.url()) + "\\","
+                                            + "\\"actionType\\":\\"fill\\","
+                                            + "\\"intendedFieldName\\":\\"" + jsonEscape(target) + "\\","
+                                            + "\\"intendedValue\\":\\"" + jsonEscape(safeEvidenceValue(target, value)) + "\\","
+                                            + "\\"resolutionStrategy\\":\\"" + jsonEscape(resolutionStrategy) + "\\","
+                                            + "\\"finalResolvedSelector\\":\\"" + jsonEscape(resolutionStrategy) + "\\","
+                                            + "\\"candidateSelectors\\":" + jsonArray(candidateSelectorsFor(target)) + ","
+                                            + "\\"beforeScreenshot\\":\\"" + jsonEscape(pathText(beforeScreenshot)) + "\\","
+                                            + "\\"afterScreenshot\\":\\"" + jsonEscape(pathText(afterScreenshot)) + "\\","
+                                            + "\\"domSnapshot\\":\\"" + jsonEscape(pathText(domSnapshot)) + "\\","
+                                            + "\\"error\\":\\"" + jsonEscape(error) + "\\","
+                                            + "\\"element\\":" + jsonObject(element)
+                                            + "}";
+
+                            appendActionEvidenceObject(
+                                    dir.resolve("action-evidence.json"),
+                                    object
+                            );
+                        } catch (RuntimeException ignored) {
+                            // Evidence capture must never mask the UI action outcome.
+                        }
+                    }
+
+                    private Map<String, String> elementEvidenceMetadata(Locator locator) {
+
+                        Map<String, String> metadata =
+                                new LinkedHashMap<>();
+
+                        if (locator == null) {
+                            return metadata;
+                        }
+
+                        try {
+                            Object raw =
+                                    locator.evaluate(
+                                            "el => { const labels = Array.from(document.querySelectorAll('label')).filter(label => (el.id && label.htmlFor === el.id) || label.contains(el)).map(label => (label.innerText || label.textContent || '').trim()).join(' '); const rect = el.getBoundingClientRect(); return { tag: el.tagName || '', id: el.id || '', name: el.getAttribute('name') || '', placeholder: el.getAttribute('placeholder') || '', ariaLabel: el.getAttribute('aria-label') || '', title: el.getAttribute('title') || '', role: el.getAttribute('role') || '', className: el.getAttribute('class') || '', dataTest: el.getAttribute('data-test') || el.getAttribute('data-testid') || el.getAttribute('data-cy') || '', label: labels, text: (el.innerText || el.textContent || '').trim(), rect: Math.round(rect.x) + ',' + Math.round(rect.y) + ',' + Math.round(rect.width) + ',' + Math.round(rect.height) }; }"
+                                    );
+
+                            if (
+                                    raw instanceof Map<?, ?> rawMap
+                            ) {
+
+                                rawMap.forEach((key, metadataValue) -> metadata.put(
+                                        String.valueOf(key),
+                                        metadataValue == null
+                                                ? ""
+                                                : truncate(
+                                                String.valueOf(metadataValue),
+                                                500
+                                        )
+                                ));
+                            }
+                        } catch (RuntimeException ignored) {
+                            // Keep partial evidence when browser-side metadata is unavailable.
+                        }
+
+                        return metadata;
+                    }
+
+                    private List<String> candidateSelectorsFor(String target) {
+
+                        List<String> candidates =
+                                new ArrayList<>();
+
+                        String key =
+                                targetKey(target);
+
+                        if (
+                                selectors.containsKey(key)
+                        ) {
+
+                            candidates.addAll(
+                                    selectors.get(key)
+                            );
+                        }
+
+                        candidates.addAll(
+                                inputSemanticSelectors(target)
+                        );
+
+                        return candidates.stream()
+                                .filter(candidate -> candidate != null && !candidate.isBlank())
+                                .distinct()
+                                .limit(25)
+                                .toList();
+                    }
+
+                    private void appendActionEvidenceObject(Path evidenceFile, String object) {
+
+                        try {
+                            String existing =
+                                    Files.exists(evidenceFile)
+                                            ? Files.readString(evidenceFile).trim()
+                                            : "";
+
+                            String next;
+
+                            if (
+                                    existing.startsWith("[")
+                                            &&
+                                            existing.endsWith("]")
+                                            &&
+                                            existing.length() > 2
+                            ) {
+
+                                next =
+                                        existing.substring(0, existing.length() - 1)
+                                                + ","
+                                                + System.lineSeparator()
+                                                + object
+                                                + System.lineSeparator()
+                                                + "]";
+
+                            } else {
+
+                                next =
+                                        "["
+                                                + System.lineSeparator()
+                                                + object
+                                                + System.lineSeparator()
+                                                + "]";
+                            }
+
+                            Files.writeString(evidenceFile, next);
+                        } catch (java.io.IOException ignored) {
+                            // Evidence capture must never mask the UI action outcome.
+                        }
+                    }
+
+                    private String jsonObject(Map<String, String> values) {
+
+                        StringBuilder json =
+                                new StringBuilder("{");
+
+                        boolean first =
+                                true;
+
+                        for (
+                                Map.Entry<String, String> entry
+                                : values.entrySet()
+                        ) {
+
+                            if (!first) {
+                                json.append(",");
+                            }
+
+                            json.append("\\"")
+                                    .append(jsonEscape(entry.getKey()))
+                                    .append("\\":\\"")
+                                    .append(jsonEscape(entry.getValue()))
+                                    .append("\\"");
+
+                            first =
+                                    false;
+                        }
+
+                        return json.append("}")
+                                .toString();
+                    }
+
+                    private String jsonArray(List<String> values) {
+
+                        StringBuilder json =
+                                new StringBuilder("[");
+
+                        for (
+                                int index = 0;
+                                index < values.size();
+                                index++
+                        ) {
+
+                            if (index > 0) {
+                                json.append(",");
+                            }
+
+                            json.append("\\"")
+                                    .append(jsonEscape(values.get(index)))
+                                    .append("\\"");
+                        }
+
+                        return json.append("]")
+                                .toString();
+                    }
+
+                    private String jsonEscape(String value) {
+
+                        return nullSafe(value)
+                                .replace("\\\\", "\\\\\\\\")
+                                .replace("\\"", "\\\\\\"")
+                                .replace("\\r", "\\\\r")
+                                .replace("\\n", "\\\\n");
+                    }
+
+                    private String safeEvidenceValue(String target, String value) {
+
+                        String lower =
+                                target == null
+                                        ? ""
+                                        : target.toLowerCase();
+
+                        if (
+                                lower.contains("password")
+                                        ||
+                                        lower.contains("token")
+                                        ||
+                                        lower.contains("secret")
+                                        ||
+                                        lower.contains("otp")
+                        ) {
+
+                            return "<redacted>";
+                        }
+
+                        return truncate(
+                                value,
+                                250
+                        );
+                    }
+
+                    private String pathText(Path path) {
+
+                        return path == null
+                                ? ""
+                                : path.toString();
+                    }
+
+                    private String sanitizeArtifactName(String value) {
+
+                        String sanitized =
+                                nullSafe(value)
+                                        .toLowerCase()
+                                        .replaceAll("[^a-z0-9]+", "-")
+                                        .replaceAll("^-+|-+$", "");
+
+                        return sanitized.isBlank()
+                                ? "field"
+                                : truncate(sanitized, 80);
+                    }
+
                     private void selectOptionWithFallback(Locator locator, String value) {
 
                         String requested = value == null ? "" : value;
@@ -2388,7 +2801,7 @@ public class FlowPageObjectGenerator {
                             Locator verifyAccount = firstVisible("input[name='verifyAccount']");
 
                             if (verifyAccount != null) {
-                                fillOrType(verifyAccount, value);
+                                fillOrTypeWithEvidence("verify account", verifyAccount, value, "confirmFieldIfNeeded");
                             }
                         }
 

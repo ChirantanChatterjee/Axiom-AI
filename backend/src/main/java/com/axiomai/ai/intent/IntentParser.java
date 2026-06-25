@@ -8,6 +8,7 @@ import com.axiomai.ai.service.OpenAIIntentService;
 import com.axiomai.ml.AIFMLPredictionService;
 import com.axiomai.ml.IntentClassificationLabel;
 import com.axiomai.ml.MLPrediction;
+import com.axiomai.qa.service.GeneratedRepairInstructionAnalyzer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -1781,6 +1782,15 @@ public class IntentParser {
 
         if (
                 containsGeneratedElementTextCorrection(lower)
+        ) {
+
+            return true;
+        }
+
+        if (
+                GeneratedRepairInstructionAnalyzer.isGuidedRepairInstruction(
+                        message
+                )
         ) {
 
             return true;

@@ -263,6 +263,166 @@ class OpenAIGeneratedTestRepairServiceTest {
         );
     }
 
+    @Test
+    void enrichesOpenAIRepairPromptWithLocatorMismatchEvidence() throws Exception {
+
+        Path featureFile =
+                tempDir.resolve(
+                        "src/test/resources/features/generated.feature"
+                );
+
+        Path pageFile =
+                tempDir.resolve(
+                        "src/test/java/com/axiomai/generated/pages/GeneratedPage.java"
+                );
+
+        Path evidenceFile =
+                tempDir.resolve(
+                        "target/aif-runtime/action-evidence.json"
+                );
+
+        Files.createDirectories(
+                featureFile.getParent()
+        );
+        Files.createDirectories(
+                pageFile.getParent()
+        );
+        Files.createDirectories(
+                evidenceFile.getParent()
+        );
+
+        Files.writeString(
+                featureFile,
+                """
+                        Feature: generated
+                        Scenario: User selects multiple auto-complete suggestions
+                          When user enters "Blue" into "Single Color Name"
+                        """
+        );
+
+        Files.writeString(
+                pageFile,
+                """
+                        package com.axiomai.generated.pages;
+                        class GeneratedPage {
+                          void fill() {
+                            page.locator("input").first();
+                          }
+                        }
+                        """
+        );
+
+        Files.writeString(
+                evidenceFile,
+                """
+                        [{"intendedFieldName":"Multiple Color Names","finalResolvedSelector":"input:visible","element":{"id":"autoCompleteSingleInput"}}]
+                        """
+        );
+
+        StubOpenAIService openAI =
+                new StubOpenAIService(
+                        objectMapper.writeValueAsString(
+                                Map.of(
+                                        "canRepair",
+                                        false,
+                                        "failureSummary",
+                                        "Needs locator repair."
+                                )
+                        )
+                );
+
+        OpenAIGeneratedTestRepairService service =
+                new OpenAIGeneratedTestRepairService(
+                        openAI
+                );
+
+        service.repair(
+                tempDir,
+                "The generated test typed into the wrong textbox.",
+                "It is using the wrong field."
+        );
+
+        assertTrue(
+                openAI.prompt.contains("locatorRepairEvidence")
+        );
+
+        assertTrue(
+                openAI.prompt.contains("REPAIR_LOCATORS_WITH_RUNTIME_EVIDENCE")
+        );
+
+        assertTrue(
+                openAI.prompt.contains("runtimeActionEvidence")
+        );
+
+        assertTrue(
+                openAI.prompt.contains("weakLocatorFindings")
+        );
+
+        assertTrue(
+                openAI.prompt.contains("locatorRepair")
+        );
+    }
+
+    @Test
+    void enrichesOpenAIRepairPromptWithGuidedFieldLocatorInstruction() throws Exception {
+
+        Path pageFile =
+                tempDir.resolve(
+                        "src/test/java/com/axiomai/generated/pages/GeneratedPage.java"
+                );
+
+        Files.createDirectories(
+                pageFile.getParent()
+        );
+
+        Files.writeString(
+                pageFile,
+                """
+                        package com.axiomai.generated.pages;
+                        class GeneratedPage {
+                          void fill() {
+                            page.locator("#old-email");
+                          }
+                        }
+                        """
+        );
+
+        StubOpenAIService openAI =
+                new StubOpenAIService(
+                        objectMapper.writeValueAsString(
+                                Map.of(
+                                        "canRepair",
+                                        false,
+                                        "failureSummary",
+                                        "Needs field locator repair."
+                                )
+                        )
+                );
+
+        OpenAIGeneratedTestRepairService service =
+                new OpenAIGeneratedTestRepairService(
+                        openAI
+                );
+
+        service.repair(
+                tempDir,
+                "Unable to fill Email field.",
+                "the field locator used for \"Email\" field is incorrect can you please fix it?"
+        );
+
+        assertTrue(
+                openAI.prompt.contains("guidedRepairInstruction")
+        );
+
+        assertTrue(
+                openAI.prompt.contains("FIELD_LOCATOR")
+        );
+
+        assertTrue(
+                openAI.prompt.contains("Email")
+        );
+    }
+
     private static class StubOpenAIService
             extends OpenAIService {
 

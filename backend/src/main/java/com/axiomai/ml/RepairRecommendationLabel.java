@@ -4,6 +4,8 @@ public enum RepairRecommendationLabel {
 
     UPDATE_LOCATOR,
 
+    REPAIR_LOCATORS_WITH_RUNTIME_EVIDENCE,
+
     ADD_WAIT,
 
     FIX_ASSERTION,

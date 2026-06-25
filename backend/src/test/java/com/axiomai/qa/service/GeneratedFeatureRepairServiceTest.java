@@ -111,6 +111,142 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void rewritesWrongGeneratedAutoCompleteInputTargetForMultiValueScenariosOnly() {
+
+        String feature =
+                """
+                        Feature: generated
+
+                        @auto_complete @generated
+                        Scenario: User selects a single auto-complete suggestion
+                          Given user launches "https://demoqa.com/auto-complete"
+                          When user enters "Red" into "Single Color Name"
+                          Then user should see "Red"
+
+                        @auto_complete @generated
+                        Scenario: User selects multiple auto-complete suggestions
+                          Given user launches "https://demoqa.com/auto-complete"
+                          When user enters "Red" into "Single Color Name"
+                          And user enters "Blue" into "Single Color Name"
+                          Then user should see "Red"
+                          And user should see "Blue"
+
+                        @auto_complete @generated
+                        Scenario: User removes a selected value from multi auto-complete input
+                          Given user launches "https://demoqa.com/auto-complete"
+                          When user enters "Blue" into "Single Color Name"
+                          Then user should not see "Blue"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "Generated cucumber report shows @auto_complete failures.",
+                                "The generated test typed into the wrong textbox for the multiple auto-complete field."
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.changes()
+                        .stream()
+                        .anyMatch(change -> change.contains("locator target mismatch"))
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains(
+                                """
+                                        Scenario: User selects a single auto-complete suggestion
+                                          Given user launches "https://demoqa.com/auto-complete"
+                                          When user enters "Red" into "Single Color Name"
+                                        """
+                        )
+        );
+
+        assertEquals(
+                3,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("into \"Multiple Color Names\""))
+                        .count()
+        );
+    }
+
+    @Test
+    void rewritesAssertionFromActualExpectationGuidance() {
+
+        String feature =
+                """
+                        Feature: confirmation
+
+                        @generated
+                        Scenario: Complete payment
+                          Then user should see "Old confirmation"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "java.lang.AssertionError: Expected page to contain text: Old confirmation",
+                                "The assertion is incorrect because the actual expectation should be \"Bill Payment Complete\""
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"Bill Payment Complete\"")
+        );
+    }
+
+    @Test
+    void removesInvalidGeneratedStepFromUserGuidance() {
+
+        String feature =
+                """
+                        Feature: cleanup
+
+                        @generated
+                        Scenario: Remove obsolete action
+                          Given user launches "https://example.test"
+                          And user clicks "Old Button"
+                          Then user should see "Done"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "",
+                                "The step \"Old Button\" is invalid can you please remove it?"
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertEquals(
+                0,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("Old Button"))
+                        .count()
+        );
+
+        assertTrue(
+                repair.content()
+                        .contains("Then user should see \"Done\"")
+        );
+    }
+
+    @Test
     void rewritesSauceDemoSortOptionClicksToSupportedDropdownValues() {
 
         String feature =

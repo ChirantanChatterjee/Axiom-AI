@@ -734,6 +734,21 @@ public class GeneratedTestExecutionService {
                         evidence.contains("target")
         ) {
 
+            if (
+                    evidence.contains("wrong field")
+                            ||
+                            evidence.contains("wrong textbox")
+                            ||
+                            evidence.contains("wrong input")
+                            ||
+                            evidence.contains("locator mismatch")
+                            ||
+                            evidence.contains("target mismatch")
+            ) {
+
+                return RepairRecommendationLabel.REPAIR_LOCATORS_WITH_RUNTIME_EVIDENCE.name();
+            }
+
             return RepairRecommendationLabel.UPDATE_LOCATOR.name();
         }
 

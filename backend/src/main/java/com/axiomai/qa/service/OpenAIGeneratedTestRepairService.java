@@ -93,6 +93,7 @@ public class OpenAIGeneratedTestRepairService {
             String response =
                     openAIService.ask(
                             repairPrompt(
+                                    frameworkRoot,
                                     files,
                                     previousExecutionOutput,
                                     userInstruction,
@@ -131,6 +132,7 @@ public class OpenAIGeneratedTestRepairService {
     }
 
     private String repairPrompt(
+            Path frameworkRoot,
             Map<String, String> files,
             String previousExecutionOutput,
             String userInstruction,
@@ -175,6 +177,34 @@ public class OpenAIGeneratedTestRepairService {
             );
         }
 
+        GeneratedRepairInstructionAnalyzer.guidedRepairInstruction(
+                        userInstruction
+                )
+                .ifPresent(instruction -> payload.put(
+                        "guidedRepairInstruction",
+                        GeneratedRepairInstructionAnalyzer.toPromptMap(
+                                instruction
+                        )
+                ));
+
+        Map<String, Object> locatorRepairEvidence =
+                locatorRepairEvidence(
+                        frameworkRoot,
+                        files,
+                        previousExecutionOutput,
+                        userInstruction
+                );
+
+        if (
+                !locatorRepairEvidence.isEmpty()
+        ) {
+
+            payload.put(
+                    "locatorRepairEvidence",
+                    locatorRepairEvidence
+            );
+        }
+
         List<Map<String, String>> filePayload =
                 new ArrayList<>();
 
@@ -216,10 +246,15 @@ public class OpenAIGeneratedTestRepairService {
                 - Only update files listed in the input.
                 - Preserve existing project structure, package names, Cucumber step style, and Java syntax.
                 - Prefer fixing the generated feature, page object, or step definitions over deleting assertions blindly.
+                - If the user says the test typed into the wrong textbox/input/field, classify it as a locator/field-target mismatch before considering missing step definitions or assertion changes.
+                - If guidedRepairInstruction is present, treat it as the highest-priority user repair target. FIELD_LOCATOR means update the generated page object selector/resolution for that field; ASSERTION_EXPECTATION means update the generated assertion expectation; STEP_REMOVAL means remove the matching invalid generated Gherkin step.
+                - For locator/field-target mismatches, inspect locatorRepairEvidence, generated enter targets, runtime action evidence, screenshots/DOM artifacts, selector lists, and weak locator findings. Repair the wrong .feature target or the page-object selector/resolution strategy that selected the wrong element.
+                - Do not satisfy a wrong-textbox complaint by only adding missing Cucumber step definitions. Missing steps may also be repaired, but only after the field target or locator mismatch is addressed.
                 - If a step clicks a label that is not present in the application (for example the feature says click "search flights" but the crawler/runtime evidence shows the actual submit action is "Continue"), update the .feature step to the real observed label. Do not add a page-object alias for a control that does not exist.
                 - For "Unable to resolve element: <target>", first decide whether <target> is a bad generated Gherkin target. If it is, repair the feature file. Only patch GeneratedPage.java when the target is a real UI label/field and the locator strategy is missing.
                 - If this is runtime data, invalid credentials, CAPTCHA, browser installation, or external service instability, set canRepair=false and explain why.
                 - If you repair, include complete replacement content for each changed file.
+                - When repairing a locator mismatch, include a locatorRepair object in the JSON response using this shape: {"repairType":"LOCATOR_MISMATCH","fieldIntent":"...","oldTargetOrSelector":"...","newTargetOrSelector":"...","evidence":["..."]}.
 
                 Response schema:
                 {
@@ -227,6 +262,7 @@ public class OpenAIGeneratedTestRepairService {
                   "failureSummary": "specific failure in one sentence",
                   "failureDetails": ["what failed and why"],
                   "changes": ["exact repair made"],
+                  "locatorRepair": {"repairType":"LOCATOR_MISMATCH","fieldIntent":"optional","oldTargetOrSelector":"optional","newTargetOrSelector":"optional","evidence":["optional"]},
                   "files": [
                     {
                       "path": "relative/path/from/framework/root",
@@ -425,6 +461,281 @@ public class OpenAIGeneratedTestRepairService {
         }
 
         return files;
+    }
+
+    private Map<String, Object> locatorRepairEvidence(
+            Path frameworkRoot,
+            Map<String, String> files,
+            String previousExecutionOutput,
+            String userInstruction
+    ) {
+
+        Map<String, Object> evidence =
+                new LinkedHashMap<>();
+
+        String combined =
+                String.join(
+                        System.lineSeparator(),
+                        userInstruction == null ? "" : userInstruction,
+                        previousExecutionOutput == null ? "" : previousExecutionOutput,
+                        files.values()
+                                .stream()
+                                .limit(8)
+                                .reduce(
+                                        "",
+                                        (left, right) -> left + System.lineSeparator() + right
+                                )
+                );
+
+        List<Map<String, Object>> weakLocators =
+                new ArrayList<>();
+
+        List<Map<String, String>> enterTargets =
+                new ArrayList<>();
+
+        for (
+                Map.Entry<String, String> entry
+                : files.entrySet()
+        ) {
+
+            if (
+                    entry.getKey()
+                            .endsWith(".feature")
+            ) {
+
+                enterTargets.addAll(
+                        GeneratedLocatorRepairAnalyzer.enterTargets(
+                                entry.getValue()
+                        )
+                );
+            }
+
+            for (
+                    GeneratedLocatorRepairAnalyzer.WeakLocatorFinding finding
+                    : GeneratedLocatorRepairAnalyzer.weakLocatorFindings(
+                            entry.getKey(),
+                            entry.getValue()
+                    )
+            ) {
+
+                Map<String, Object> item =
+                        new LinkedHashMap<>();
+
+                item.put(
+                        "path",
+                        finding.path()
+                );
+                item.put(
+                        "line",
+                        finding.line()
+                );
+                item.put(
+                        "snippet",
+                        redactSensitiveText(
+                                truncate(
+                                        finding.snippet(),
+                                        800
+                                )
+                        )
+                );
+                item.put(
+                        "reason",
+                        finding.reason()
+                );
+
+                weakLocators.add(item);
+            }
+        }
+
+        boolean hasMismatchEvidence =
+                GeneratedLocatorRepairAnalyzer.hasLocatorMismatchEvidence(
+                        combined
+                );
+
+        if (
+                hasMismatchEvidence
+        ) {
+
+            evidence.put(
+                    "failureClassification",
+                    GeneratedLocatorRepairAnalyzer.classifyFailure(combined)
+                            .name()
+            );
+            evidence.put(
+                    "recommendedRepair",
+                    GeneratedLocatorRepairAnalyzer.recommendedRepair(combined)
+                            .name()
+            );
+            evidence.put(
+                    "userComplaintLocatorMismatch",
+                    GeneratedLocatorRepairAnalyzer.isLocatorMismatchComplaint(
+                            userInstruction
+                    )
+            );
+        }
+
+        if (
+                !enterTargets.isEmpty()
+        ) {
+
+            evidence.put(
+                    "generatedEnterTargets",
+                    enterTargets.stream()
+                            .limit(80)
+                            .toList()
+            );
+        }
+
+        if (
+                !weakLocators.isEmpty()
+        ) {
+
+            evidence.put(
+                    "weakLocatorFindings",
+                    weakLocators.stream()
+                            .limit(40)
+                            .toList()
+            );
+        }
+
+        Path target =
+                frameworkRoot.resolve("target");
+
+        addTargetEvidenceFile(
+                evidence,
+                "runtimeActionEvidence",
+                target.resolve("aif-runtime/action-evidence.json"),
+                16_000
+        );
+
+        addTargetEvidenceFile(
+                evidence,
+                "lastAssertionFailure",
+                target.resolve("aif-last-assertion-failure.txt"),
+                8_000
+        );
+
+        List<String> artifacts =
+                runtimeArtifacts(target);
+
+        if (
+                !artifacts.isEmpty()
+        ) {
+
+            evidence.put(
+                    "runtimeArtifacts",
+                    artifacts
+            );
+        }
+
+        if (
+                evidence.containsKey("runtimeActionEvidence")
+                        ||
+                        evidence.containsKey("lastAssertionFailure")
+                        ||
+                        !weakLocators.isEmpty()
+        ) {
+
+            evidence.putIfAbsent(
+                    "failureClassification",
+                    GeneratedLocatorRepairAnalyzer.classifyFailure(combined)
+                            .name()
+            );
+            evidence.putIfAbsent(
+                    "recommendedRepair",
+                    GeneratedLocatorRepairAnalyzer.recommendedRepair(combined)
+                            .name()
+            );
+        }
+
+        return evidence;
+    }
+
+    private void addTargetEvidenceFile(
+            Map<String, Object> evidence,
+            String key,
+            Path path,
+            int maxChars
+    ) {
+
+        if (
+                path == null
+                        ||
+                        !Files.isRegularFile(path)
+        ) {
+
+            return;
+        }
+
+        String value =
+                readFile(path);
+
+        if (
+                value.isBlank()
+        ) {
+
+            return;
+        }
+
+        evidence.put(
+                key,
+                redactSensitiveText(
+                        truncate(
+                                value,
+                                maxChars
+                        )
+                )
+        );
+    }
+
+    private List<String> runtimeArtifacts(
+            Path target
+    ) {
+
+        if (
+                target == null
+                        ||
+                        !Files.isDirectory(target)
+        ) {
+
+            return List.of();
+        }
+
+        List<String> artifacts =
+                new ArrayList<>();
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(target)
+        ) {
+
+            paths.filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name =
+                                path.getFileName()
+                                        .toString()
+                                        .toLowerCase();
+
+                        return name.endsWith(".png")
+                                ||
+                                name.endsWith(".html")
+                                ||
+                                name.endsWith(".json");
+                    })
+                    .filter(path -> path.toString()
+                            .contains("aif-runtime"))
+                    .sorted()
+                    .limit(80)
+                    .forEach(path -> artifacts.add(
+                            target.relativize(path)
+                                    .toString()
+                                    .replace("\\", "/")
+                    ));
+        } catch (IOException ignored) {
+
+        }
+
+        return artifacts;
     }
 
     private boolean isRepairableFile(

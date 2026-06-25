@@ -38,7 +38,7 @@ public class FlowStepDefinitionGenerator {
                     public void userEntersInto(String value, String target) {
 
                         System.out.println("AIF STEP start: user enters into " + target);
-                        generatedPage().enter(
+                        generatedPage().fillField(
                                 resolveValue(target),
                                 resolveValue(value)
                         );
@@ -87,6 +87,16 @@ public class FlowStepDefinitionGenerator {
                                 resolveValue(expectedText)
                         );
                         System.out.println("AIF STEP done: user should see " + expectedText);
+                    }
+
+                    @Then("user should not see {string}")
+                    public void userShouldNotSee(String unexpectedText) {
+
+                        System.out.println("AIF STEP start: user should not see " + unexpectedText);
+                        generatedPage().shouldNotSee(
+                                resolveValue(unexpectedText)
+                        );
+                        System.out.println("AIF STEP done: user should not see " + unexpectedText);
                     }
 
                     @Then("product list should be sorted by {string}")

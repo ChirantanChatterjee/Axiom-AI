@@ -1,6 +1,7 @@
 package com.axiomai.ml;
 
 import com.axiomai.ml.config.AIFMLProperties;
+import com.axiomai.qa.service.GeneratedLocatorRepairAnalyzer;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,6 +45,19 @@ public class FailureClassificationModelService
     protected MLPrediction heuristicPrediction(
             String input
     ) {
+
+        if (
+                GeneratedLocatorRepairAnalyzer.hasLocatorMismatchEvidence(
+                        input
+                )
+        ) {
+
+            return prediction(
+                    FailureClassificationLabel.LOCATOR_MISMATCH,
+                    0.91,
+                    "heuristic"
+            );
+        }
 
         if (
                 containsAny(

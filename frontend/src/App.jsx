@@ -1233,6 +1233,20 @@ function HelpView({
         </section>
 
         <section className="help-section">
+          <h3>Guide A Repair</h3>
+          <p>
+            Point AIF at the failing area when you know whether the issue is a locator, assertion, invalid step, wait, navigation, or test data.
+          </p>
+          <code>The field locator used for "Email" field is incorrect. Can you please fix it?</code>
+          <code>The field locator used for "Email" field should be "input[name='email']". Please update it.</code>
+          <code>The assertion is incorrect because the actual expectation should be "Bill Payment Complete".</code>
+          <code>The step "Old Button" is invalid. Can you please remove it?</code>
+          <code>The generated test is clicking "search flights", but the button says "Continue". Please fix the target.</code>
+          <code>The test is typing into the wrong textbox for "Multiple Color Names". Please repair the locator.</code>
+          <code>This failure is timing-related. Add a wait for "Payment Complete" before the assertion.</code>
+        </section>
+
+        <section className="help-section">
           <h3>Correct Assertion Text</h3>
           <p>
             When the page text is different from the generated assertion, provide the actual sentence from the app or report.
@@ -1251,6 +1265,8 @@ function HelpView({
           <p>
             If a report shows an unresolved element or wrong page, describe the missing target and the visible label.
           </p>
+          <code>The field locator used for "Email" field is incorrect. Can you please fix it?</code>
+          <code>The field locator used for "Email" field should be "input[name='email']".</code>
           <code>The last test could not find "send payment button"; the button text is "SEND PAYMENT". Please fix it.</code>
           <code>The Bill Pay link is visible after login. Please update the generated test to click "Bill Pay".</code>
         </section>
@@ -1283,6 +1299,18 @@ function HelpView({
           <code>Open the latest execution report.</code>
           <code>Can you explain why the last generated test failed?</code>
           <code>Please look at this report and fix the generated test: https://example.com/report.html</code>
+        </section>
+
+        <section className="help-section">
+          <h3>Download Or Inspect Workspace</h3>
+          <p>
+            Ask for framework artifacts, generated reports, or workspace database state from the active session.
+          </p>
+          <code>Download the generated framework.</code>
+          <code>Download framework zip.</code>
+          <code>Show the latest report.</code>
+          <code>Show database.</code>
+          <code>Show DB records for this workspace.</code>
         </section>
 
         <section className="help-section">

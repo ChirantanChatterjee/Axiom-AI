@@ -200,6 +200,25 @@ public class GeneratedFeatureRepairService {
             );
         }
 
+        FeatureRepair wrongInputTargetRepair =
+                repairWrongGeneratedInputTarget(
+                        repairedContent,
+                        latestOutput,
+                        userInstruction
+                );
+
+        if (
+                wrongInputTargetRepair.changed()
+        ) {
+
+            repairedContent =
+                    wrongInputTargetRepair.content();
+
+            allChanges.addAll(
+                    wrongInputTargetRepair.changes()
+            );
+        }
+
         FeatureRepair actionTargetRepair =
                 repairIncorrectGeneratedActionTarget(
                         repairedContent,
@@ -216,6 +235,24 @@ public class GeneratedFeatureRepairService {
 
             allChanges.addAll(
                     actionTargetRepair.changes()
+            );
+        }
+
+        FeatureRepair invalidStepRepair =
+                repairUserRequestedInvalidStep(
+                        repairedContent,
+                        userInstruction
+                );
+
+        if (
+                invalidStepRepair.changed()
+        ) {
+
+            repairedContent =
+                    invalidStepRepair.content();
+
+            allChanges.addAll(
+                    invalidStepRepair.changes()
             );
         }
 
@@ -298,6 +335,180 @@ public class GeneratedFeatureRepairService {
                         .distinct()
                         .toList()
         );
+    }
+
+    private FeatureRepair repairUserRequestedInvalidStep(
+            String content,
+            String userInstruction
+    ) {
+
+        Optional<String> invalidStep =
+                GeneratedRepairInstructionAnalyzer.invalidStepText(
+                        userInstruction
+                );
+
+        if (
+                invalidStep.isEmpty()
+                        ||
+                        content == null
+                        ||
+                        content.isBlank()
+        ) {
+
+            return new FeatureRepair(
+                    content == null
+                            ? ""
+                            : content,
+                    List.of()
+            );
+        }
+
+        String stepText =
+                invalidStep.get();
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        for (
+                String line
+                : content.lines()
+                .toList()
+        ) {
+
+            if (
+                    matchesInvalidStepInstruction(
+                            line,
+                            stepText
+                    )
+            ) {
+
+                changes.add(
+                        "Removed invalid generated step \""
+                                + line.trim()
+                                + "\" based on user guidance."
+                );
+
+                continue;
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes.stream()
+                        .distinct()
+                        .toList()
+        );
+    }
+
+    private boolean matchesInvalidStepInstruction(
+            String line,
+            String requestedStep
+    ) {
+
+        if (
+                line == null
+                        ||
+                        requestedStep == null
+                        ||
+                        requestedStep.isBlank()
+        ) {
+
+            return false;
+        }
+
+        Matcher step =
+                Pattern.compile(
+                                "^\\s*(Given|When|Then|And|But)\\s+(.+?)\\s*$",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(line);
+
+        if (
+                !step.matches()
+        ) {
+
+            return false;
+        }
+
+        String normalizedRequested =
+                normalizeStepTextForComparison(
+                        requestedStep
+                );
+
+        String normalizedLine =
+                normalizeStepTextForComparison(
+                        line
+                );
+
+        String normalizedBody =
+                normalizeStepTextForComparison(
+                        step.group(2)
+                );
+
+        if (
+                normalizedRequested.equals(normalizedLine)
+                        ||
+                        normalizedRequested.equals(normalizedBody)
+        ) {
+
+            return true;
+        }
+
+        Matcher quoted =
+                Pattern.compile("\"([^\"]+)\"")
+                        .matcher(line);
+
+        while (
+                quoted.find()
+        ) {
+
+            if (
+                    normalizeStepTextForComparison(
+                            quoted.group(1)
+                    )
+                            .equals(normalizedRequested)
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private String normalizeStepTextForComparison(
+            String value
+    ) {
+
+        if (
+                value == null
+        ) {
+
+            return "";
+        }
+
+        return value.trim()
+                .toLowerCase()
+                .replaceAll(
+                        "^(given|when|then|and|but)\\s+",
+                        ""
+                )
+                .replaceAll(
+                        "\\s+",
+                        " "
+                )
+                .trim();
     }
 
     private FeatureRepair repairIncorrectGeneratedActionTarget(
@@ -403,6 +614,264 @@ public class GeneratedFeatureRepairService {
                         .distinct()
                         .toList()
         );
+    }
+
+    private FeatureRepair repairWrongGeneratedInputTarget(
+            String content,
+            String latestOutput,
+            String userInstruction
+    ) {
+
+        if (
+                content == null
+                        ||
+                        content.isBlank()
+        ) {
+
+            return new FeatureRepair(
+                    content == null
+                            ? ""
+                            : content,
+                    List.of()
+            );
+        }
+
+        String evidence =
+                combinedOutput(
+                        combinedOutput(
+                                content,
+                                latestOutput
+                        ),
+                        userInstruction
+                );
+
+        if (
+                !shouldRepairWrongInputTarget(
+                        evidence
+                )
+        ) {
+
+            return new FeatureRepair(
+                    content,
+                    List.of()
+            );
+        }
+
+        Pattern scenarioPattern =
+                Pattern.compile(
+                        "^(\\s*)Scenario(?: Outline)?:\\s*(.+)$",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        Pattern enterPattern =
+                Pattern.compile(
+                        "^(\\s*)(When|And) user enters \"([^\"]+)\" into \"([^\"]+)\"\\s*(?:#.*)?$",
+                        Pattern.CASE_INSENSITIVE
+                );
+
+        String currentScenario =
+                "";
+
+        List<String> changes =
+                new ArrayList<>();
+
+        StringBuilder repaired =
+                new StringBuilder();
+
+        for (
+                String line
+                : content.lines()
+                .toList()
+        ) {
+
+            Matcher scenario =
+                    scenarioPattern.matcher(line);
+
+            if (
+                    scenario.matches()
+            ) {
+
+                currentScenario =
+                        scenario.group(2)
+                                .trim();
+            }
+
+            Matcher enter =
+                    enterPattern.matcher(line);
+
+            if (
+                    enter.matches()
+            ) {
+
+                String target =
+                        enter.group(4);
+
+                Optional<String> replacement =
+                        correctedInputTarget(
+                                target,
+                                currentScenario,
+                                evidence
+                        );
+
+                if (
+                        replacement.isPresent()
+                                &&
+                                !replacement.get()
+                                        .equalsIgnoreCase(target)
+                ) {
+
+                    line =
+                            enterStep(
+                                    enter.group(1),
+                                    enter.group(2),
+                                    enter.group(3),
+                                    replacement.get()
+                            );
+
+                    changes.add(
+                            "Repaired locator target mismatch by changing generated input target from \""
+                                    + target
+                                    + "\" to \""
+                                    + replacement.get()
+                                    + "\" for the scenario \""
+                                    + currentScenario
+                                    + "\"."
+                    );
+                }
+            }
+
+            repaired.append(line)
+                    .append(System.lineSeparator());
+        }
+
+        String repairedContent =
+                repaired.toString();
+
+        return new FeatureRepair(
+                repairedContent,
+                content.equals(repairedContent)
+                        ? List.of()
+                        : changes.stream()
+                        .distinct()
+                        .toList()
+        );
+    }
+
+    private boolean shouldRepairWrongInputTarget(
+            String evidence
+    ) {
+
+        String lower =
+                evidence == null
+                        ? ""
+                        : evidence.toLowerCase();
+
+        return GeneratedLocatorRepairAnalyzer.hasLocatorMismatchEvidence(evidence)
+                ||
+                lower.contains("demoqa.com/auto-complete")
+                ||
+                lower.contains("@auto_complete")
+                ||
+                lower.contains("auto complete")
+                ||
+                lower.contains("auto-complete");
+    }
+
+    private Optional<String> correctedInputTarget(
+            String target,
+            String scenario,
+            String evidence
+    ) {
+
+        if (
+                target == null
+                        ||
+                        target.isBlank()
+        ) {
+
+            return Optional.empty();
+        }
+
+        String lowerTarget =
+                target.toLowerCase();
+
+        String scenarioContext =
+                scenario == null
+                        ? ""
+                        : scenario.toLowerCase();
+
+        String evidenceContext =
+                evidence == null
+                        ? ""
+                        : evidence.toLowerCase();
+
+        boolean explicitMultipleTargetEvidence =
+                GeneratedLocatorRepairAnalyzer.isLocatorMismatchComplaint(
+                        evidence
+                )
+                        &&
+                        evidenceContext.contains("multiple color names");
+
+        if (
+                lowerTarget.equals("single color name")
+                        &&
+                        (
+                                looksLikeMultiValueAutoCompleteContext(
+                                        scenarioContext
+                                )
+                                        ||
+                                        explicitMultipleTargetEvidence
+                        )
+        ) {
+
+            return Optional.of(
+                    "Multiple Color Names"
+            );
+        }
+
+        if (
+                lowerTarget.contains("single")
+                        &&
+                        looksLikeMultiValueAutoCompleteContext(
+                                scenarioContext
+                        )
+        ) {
+
+            return Optional.of(
+                    target.replaceAll(
+                            "(?i)single",
+                            "Multiple"
+                    )
+            );
+        }
+
+        return Optional.empty();
+    }
+
+    private boolean looksLikeMultiValueAutoCompleteContext(
+            String context
+    ) {
+
+        if (
+                context == null
+                        ||
+                        context.isBlank()
+        ) {
+
+            return false;
+        }
+
+        return context.contains("multiple")
+                ||
+                context.contains("multi")
+                ||
+                context.contains("remove selected")
+                ||
+                context.contains("selected value")
+                ||
+                context.contains("many values")
+                ||
+                context.contains("several values");
     }
 
     private FeatureRepair repairCredentialFieldValueMismatch(
@@ -2968,6 +3437,16 @@ public class GeneratedFeatureRepairService {
                 actualText.isEmpty()
         ) {
 
+            actualText =
+                    GeneratedRepairInstructionAnalyzer.actualExpectationText(
+                            userInstruction
+                    );
+        }
+
+        if (
+                actualText.isEmpty()
+        ) {
+
             return List.of();
         }
 
@@ -3122,6 +3601,9 @@ public class GeneratedFeatureRepairService {
                         ),
                         Pattern.compile(
                                 "(?i)(?:assertion|text|message)[^\"\\r\\n]{0,100}(?:should|must)\\s+(?:be|say|contain|show)\\s+\"([^\"]+)\""
+                        ),
+                        Pattern.compile(
+                                "(?i)(?:assertion|expectation|expected\\s+text|expected\\s+message)[^\"\\r\\n]{0,160}(?:actual|correct|real)?[^\"\\r\\n]{0,100}(?:should|must)?\\s*(?:be|say|show|contain|equal|equals)\\s+\"([^\"]+)\""
                         )
                 );
 

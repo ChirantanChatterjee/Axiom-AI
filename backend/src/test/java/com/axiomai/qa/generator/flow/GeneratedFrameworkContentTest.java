@@ -167,6 +167,34 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                page.contains("public void fillField(String target, String value)")
+        );
+
+        assertTrue(
+                steps.contains("generatedPage().fillField")
+        );
+
+        assertTrue(
+                steps.contains("@Then(\"user should not see {string}\")")
+        );
+
+        assertTrue(
+                page.contains("public void shouldNotSee(String unexpectedText)")
+        );
+
+        assertTrue(
+                page.contains("action-evidence.json")
+        );
+
+        assertTrue(
+                page.contains("intendedFieldName")
+        );
+
+        assertTrue(
+                page.contains("captureActionScreenshot")
+        );
+
+        assertTrue(
                 page.contains("inputSemanticSelectors")
         );
 

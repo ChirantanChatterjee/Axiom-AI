@@ -936,18 +936,28 @@ class IntentParserTest {
 
         IntentParser parser =
                 new IntentParser(
-                        new OpenAIIntentService(),
+                        new UnexpectedOpenAIIntentService(),
                         new ScenarioPlanner()
                 );
 
-        AICommand command =
+        AICommand genericCommand =
+                parser.parse(
+                        "The last test failed can you please fix it"
+                );
+
+        AICommand detailedCommand =
                 parser.parse(
                         "The last test failed, can you look at it again and fix it?"
                 );
 
         assertEquals(
                 "REPAIR_GENERATED_TESTS",
-                command.getIntent()
+                genericCommand.getIntent()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                detailedCommand.getIntent()
         );
     }
 
@@ -1133,6 +1143,40 @@ class IntentParserTest {
         assertEquals(
                 "REPAIR_GENERATED_TESTS",
                 quotedCommand.getIntent()
+        );
+    }
+
+    @Test
+    void detectsGuidedGeneratedRepairInstructionsBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                parser.parse(
+                                "the field locator used for \"Email\" field is incorrect can you please fix it?"
+                        )
+                        .getIntent()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                parser.parse(
+                                "The assertion is incorrect because the actual expectation should be \"Bill Payment Complete\""
+                        )
+                        .getIntent()
+        );
+
+        assertEquals(
+                "REPAIR_GENERATED_TESTS",
+                parser.parse(
+                                "The step \"Old Button\" is invalid can you please remove it?"
+                        )
+                        .getIntent()
         );
     }
 
