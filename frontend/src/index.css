@@ -4595,3 +4595,8 @@ body,
 .response-box {
   color: #f8fbf8;
 }
+
+.input-shell textarea {
+  color: #ffffff;
+  caret-color: #ffffff;
+}
