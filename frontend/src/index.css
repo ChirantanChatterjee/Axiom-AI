@@ -4216,12 +4216,12 @@ body,
 /* Four-color palette pass */
 
 :root {
-  --color-1: #E35336;
+  --color-1: #E3725E;
   --color-2: #CFE35E;
   --color-3: #CFE35E;
   --color-4: #E3B45E;
 
-  --aif-primary: #E35336;
+  --aif-primary: #E3725E;
   --aif-secondary: #CFE35E;
   --aif-accent-cyan: #CFE35E;
   --aif-accent-purple: #E3B45E;
@@ -4411,7 +4411,7 @@ body,
 .auth-submit,
 .runtime-variable-submit {
   color: var(--aif-text-primary);
-  background: linear-gradient(135deg, #E35336, #E3B45E);
+  background: linear-gradient(135deg, #E3725E, #E3B45E);
   border-color: var(--aif-border-medium);
   box-shadow: 0 18px 45px rgba(114, 94, 227, 0.18);
 }
@@ -4449,7 +4449,7 @@ body,
 
 .profile-avatar,
 .provider-mark {
-  background: linear-gradient(135deg, #E35336, #E3B45E);
+  background: linear-gradient(135deg, #E3725E, #E3B45E);
 }
 
 .testcase-header,
