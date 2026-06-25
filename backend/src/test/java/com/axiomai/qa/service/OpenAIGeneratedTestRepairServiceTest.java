@@ -134,6 +134,14 @@ class OpenAIGeneratedTestRepairServiceTest {
         assertFalse(
                 openAI.prompt.contains("abc.def")
         );
+
+        assertTrue(
+                openAI.prompt.contains("custom combobox/autocomplete/select widgets")
+        );
+
+        assertTrue(
+                openAI.prompt.contains("selected chips/single-value tokens")
+        );
     }
 
     @Test

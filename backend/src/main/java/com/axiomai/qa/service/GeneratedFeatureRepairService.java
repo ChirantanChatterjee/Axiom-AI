@@ -865,6 +865,16 @@ public class GeneratedFeatureRepairService {
                 ||
                 context.contains("multi")
                 ||
+                context.contains(" values")
+                ||
+                context.contains("values ")
+                ||
+                context.endsWith("values")
+                ||
+                context.contains("tokens")
+                ||
+                context.contains("chips")
+                ||
                 context.contains("remove selected")
                 ||
                 context.contains("selected value")

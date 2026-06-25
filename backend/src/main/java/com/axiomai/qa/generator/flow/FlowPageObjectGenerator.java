@@ -26,6 +26,9 @@ public class FlowPageObjectGenerator {
         sb.append("public class GeneratedPage {\n\n");
         sb.append("    private final Page page;\n");
         sb.append("    private final Map<String, List<String>> selectors = new HashMap<>();\n\n");
+        sb.append("    private final Set<String> recentlyRemovedValues = new HashSet<>();\n");
+        sb.append("    private String lastEditedTarget = \"\";\n");
+        sb.append("    private String lastEnteredValue = \"\";\n\n");
         sb.append("    public GeneratedPage(Page page) {\n\n");
         sb.append("        this.page = page;\n");
         sb.append("        this.page.setDefaultTimeout(runtimeTimeoutMs());\n");
@@ -134,6 +137,7 @@ public class FlowPageObjectGenerator {
 
                         if (locator != null) {
                             fillOrTypeWithEvidence(target, locator, value, "resolveEditable");
+                            rememberEditedValue(target, value);
                             confirmFieldIfNeeded(target, value);
                             return;
                         }
@@ -160,6 +164,7 @@ public class FlowPageObjectGenerator {
 
                         if (focused != null && isEditable(focused)) {
                             fillOrTypeWithEvidence(target, focused, value, "focusedEditableFallback");
+                            rememberEditedValue(target, value);
                             confirmFieldIfNeeded(target, value);
                             return;
                         }
@@ -177,6 +182,7 @@ public class FlowPageObjectGenerator {
 
                             if (visibleInput != null && isEditable(visibleInput)) {
                                 fillOrTypeWithEvidence(target, visibleInput, value, "visibleEditableFallback");
+                                rememberEditedValue(target, value);
                                 confirmFieldIfNeeded(target, value);
                                 return;
                             }
@@ -191,6 +197,7 @@ public class FlowPageObjectGenerator {
 
                         if (handleSpecialClick(target)) {
                             waitAfterClick(target);
+                            rememberRemovedClick(target);
                             return;
                         }
 
@@ -199,6 +206,7 @@ public class FlowPageObjectGenerator {
                         if (optionControl != null) {
                             checkOrClickOption(optionControl);
                             waitAfterClick(target);
+                            rememberRemovedClick(target);
                             return;
                         }
 
@@ -207,11 +215,13 @@ public class FlowPageObjectGenerator {
                         if (special != null) {
                             clickWithFallback(special);
                             waitAfterClick(target);
+                            rememberRemovedClick(target);
                             return;
                         }
 
                         clickWithFallback(resolve(target));
                         waitAfterClick(target);
+                        rememberRemovedClick(target);
                     }
 
                     public void pressKey(String key) {
@@ -222,6 +232,7 @@ public class FlowPageObjectGenerator {
 
                         page.keyboard().press(normalizedKey);
                         page.waitForTimeout(300);
+                        confirmLastEditedValueSelection(normalizedKey);
                     }
 
                     public void shouldSee(String expectedText) {
@@ -254,6 +265,10 @@ public class FlowPageObjectGenerator {
                     public void shouldNotSee(String unexpectedText) {
 
                         page.waitForTimeout(500);
+
+                        if (waitForRecentlyRemovedSelectedValue(unexpectedText)) {
+                            return;
+                        }
 
                         String body;
 
@@ -484,11 +499,116 @@ public class FlowPageObjectGenerator {
 
                         return body.toLowerCase().contains(expectedText.toLowerCase())
                                 ||
+                                matchesSelectedValue(expectedText)
+                                ||
                                 matchesFlexibleExpectation(expectedText, body)
                                 ||
                                 matchesHtmlValidation(expectedText)
                                 ||
                                 matchesSuccessfulTechnicalResponse(expectedText, body);
+                    }
+
+                    private boolean matchesSelectedValue(String expectedText) {
+
+                        if (expectedText == null || expectedText.isBlank()) {
+                            return false;
+                        }
+
+                        String escaped = cssText(expectedText);
+
+                        return firstVisible(
+                                "[class*='multiValue']:has-text(\\"" + escaped + "\\")",
+                                "[class*='singleValue']:has-text(\\"" + escaped + "\\")",
+                                "[class*='valueContainer']:has-text(\\"" + escaped + "\\")",
+                                "[class*='value-container']:has-text(\\"" + escaped + "\\")",
+                                "[class*='selected']:has-text(\\"" + escaped + "\\")",
+                                "[aria-selected='true']:has-text(\\"" + escaped + "\\")",
+                                "[role='option'][aria-selected='true']:has-text(\\"" + escaped + "\\")"
+                        ) != null;
+                    }
+
+                    private boolean waitForRecentlyRemovedSelectedValue(String unexpectedText) {
+
+                        if (unexpectedText == null || unexpectedText.isBlank()) {
+                            return false;
+                        }
+
+                        if (!recentlyRemovedValues.contains(normalizedRuntimeText(unexpectedText))) {
+                            return false;
+                        }
+
+                        long deadline = System.currentTimeMillis() + 4500;
+
+                        do {
+                            if (!matchesSelectedValue(unexpectedText)) {
+                                return true;
+                            }
+
+                            page.waitForTimeout(250);
+                        } while (System.currentTimeMillis() < deadline);
+
+                        return false;
+                    }
+
+                    private void rememberEditedValue(String target, String value) {
+
+                        lastEditedTarget = target == null ? "" : target;
+                        lastEnteredValue = value == null ? "" : value;
+                    }
+
+                    private void confirmLastEditedValueSelection(String normalizedKey) {
+
+                        if (
+                                normalizedKey == null
+                                        ||
+                                        lastEnteredValue == null
+                                        ||
+                                        lastEnteredValue.isBlank()
+                        ) {
+                            return;
+                        }
+
+                        if (
+                                "Enter".equalsIgnoreCase(normalizedKey)
+                                        ||
+                                        "NumpadEnter".equalsIgnoreCase(normalizedKey)
+                        ) {
+                            page.waitForTimeout(500);
+                        }
+                    }
+
+                    private void rememberRemovedClick(String target) {
+
+                        if (target == null || target.isBlank()) {
+                            return;
+                        }
+
+                        String lower = target.toLowerCase();
+
+                        if (
+                                !lower.contains("remove")
+                                        &&
+                                        !lower.contains("delete")
+                        ) {
+                            return;
+                        }
+
+                        String removed = target
+                                .replaceAll("(?i)\\\\b(remove|delete|selected|value|item|option)\\\\b", " ")
+                                .trim();
+
+                        if (!removed.isBlank()) {
+                            recentlyRemovedValues.add(normalizedRuntimeText(removed));
+                        }
+                    }
+
+                    private String normalizedRuntimeText(String value) {
+
+                        return value == null
+                                ? ""
+                                : value.trim()
+                                        .toLowerCase(Locale.ROOT)
+                                        .replaceAll("\\\\s+", " ");
                     }
 
                     private double runtimeTimeoutMs() {
@@ -2037,6 +2157,9 @@ public class FlowPageObjectGenerator {
                                 url.toLowerCase()
                                         .contains("parabank");
                     }
+                """);
+
+        sb.append("""
 
                     private Locator resolveEditable(String target) {
 
@@ -2286,6 +2409,11 @@ public class FlowPageObjectGenerator {
                             // Non-select controls continue through normal filling.
                         }
 
+                        if (isAutocompleteLike(locator)) {
+                            fillAutocomplete(locator, value);
+                            return;
+                        }
+
                         try {
                             locator.fill("");
                             locator.fill(value);
@@ -2295,6 +2423,103 @@ public class FlowPageObjectGenerator {
                             page.keyboard().press("Control+A");
                             page.keyboard().type(value == null ? "" : value);
                         }
+                    }
+
+                    private boolean isAutocompleteLike(Locator locator) {
+
+                        try {
+                            Object result = locator.evaluate(
+                                    "el => {"
+                                            + "const attr = name => String(el.getAttribute(name) || '').toLowerCase();"
+                                            + "const role = attr('role');"
+                                            + "const aria = attr('aria-autocomplete');"
+                                            + "const id = attr('id');"
+                                            + "const cls = String(el.className || '').toLowerCase();"
+                                            + "const parent = el.closest('[role=combobox], [class*=select], [class*=combo], [id*=react-select]');"
+                                            + "const parentText = parent ? String((parent.getAttribute('class') || '') + ' ' + (parent.getAttribute('id') || '')).toLowerCase() : '';"
+                                            + "return role === 'combobox' || aria === 'list' || aria === 'both' || id.includes('react-select') || cls.includes('select__input') || parentText.includes('react-select') || parentText.includes('select__') || parentText.includes('combobox');"
+                                            + "}"
+                            );
+
+                            return Boolean.TRUE.equals(result);
+                        } catch (RuntimeException ignored) {
+                            return false;
+                        }
+                    }
+
+                    private void fillAutocomplete(Locator locator, String value) {
+
+                        clickWithFallback(locator);
+
+                        try {
+                            locator.fill("");
+                        } catch (RuntimeException ignored) {
+                            try {
+                                page.keyboard().press("Control+A");
+                                page.keyboard().press("Backspace");
+                            } catch (RuntimeException ignoredAgain) {
+                                // Continue with typing into the focused custom input.
+                            }
+                        }
+
+                        if (value != null && !value.isBlank()) {
+                            page.keyboard().type(value);
+                        }
+
+                        page.waitForTimeout(350);
+
+                        if (
+                                !selectAutocompleteSuggestion(value)
+                                        &&
+                                        hasVisibleAutocompleteOptions()
+                        ) {
+
+                            try {
+                                page.keyboard().press("ArrowDown");
+                                page.keyboard().press("Enter");
+                            } catch (RuntimeException ignored) {
+                                // Some widgets only support direct option clicks.
+                            }
+                        }
+
+                        page.waitForTimeout(450);
+                    }
+
+                    private boolean selectAutocompleteSuggestion(String value) {
+
+                        if (value == null || value.isBlank()) {
+                            return false;
+                        }
+
+                        String escaped = cssText(value);
+
+                        Locator suggestion = firstVisibleSoon(
+                                1600,
+                                "[role='option']:has-text(\\"" + escaped + "\\")",
+                                "[role='listbox'] [role='option']:has-text(\\"" + escaped + "\\")",
+                                "[id*='option']:has-text(\\"" + escaped + "\\")",
+                                "[id*='react-select'][id*='option']:has-text(\\"" + escaped + "\\")",
+                                "[class*='option']:has-text(\\"" + escaped + "\\")",
+                                "li:has-text(\\"" + escaped + "\\")"
+                        );
+
+                        if (suggestion == null) {
+                            return false;
+                        }
+
+                        clickWithFallback(suggestion);
+                        return true;
+                    }
+
+                    private boolean hasVisibleAutocompleteOptions() {
+
+                        return firstVisible(
+                                "[role='option']",
+                                "[role='listbox'] [role='option']",
+                                "[id*='option']",
+                                "[id*='react-select'][id*='option']",
+                                "[class*='option']"
+                        ) != null;
                     }
 
                     private void fillOrTypeWithEvidence(String target, Locator locator, String value, String resolutionStrategy) {
@@ -3207,9 +3432,38 @@ public class FlowPageObjectGenerator {
                         String escaped = cssText(target);
                         String slug = slug(target);
                         String key = targetKey(target);
+                        List<String> result = new ArrayList<>();
+
+                        if (
+                                key.contains("multiple")
+                                        ||
+                                        key.contains("multi")
+                        ) {
+                            result.addAll(
+                                    Arrays.asList(
+                                            "input[id*=\\"multiple\\" i]",
+                                            "input[name*=\\"multiple\\" i]",
+                                            "input[aria-label*=\\"multiple\\" i]",
+                                            "[role='combobox'][id*=\\"multiple\\" i]",
+                                            "[id*=\\"multiple\\" i] input"
+                                    )
+                            );
+                        }
+
+                        if (key.contains("single")) {
+                            result.addAll(
+                                    Arrays.asList(
+                                            "input[id*=\\"single\\" i]",
+                                            "input[name*=\\"single\\" i]",
+                                            "input[aria-label*=\\"single\\" i]",
+                                            "[role='combobox'][id*=\\"single\\" i]",
+                                            "[id*=\\"single\\" i] input"
+                                    )
+                            );
+                        }
 
                         if ("username".equals(key)) {
-                            return Arrays.asList(
+                            result.addAll(Arrays.asList(
                                     "input[name='loginfmt']",
                                     "input[name='identifier']",
                                     "input[name='username']",
@@ -3240,10 +3494,11 @@ public class FlowPageObjectGenerator {
                                     "label:has-text(\\"" + escaped + "\\") textarea",
                                     "div:has-text(\\"" + escaped + "\\") input",
                                     "div:has-text(\\"" + escaped + "\\") textarea"
-                            );
+                            ));
+                            return result;
                         }
 
-                        return Arrays.asList(
+                        result.addAll(Arrays.asList(
                                 "input[name=\\"" + escaped + "\\" i]",
                                 "input[name*=\\"" + escaped + "\\" i]",
                                 "input[id=\\"" + slug + "\\" i]",
@@ -3265,7 +3520,9 @@ public class FlowPageObjectGenerator {
                                 "label:has-text(\\"" + escaped + "\\") textarea",
                                 "div:has-text(\\"" + escaped + "\\") input",
                                 "div:has-text(\\"" + escaped + "\\") textarea"
-                        );
+                        ));
+
+                        return result;
                     }
 
                     private List<String> triggerSemanticSelectors(String target) {

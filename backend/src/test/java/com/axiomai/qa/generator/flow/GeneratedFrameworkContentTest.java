@@ -319,6 +319,38 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                page.contains("isAutocompleteLike")
+        );
+
+        assertTrue(
+                page.contains("fillAutocomplete")
+        );
+
+        assertTrue(
+                page.contains("selectAutocompleteSuggestion")
+        );
+
+        assertTrue(
+                page.contains("matchesSelectedValue(expectedText)")
+        );
+
+        assertTrue(
+                page.contains("waitForRecentlyRemovedSelectedValue")
+        );
+
+        assertTrue(
+                page.contains("[class*='multiValue']:has-text")
+        );
+
+        assertTrue(
+                page.contains("input[id*=\\\"multiple\\\" i]")
+        );
+
+        assertTrue(
+                page.contains("input[id*=\\\"single\\\" i]")
+        );
+
+        assertTrue(
                 page.contains("input[name='customer.firstName']")
         );
 

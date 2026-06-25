@@ -177,6 +177,45 @@ class GeneratedFeatureRepairServiceTest {
     }
 
     @Test
+    void rewritesSingleAutoCompleteTargetWhenScenarioExpectsMultipleValues() {
+
+        String feature =
+                """
+                        Feature: generated
+
+                        @auto_complete @generated
+                        Scenario: User quickly enters values in the auto-complete field
+                          Given user launches "https://demoqa.com/auto-complete"
+                          When user enters "Red" into "Single Color Name"
+                          And user presses "Enter"
+                          When user enters "Green" into "Single Color Name"
+                          And user presses "Enter"
+                          Then user should see "Red"
+                          And user should see "Green"
+                        """;
+
+        GeneratedFeatureRepairService.FeatureRepair repair =
+                new GeneratedFeatureRepairService()
+                        .repairFeatureContent(
+                                feature,
+                                "Generated cucumber report shows @auto_complete failures.",
+                                ""
+                        );
+
+        assertTrue(
+                repair.changed()
+        );
+
+        assertEquals(
+                2,
+                repair.content()
+                        .lines()
+                        .filter(line -> line.contains("into \"Multiple Color Names\""))
+                        .count()
+        );
+    }
+
+    @Test
     void rewritesAssertionFromActualExpectationGuidance() {
 
         String feature =
