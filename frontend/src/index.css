@@ -5418,7 +5418,7 @@ body,
   padding: 12px 14px !important;
   color: var(--aif-chat-ink) !important;
   background: var(--aif-chat-paper) !important;
-  border: 1px solid var(--aif-chat-paper-border) !important;
+  border: 3px solid var(--aif-chat-paper-border) !important;
   border-radius: 12px 10px 14px 9px !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
 }
