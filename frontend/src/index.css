@@ -4604,7 +4604,7 @@ body,
   --aif-session-fill-final: #CFE35E;
   --aif-session-border-final: #5E8DE3;
   --aif-sidebar-pane-final: #FFCBA0;
-  --aif-messages-pane-final: #FFFAA0;
+  --aif-messages-pane-final: #FFFFF6;
   --aif-monaco-font: Monaco, "Courier New", Courier, monospace;
 }
 
@@ -4747,7 +4747,7 @@ body,
 }
 
 .execution-card .status-pass {
-  color: #CFE35E !important;
+  color: #36E353 !important;
 }
 
 .execution-card .status-fail {
@@ -4774,7 +4774,7 @@ body,
 :root {
   --aif-ai-message-fill-final: #FFCBA0;
   --aif-ai-message-border-final: #E3725E;
-  --aif-chat-input-fill-final: #A0A5FF;
+  --aif-chat-input-fill-final: #FBECE9;
   --aif-chat-input-border-final: #E3725E;
 }
 
