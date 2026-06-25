@@ -4411,7 +4411,7 @@ body,
 .auth-submit,
 .runtime-variable-submit {
   color: var(--aif-text-primary);
-  background: linear-gradient(135deg, #E3725E, #E3B45E);
+  background: #EC8371;
   border-color: var(--aif-border-medium);
   box-shadow: 0 18px 45px rgba(114, 94, 227, 0.18);
 }
@@ -4422,7 +4422,8 @@ body,
 .report-link:hover,
 .auth-submit:hover:not(:disabled),
 .runtime-variable-submit:hover {
-  background: linear-gradient(135deg, #EC8371, #E3B45E);
+  background: #EC8371;
+  border: 2px solid #E3B45E;
 }
 
 .tag-pill,
@@ -4449,7 +4450,7 @@ body,
 
 .profile-avatar,
 .provider-mark {
-  background: linear-gradient(135deg, #E3725E, #E3B45E);
+  border: 2px solid #E3B45E;
 }
 
 .testcase-header,
