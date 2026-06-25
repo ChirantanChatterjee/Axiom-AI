@@ -4773,14 +4773,14 @@ body,
 
 :root {
   --aif-ai-message-fill-final: #FFCBA0;
-  --aif-ai-message-border-final: #CBA0FF;
+  --aif-ai-message-border-final: #E3725E;
   --aif-chat-input-fill-final: #A0A5FF;
   --aif-chat-input-border-final: #E3725E;
 }
 
 /* AIF / assistant message bubble */
 .ai .message-content {
-  color: #ffffff !important;
+  color: #000000 !important;
   background: var(--aif-ai-message-fill-final) !important;
   border: 2px solid var(--aif-ai-message-border-final) !important;
   box-shadow:
@@ -4789,7 +4789,7 @@ body,
 }
 
 .ai .message-content * {
-  color: #ffffff !important;
+  color: #000000 !important;
 }
 
 /* Cards/blocks rendered inside AIF messages should follow the new assistant bubble color */
@@ -4802,7 +4802,7 @@ body,
 .ai .runtime-variable-table-wrap,
 .ai .variable-context-row,
 .ai .missing-variable-card code {
-  color: #ffffff !important;
+  color: #000000 !important;
   background: var(--aif-ai-message-fill-final) !important;
   border: 2px solid var(--aif-ai-message-border-final) !important;
   box-shadow:
@@ -4819,16 +4819,16 @@ body,
 .ai .runtime-variable-table-wrap *,
 .ai .variable-context-row *,
 .ai .missing-variable-card code * {
-  color: #ffffff !important;
+  color: #000000 !important;
 }
 
 /* Keep status contrast inside the new lighter assistant card */
 .ai .execution-card .status-pass {
-  color: #ffffff !important;
+  color: #5EE372 !important;
 }
 
 .ai .execution-card .status-fail {
-  color: #ffffff !important;
+  color: #D94126 !important;
 }
 
 /* Chat composer / user text entry area */
