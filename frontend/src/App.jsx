@@ -400,6 +400,73 @@ function BinaryRain() {
   );
 }
 
+const authFlowNodes = [
+  { label: "GENERATE", x: "8%", y: "18%", color: "#5ed7ff", delay: "0s" },
+  { label: "MEMORY", x: "29%", y: "12%", color: "#f1b211", delay: "0.45s" },
+  { label: "EXECUTE", x: "55%", y: "16%", color: "#7dffb2", delay: "0.9s" },
+  { label: "REPORT", x: "81%", y: "20%", color: "#ff74bb", delay: "1.35s" },
+  { label: "TAGS", x: "15%", y: "46%", color: "#ff9a62", delay: "1.8s" },
+  { label: "REPAIR", x: "42%", y: "39%", color: "#b89cff", delay: "2.25s" },
+  { label: "FLOW", x: "70%", y: "47%", color: "#52f5df", delay: "2.7s" },
+  { label: "PASS", x: "90%", y: "57%", color: "#cffe5e", delay: "3.15s" },
+  { label: "LOCK", x: "10%", y: "78%", color: "#ff6c55", delay: "3.6s" },
+  { label: "RUN", x: "36%", y: "82%", color: "#6fa8ff", delay: "4.05s" },
+  { label: "AIF", x: "62%", y: "78%", color: "#D94126", delay: "4.5s" },
+  { label: "READY", x: "86%", y: "83%", color: "#ffffff", delay: "4.95s" }
+];
+
+const authFlowLinks = [
+  { x: "10%", y: "21%", width: "21vw", rotate: "-13deg", color: "#5ed7ff", delay: "0s" },
+  { x: "31%", y: "15%", width: "25vw", rotate: "8deg", color: "#f1b211", delay: "0.35s" },
+  { x: "57%", y: "18%", width: "25vw", rotate: "4deg", color: "#7dffb2", delay: "0.7s" },
+  { x: "17%", y: "48%", width: "26vw", rotate: "-11deg", color: "#ff9a62", delay: "1.05s" },
+  { x: "44%", y: "42%", width: "27vw", rotate: "9deg", color: "#b89cff", delay: "1.4s" },
+  { x: "71%", y: "50%", width: "19vw", rotate: "22deg", color: "#52f5df", delay: "1.75s" },
+  { x: "11%", y: "80%", width: "26vw", rotate: "7deg", color: "#ff6c55", delay: "2.1s" },
+  { x: "38%", y: "82%", width: "24vw", rotate: "-6deg", color: "#6fa8ff", delay: "2.45s" },
+  { x: "63%", y: "80%", width: "23vw", rotate: "7deg", color: "#D94126", delay: "2.8s" },
+  { x: "18%", y: "30%", width: "24vw", rotate: "29deg", color: "#ff74bb", delay: "3.15s" },
+  { x: "61%", y: "30%", width: "26vw", rotate: "-27deg", color: "#cffe5e", delay: "3.5s" },
+  { x: "27%", y: "66%", width: "36vw", rotate: "-18deg", color: "#ffffff", delay: "3.85s" }
+];
+
+function AuthFlowBackdrop() {
+  return (
+      <div className="auth-flow-backdrop" aria-hidden="true">
+        {authFlowLinks.map((link, index) => (
+            <span
+                className="auth-flow-link"
+                key={`auth-flow-link-${index}`}
+                style={{
+                  "--flow-x": link.x,
+                  "--flow-y": link.y,
+                  "--flow-width": link.width,
+                  "--flow-rotate": link.rotate,
+                  "--flow-color": link.color,
+                  "--flow-delay": link.delay
+                }}
+            />
+        ))}
+
+        {authFlowNodes.map((node) => (
+            <span
+                className="auth-flow-node"
+                data-label={node.label}
+                key={node.label}
+                style={{
+                  "--flow-x": node.x,
+                  "--flow-y": node.y,
+                  "--flow-color": node.color,
+                  "--flow-delay": node.delay
+                }}
+            >
+              <span>{node.label}</span>
+            </span>
+        ))}
+      </div>
+  );
+}
+
 // ─── Header bar wordmark ─────────────────────────────────────────────────────
 
 function AuthHeaderBar() {
@@ -545,6 +612,8 @@ function AuthScreen({ mode, form, loading, error, onModeChange, onFormChange, on
         <div aria-hidden="true" style={{ position:"absolute", width:520, height:520, borderRadius:"50%", background:"radial-gradient(circle, rgba(227,114,94,0.20) 0%, transparent 70%)", top:"-10%", left:"-8%", animation:"authOrbDrift 18s ease-in-out infinite", pointerEvents:"none", zIndex:0 }} />
         <div aria-hidden="true" style={{ position:"absolute", width:440, height:440, borderRadius:"50%", background:"radial-gradient(circle, rgba(124,110,227,0.16) 0%, transparent 70%)", bottom:"5%", right:"-6%", animation:"authOrbDrift2 22s ease-in-out infinite", pointerEvents:"none", zIndex:0 }} />
         <div aria-hidden="true" style={{ position:"absolute", width:300, height:300, borderRadius:"50%", background:"radial-gradient(circle, rgba(94,207,167,0.12) 0%, transparent 70%)", bottom:"30%", left:"40%", animation:"authOrbDrift3 26s ease-in-out infinite", pointerEvents:"none", zIndex:0 }} />
+
+        <AuthFlowBackdrop />
 
         {/* ── Rich header wordmark at top centre ── */}
         <AuthHeaderBar />
