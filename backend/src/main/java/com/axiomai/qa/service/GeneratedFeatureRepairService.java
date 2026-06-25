@@ -3694,6 +3694,30 @@ public class GeneratedFeatureRepairService {
         String lowerOutput =
                 output.toLowerCase();
 
+        List<String> undefinedSteps =
+                undefinedCucumberSteps(output);
+
+        if (
+                !undefinedSteps.isEmpty()
+                        ||
+                        containsUndefinedCucumberFailure(lowerOutput)
+        ) {
+
+            String detail =
+                    undefinedSteps.isEmpty()
+                            ? ""
+                            : " Missing support: "
+                            + String.join(
+                            ", ",
+                            undefinedSteps
+                    )
+                            + ".";
+
+            return "The last generated test has Cucumber undefined generated steps."
+                    + detail
+                    + " This means the feature contains steps that generated Java support did not handle yet.";
+        }
+
         if (
                 looksLikeAuthenticationFailure(lowerOutput)
         ) {
@@ -3740,6 +3764,13 @@ public class GeneratedFeatureRepairService {
                 })
                 .findFirst()
                 .orElse("The last generated test output did not contain a recognized failure signature.");
+    }
+
+    List<String> missingExpectedTextsForExecution(
+            String output
+    ) {
+
+        return missingExpectedTexts(output);
     }
 
     private List<String> missingExpectedTexts(
@@ -3932,6 +3963,96 @@ public class GeneratedFeatureRepairService {
         }
 
         return scenario;
+    }
+
+    private boolean containsUndefinedCucumberFailure(
+            String lowerOutput
+    ) {
+
+        return lowerOutput.contains("undefined step")
+                ||
+                lowerOutput.contains("undefined steps")
+                ||
+                lowerOutput.contains("undefined scenario")
+                ||
+                lowerOutput.contains("undefined scenarios")
+                ||
+                lowerOutput.contains("you can implement missing steps");
+    }
+
+    private List<String> undefinedCucumberSteps(
+            String output
+    ) {
+
+        if (
+                output == null
+                        ||
+                        output.isBlank()
+        ) {
+
+            return List.of();
+        }
+
+        List<String> steps =
+                new ArrayList<>();
+
+        collectUndefinedStepMatches(
+                output,
+                Pattern.compile(
+                        "The step ['\"]([^'\"]+)['\"] is undefined",
+                        Pattern.CASE_INSENSITIVE
+                ),
+                steps
+        );
+
+        collectUndefinedStepMatches(
+                output,
+                Pattern.compile(
+                        "Undefined step:?\\s*([^\\r\\n]+)",
+                        Pattern.CASE_INSENSITIVE
+                ),
+                steps
+        );
+
+        collectUndefinedStepMatches(
+                output,
+                Pattern.compile(
+                        "@(?:Given|When|Then|And|But)\\(\"([^\"]+)\"\\)",
+                        Pattern.CASE_INSENSITIVE
+                ),
+                steps
+        );
+
+        return steps.stream()
+                .distinct()
+                .limit(5)
+                .toList();
+    }
+
+    private void collectUndefinedStepMatches(
+            String output,
+            Pattern pattern,
+            List<String> matches
+    ) {
+
+        Matcher matcher =
+                pattern.matcher(output);
+
+        while (
+                matcher.find()
+        ) {
+
+            String value =
+                    matcher.group(1)
+                            .trim();
+
+            if (
+                    !value.isBlank()
+            ) {
+
+                matches.add(value);
+            }
+        }
     }
 
     private boolean looksLikeAuthenticationFailure(

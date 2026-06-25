@@ -23,6 +23,45 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GeneratedTestExecutionServiceTest {
 
     @Test
+    void diagnosesUndefinedCucumberStepFailures() {
+
+        GeneratedTestExecutionService service =
+                generatedTestExecutionService(
+                        writerService()
+                );
+
+        GeneratedTestExecutionService.ExecutionFailureDiagnosis diagnosis =
+                service.diagnoseExecutionFailure(
+                        """
+                                Undefined scenarios:
+                                classpath:features/generated.feature:6 # User selects a single auto-complete suggestion
+
+                                You can implement missing steps with the snippets below:
+
+                                @When("user presses {string}")
+                                public void user_presses(String string) {
+                                    throw new io.cucumber.java.PendingException();
+                                }
+                                """
+                );
+
+        assertTrue(
+                diagnosis.summary()
+                        .contains("undefined generated step definitions")
+        );
+
+        assertTrue(
+                diagnosis.details()
+                        .contains("user presses {string}")
+        );
+
+        assertTrue(
+                diagnosis.nextAction()
+                        .contains("repair generated tests")
+        );
+    }
+
+    @Test
     void missingRuntimeVariablesAreScopedToMatchingScenarioTags() throws Exception {
 
         String sessionId =

@@ -209,6 +209,16 @@ public class FlowPageObjectGenerator {
                         waitAfterClick(target);
                     }
 
+                    public void pressKey(String key) {
+
+                        dismissCookieBanner();
+
+                        String normalizedKey = normalizeKeyboardKey(key);
+
+                        page.keyboard().press(normalizedKey);
+                        page.waitForTimeout(300);
+                    }
+
                     public void shouldSee(String expectedText) {
 
                         if (
@@ -340,6 +350,83 @@ public class FlowPageObjectGenerator {
                                     "Expected checkout total " + expected + " but found " + total
                             );
                         }
+                    }
+
+                    private String normalizeKeyboardKey(String key) {
+
+                        if (key == null || key.isBlank()) {
+                            return "Enter";
+                        }
+
+                        String normalized = key.trim().replace(" ", "");
+                        String lower = normalized.toLowerCase(Locale.ROOT);
+
+                        if (lower.equals("enter") || lower.equals("return")) {
+                            return "Enter";
+                        }
+
+                        if (lower.equals("esc") || lower.equals("escape")) {
+                            return "Escape";
+                        }
+
+                        if (lower.equals("space") || lower.equals("spacebar")) {
+                            return "Space";
+                        }
+
+                        if (lower.equals("tab")) {
+                            return "Tab";
+                        }
+
+                        if (lower.equals("backspace")) {
+                            return "Backspace";
+                        }
+
+                        if (lower.equals("delete") || lower.equals("del")) {
+                            return "Delete";
+                        }
+
+                        if (lower.equals("arrowdown") || lower.equals("down")) {
+                            return "ArrowDown";
+                        }
+
+                        if (lower.equals("arrowup") || lower.equals("up")) {
+                            return "ArrowUp";
+                        }
+
+                        if (lower.equals("arrowleft") || lower.equals("left")) {
+                            return "ArrowLeft";
+                        }
+
+                        if (lower.equals("arrowright") || lower.equals("right")) {
+                            return "ArrowRight";
+                        }
+
+                        if (lower.startsWith("ctrl+")) {
+                            return "Control+" + normalizeKeyboardKey(normalized.substring(5));
+                        }
+
+                        if (lower.startsWith("control+")) {
+                            return "Control+" + normalizeKeyboardKey(normalized.substring(8));
+                        }
+
+                        if (lower.startsWith("cmd+") || lower.startsWith("meta+")) {
+                            int offset = lower.startsWith("cmd+") ? 4 : 5;
+                            return "Meta+" + normalizeKeyboardKey(normalized.substring(offset));
+                        }
+
+                        if (lower.startsWith("shift+")) {
+                            return "Shift+" + normalizeKeyboardKey(normalized.substring(6));
+                        }
+
+                        if (lower.startsWith("alt+")) {
+                            return "Alt+" + normalizeKeyboardKey(normalized.substring(4));
+                        }
+
+                        if (normalized.length() == 1) {
+                            return normalized.toUpperCase(Locale.ROOT);
+                        }
+
+                        return normalized;
                     }
 
                     private String waitForExpectedText(String expectedText) {

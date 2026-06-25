@@ -10,6 +10,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GeneratedFeatureRepairServiceTest {
 
     @Test
+    void summarizesUndefinedGeneratedCucumberSteps() {
+
+        String summary =
+                new GeneratedFeatureRepairService()
+                        .failureSummary(
+                                """
+                                        Undefined scenarios:
+                                        classpath:features/generated.feature:6 # User selects a single auto-complete suggestion
+
+                                        You can implement missing steps with the snippets below:
+
+                                        @When("user presses {string}")
+                                        public void user_presses(String string) {
+                                            throw new io.cucumber.java.PendingException();
+                                        }
+                                        """
+                        );
+
+        assertTrue(
+                summary.contains("Cucumber undefined generated steps")
+        );
+
+        assertTrue(
+                summary.contains("user presses {string}")
+        );
+    }
+
+    @Test
     void rewritesWrongGeneratedClickTargetWhenUserProvidesActualActionLabel() {
 
         String feature =

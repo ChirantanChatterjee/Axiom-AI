@@ -851,11 +851,9 @@ function AuthScreen({
   form,
   loading,
   error,
-  socialProvider,
   onModeChange,
   onFormChange,
   onPresetDomain,
-  onSocialLogin,
   onSubmit
 }) {
   return (
@@ -896,7 +894,9 @@ function AuthScreen({
           x: 0
         }}
         transition={{
-          duration: 0.45
+          type: "spring",
+          stiffness: 96,
+          damping: 18
         }}
       >
         <div className="brand-row">
@@ -950,26 +950,40 @@ function AuthScreen({
           y: 0
         }}
         transition={{
-          duration: 0.4,
+          type: "spring",
+          stiffness: 110,
+          damping: 20,
           delay: 0.08
         }}
       >
         <div className="auth-tabs">
-          <button
+          <motion.button
             type="button"
             className={mode === "login" ? "active" : ""}
             onClick={() => onModeChange("login")}
+            whileHover={{
+              y: -1
+            }}
+            whileTap={{
+              scale: 0.98
+            }}
           >
             Log in
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
             type="button"
             className={mode === "signup" ? "active" : ""}
             onClick={() => onModeChange("signup")}
+            whileHover={{
+              y: -1
+            }}
+            whileTap={{
+              scale: 0.98
+            }}
           >
             Sign up
-          </button>
+          </motion.button>
         </div>
 
         <form
@@ -989,7 +1003,7 @@ function AuthScreen({
               {
                 mode === "login"
                   ? "Use your email and password to open your chat sessions."
-                  : "Any email address works, including Gmail and work accounts."
+                  : "Use an email address and password to create your workspace."
               }
             </p>
           </div>
@@ -1001,38 +1015,6 @@ function AuthScreen({
               </div>
             )
           }
-
-          <div className="social-login-grid">
-            <button
-              type="button"
-              onClick={() => onSocialLogin("google")}
-              disabled={Boolean(socialProvider)}
-            >
-              <span className="provider-mark">G</span>
-              {
-                socialProvider === "google"
-                  ? "Opening Google..."
-                  : "Continue with Google"
-              }
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onSocialLogin("azure")}
-              disabled={Boolean(socialProvider)}
-            >
-              <span className="provider-mark">M</span>
-              {
-                socialProvider === "azure"
-                  ? "Opening Microsoft..."
-                  : "Continue with Microsoft"
-              }
-            </button>
-          </div>
-
-          <div className="auth-divider">
-            <span>Email account</span>
-          </div>
 
           {
             mode === "signup" && (
@@ -1073,20 +1055,6 @@ function AuthScreen({
           <div className="email-presets">
             <button
               type="button"
-              onClick={() => onPresetDomain("gmail.com")}
-            >
-              Gmail
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onPresetDomain("outlook.com")}
-            >
-              Outlook
-            </button>
-
-            <button
-              type="button"
               onClick={() => onPresetDomain("company.com")}
             >
               Work email
@@ -1114,10 +1082,24 @@ function AuthScreen({
             </div>
           </label>
 
-          <button
+          <motion.button
             type="submit"
             className="auth-submit"
             disabled={loading}
+            whileHover={
+              loading
+                ? undefined
+                : {
+                  y: -2
+                }
+            }
+            whileTap={
+              loading
+                ? undefined
+                : {
+                  scale: 0.985
+                }
+            }
           >
             {
               loading
@@ -1126,7 +1108,7 @@ function AuthScreen({
                   ? "Log in"
                   : "Create account"
             }
-          </button>
+          </motion.button>
         </form>
       </motion.section>
     </div>

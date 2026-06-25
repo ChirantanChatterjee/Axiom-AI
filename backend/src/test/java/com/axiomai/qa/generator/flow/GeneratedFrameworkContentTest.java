@@ -279,6 +279,18 @@ class GeneratedFrameworkContentTest {
         );
 
         assertTrue(
+                steps.contains("@When(\"user presses {string}\")")
+        );
+
+        assertTrue(
+                page.contains("public void pressKey(String key)")
+        );
+
+        assertTrue(
+                page.contains("normalizeKeyboardKey")
+        );
+
+        assertTrue(
                 page.contains("input[name='customer.firstName']")
         );
 

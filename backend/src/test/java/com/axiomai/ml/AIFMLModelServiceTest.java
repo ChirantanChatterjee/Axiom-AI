@@ -54,6 +54,58 @@ class AIFMLModelServiceTest {
     }
 
     @Test
+    void heuristicFailureClassifierIdentifiesUndefinedCucumberSteps() {
+
+        FailureClassificationModelService service =
+                new FailureClassificationModelService(
+                        registryWithNoActiveModel(),
+                        featureExtractor(),
+                        properties(),
+                        confidenceDecisionService()
+                );
+
+        MLPrediction prediction =
+                service.predict(
+                        "Undefined scenarios. You can implement missing steps with @When(\"user presses {string}\")."
+                );
+
+        assertEquals(
+                FailureClassificationLabel.ENVIRONMENT_FAILURE.name(),
+                prediction.getPredictedLabel()
+        );
+
+        assertTrue(
+                prediction.isHighConfidence()
+        );
+    }
+
+    @Test
+    void heuristicRepairRecommenderEscalatesUndefinedCucumberSteps() {
+
+        RepairRecommendationModelService service =
+                new RepairRecommendationModelService(
+                        registryWithNoActiveModel(),
+                        featureExtractor(),
+                        properties(),
+                        confidenceDecisionService()
+                );
+
+        MLPrediction prediction =
+                service.predict(
+                        "Undefined step: user presses Enter. You can implement missing steps with snippets below."
+                );
+
+        assertEquals(
+                RepairRecommendationLabel.ESCALATE_TO_OPENAI.name(),
+                prediction.getPredictedLabel()
+        );
+
+        assertTrue(
+                prediction.isHighConfidence()
+        );
+    }
+
+    @Test
     void trainingDataIsRedactedBeforePersistence() {
 
         List<MLTrainingExampleEntity> savedExamples =

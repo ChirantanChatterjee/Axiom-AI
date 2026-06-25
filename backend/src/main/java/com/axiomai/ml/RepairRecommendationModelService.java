@@ -48,6 +48,25 @@ public class RepairRecommendationModelService
         if (
                 containsAny(
                         input,
+                        "undefined step",
+                        "undefined steps",
+                        "undefined scenario",
+                        "undefined scenarios",
+                        "you can implement missing steps",
+                        "undefinedstepexception"
+                )
+        ) {
+
+            return prediction(
+                    RepairRecommendationLabel.ESCALATE_TO_OPENAI,
+                    0.79,
+                    "heuristic"
+            );
+        }
+
+        if (
+                containsAny(
+                        input,
                         "popup",
                         "modal",
                         "overlay",

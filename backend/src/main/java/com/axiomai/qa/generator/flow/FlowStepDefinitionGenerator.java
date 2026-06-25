@@ -55,6 +55,22 @@ public class FlowStepDefinitionGenerator {
                         System.out.println("AIF STEP done: user clicks " + target);
                     }
 
+                    @When("user presses {string}")
+                    public void userPresses(String key) {
+
+                        System.out.println("AIF STEP start: user presses " + key);
+                        generatedPage().pressKey(
+                                resolveValue(key)
+                        );
+                        System.out.println("AIF STEP done: user presses " + key);
+                    }
+
+                    @When("user presses {string} key")
+                    public void userPressesKey(String key) {
+
+                        userPresses(key);
+                    }
+
                     @When("user refreshes page")
                     public void userRefreshesPage() {
 

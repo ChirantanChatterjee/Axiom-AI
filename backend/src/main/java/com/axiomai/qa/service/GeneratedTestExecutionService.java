@@ -338,6 +338,11 @@ public class GeneratedTestExecutionService {
                             output
                     );
 
+            AIFRepairMLContext mlRepairContext =
+                    exitCode == 0
+                            ? null
+                            : analyzeRepairWithML(output);
+
             return GeneratedTestRunResult.builder()
                     .success(exitCode == 0)
                     .tagExpression(
@@ -352,7 +357,9 @@ public class GeneratedTestExecutionService {
                             buildExecutionMessage(
                                     exitCode,
                                     normalizedExpression,
-                                    reportUrl
+                                    reportUrl,
+                                    output,
+                                    mlRepairContext
                             )
                     )
                     .build();
@@ -2015,11 +2022,69 @@ public class GeneratedTestExecutionService {
                 .contains("page did not show expected text");
     }
 
+    private boolean looksLikeAuthenticationFailure(
+            String lowerOutput
+    ) {
+
+        if (
+                lowerOutput == null
+                        ||
+                        lowerOutput.isBlank()
+        ) {
+
+            return false;
+        }
+
+        return lowerOutput.contains("authentication did not complete")
+                ||
+                lowerOutput.contains("authentication failed")
+                ||
+                lowerOutput.contains("login failed")
+                ||
+                lowerOutput.contains("sign in failed")
+                ||
+                lowerOutput.contains("signin failed")
+                ||
+                lowerOutput.contains("invalid username")
+                ||
+                lowerOutput.contains("invalid password")
+                ||
+                lowerOutput.contains("invalid username/password")
+                ||
+                lowerOutput.contains("incorrect username")
+                ||
+                lowerOutput.contains("incorrect password")
+                ||
+                lowerOutput.contains("bad credentials")
+                ||
+                lowerOutput.contains("invalid credentials")
+                ||
+                lowerOutput.contains("could not be verified")
+                ||
+                lowerOutput.contains("user not found")
+                ||
+                lowerOutput.contains("account locked")
+                ||
+                (
+                        lowerOutput.contains("unauthorized")
+                                &&
+                                (
+                                        lowerOutput.contains("login")
+                                                ||
+                                                lowerOutput.contains("password")
+                                                ||
+                                                lowerOutput.contains("credentials")
+                                )
+                );
+    }
+
     private String buildExecutionMessage(
 
             int exitCode,
             String tagExpression,
-            String reportUrl
+            String reportUrl,
+            String output,
+            AIFRepairMLContext mlRepairContext
 
     ) {
 
@@ -2040,12 +2105,364 @@ public class GeneratedTestExecutionService {
                         ? " No Cucumber HTML report was produced."
                         : " You can open the generated Cucumber report from the link below.";
 
-        return "I ran "
-                + target
-                + ". The execution "
-                + status
-                + "."
-                + reportMessage;
+        StringBuilder message =
+                new StringBuilder();
+
+        message.append("I ran ")
+                .append(target)
+                .append(". The execution ")
+                .append(status)
+                .append(".")
+                .append(reportMessage);
+
+        if (
+                exitCode != 0
+        ) {
+
+            ExecutionFailureDiagnosis diagnosis =
+                    diagnoseExecutionFailure(output);
+
+            if (
+                    diagnosis != null
+            ) {
+
+                message.append("\n\nAIF diagnosis: ")
+                        .append(diagnosis.summary());
+
+                if (
+                        diagnosis.details() != null
+                                &&
+                                !diagnosis.details()
+                                        .isEmpty()
+                ) {
+
+                    message.append("\n\nFailure details:");
+
+                    for (
+                            String detail
+                            : diagnosis.details()
+                    ) {
+
+                        message.append("\n- ")
+                                .append(detail);
+                    }
+                }
+
+                if (
+                        diagnosis.nextAction() != null
+                                &&
+                                !diagnosis.nextAction()
+                                        .isBlank()
+                ) {
+
+                    message.append("\n\nNext action: ")
+                            .append(diagnosis.nextAction());
+                }
+            }
+
+            appendExecutionMlSummary(
+                    message,
+                    mlRepairContext
+            );
+        }
+
+        return message.toString();
+    }
+
+    ExecutionFailureDiagnosis diagnoseExecutionFailure(
+            String output
+    ) {
+
+        if (
+                output == null
+                        ||
+                        output.isBlank()
+        ) {
+
+            return null;
+        }
+
+        String lowerOutput =
+                output.toLowerCase();
+
+        List<String> undefinedSteps =
+                undefinedCucumberSteps(output);
+
+        if (
+                !undefinedSteps.isEmpty()
+                        ||
+                        containsUndefinedCucumberFailure(lowerOutput)
+        ) {
+
+            return new ExecutionFailureDiagnosis(
+                    "Cucumber reported undefined generated step definitions. The generated feature contains steps that the Java support code did not know how to execute.",
+                    undefinedSteps,
+                    "Rerun the same tag after generated support files are refreshed. If it still fails, ask `repair generated tests` so AIF can add or rewrite the missing step support and use OpenAI as fallback."
+            );
+        }
+
+        Matcher unresolvedElement =
+                Pattern.compile(
+                                "Unable to resolve element: ([^\\r\\n]+)",
+                                Pattern.CASE_INSENSITIVE
+                        )
+                        .matcher(output);
+
+        if (
+                unresolvedElement.find()
+        ) {
+
+            return new ExecutionFailureDiagnosis(
+                    "AIF could not resolve a page element during the generated run.",
+                    List.of(
+                            "Element: "
+                                    + unresolvedElement.group(1)
+                                    .trim()
+                    ),
+                    "Ask `repair generated tests` to run locator self-healing and enrich the OpenAI repair prompt with this failure context."
+            );
+        }
+
+        List<String> missingTexts =
+                generatedFeatureRepairService == null
+                        ? List.of()
+                        : generatedFeatureRepairService
+                        .missingExpectedTextsForExecution(output);
+
+        if (
+                !missingTexts.isEmpty()
+        ) {
+
+            return new ExecutionFailureDiagnosis(
+                    "The generated test reached an assertion, but the page did not show the expected text.",
+                    missingTexts.stream()
+                            .limit(5)
+                            .map(text -> "Expected text: "
+                                    + text)
+                            .toList(),
+                    "If the application text changed, tell AIF the correct replacement text or ask `repair generated tests` for assertion repair guidance."
+            );
+        }
+
+        if (
+                looksLikeAuthenticationFailure(lowerOutput)
+        ) {
+
+            return new ExecutionFailureDiagnosis(
+                    "The generated test did not complete authentication.",
+                    List.of(),
+                    "Update the workspace test data with valid credentials or satisfy the login precondition, then rerun the same tag."
+            );
+        }
+
+        if (
+                lowerOutput.contains("timeout")
+                        ||
+                        lowerOutput.contains("timed out")
+                        ||
+                        lowerOutput.contains("exceeded timeout")
+        ) {
+
+            return new ExecutionFailureDiagnosis(
+                    "The generated test timed out while waiting for the app or an element.",
+                    List.of(),
+                    "Ask `repair generated tests` so AIF can add waits, retry handling, or locator recovery before OpenAI generates a final repair."
+            );
+        }
+
+        if (
+                isMavenOfflineDependencyFailure(output)
+        ) {
+
+            return new ExecutionFailureDiagnosis(
+                    "Maven could not resolve generated-framework dependencies in offline mode.",
+                    List.of(),
+                    "AIF retries dependency resolution online when allowed. If the retry still fails, rebuild the deployment with Maven dependency warmup enabled."
+            );
+        }
+
+        return new ExecutionFailureDiagnosis(
+                "The generated test command exited non-zero, but AIF did not recognize a more specific failure signature.",
+                firstFailureLines(output),
+                "Ask `repair generated tests` so AIF can inspect the latest job output, classify the failure, and use OpenAI fallback if deterministic repair is not enough."
+        );
+    }
+
+    private void appendExecutionMlSummary(
+            StringBuilder message,
+            AIFRepairMLContext mlRepairContext
+    ) {
+
+        if (
+                mlRepairContext == null
+        ) {
+
+            return;
+        }
+
+        List<String> lines =
+                new ArrayList<>();
+
+        addPredictionLine(
+                lines,
+                "AIF ML used: ",
+                mlRepairContext.getFailurePrediction(),
+                "predicted"
+        );
+
+        addPredictionLine(
+                lines,
+                "AIF ML used: ",
+                mlRepairContext.getRepairPrediction(),
+                "recommended"
+        );
+
+        if (
+                lines.isEmpty()
+        ) {
+
+            return;
+        }
+
+        message.append("\n\nAIF intelligence:");
+
+        for (
+                String line
+                : lines
+        ) {
+
+            message.append("\n- ")
+                    .append(line);
+        }
+    }
+
+    private boolean containsUndefinedCucumberFailure(
+            String lowerOutput
+    ) {
+
+        return lowerOutput.contains("undefined step")
+                ||
+                lowerOutput.contains("undefined steps")
+                ||
+                lowerOutput.contains("undefined scenario")
+                ||
+                lowerOutput.contains("undefined scenarios")
+                ||
+                lowerOutput.contains("you can implement missing steps");
+    }
+
+    private List<String> undefinedCucumberSteps(
+            String output
+    ) {
+
+        if (
+                output == null
+                        ||
+                        output.isBlank()
+        ) {
+
+            return List.of();
+        }
+
+        LinkedHashSet<String> steps =
+                new LinkedHashSet<>();
+
+        collectMatches(
+                output,
+                Pattern.compile(
+                        "The step ['\"]([^'\"]+)['\"] is undefined",
+                        Pattern.CASE_INSENSITIVE
+                ),
+                steps
+        );
+
+        collectMatches(
+                output,
+                Pattern.compile(
+                        "Undefined step:?\\s*([^\\r\\n]+)",
+                        Pattern.CASE_INSENSITIVE
+                ),
+                steps
+        );
+
+        collectMatches(
+                output,
+                Pattern.compile(
+                        "@(?:Given|When|Then|And|But)\\(\"([^\"]+)\"\\)",
+                        Pattern.CASE_INSENSITIVE
+                ),
+                steps
+        );
+
+        return steps.stream()
+                .filter(step -> !step.isBlank())
+                .limit(5)
+                .toList();
+    }
+
+    private void collectMatches(
+            String output,
+            Pattern pattern,
+            Set<String> matches
+    ) {
+
+        Matcher matcher =
+                pattern.matcher(output);
+
+        while (
+                matcher.find()
+        ) {
+
+            String value =
+                    matcher.group(1)
+                            .trim();
+
+            if (
+                    !value.isBlank()
+            ) {
+
+                matches.add(value);
+            }
+        }
+    }
+
+    private List<String> firstFailureLines(
+            String output
+    ) {
+
+        if (
+                output == null
+                        ||
+                        output.isBlank()
+        ) {
+
+            return List.of();
+        }
+
+        return output.lines()
+                .map(String::trim)
+                .filter(line -> {
+                    String lower =
+                            line.toLowerCase();
+
+                    return lower.contains("failed")
+                            ||
+                            lower.contains("failure")
+                            ||
+                            lower.contains("error")
+                            ||
+                            lower.contains("exception");
+                })
+                .distinct()
+                .limit(5)
+                .toList();
+    }
+
+    record ExecutionFailureDiagnosis(
+            String summary,
+            List<String> details,
+            String nextAction
+    ) {
     }
 
     private String normalizeTagExpression(

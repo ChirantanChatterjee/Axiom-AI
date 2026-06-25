@@ -141,6 +141,12 @@ public class FailureClassificationModelService
         if (
                 containsAny(
                         input,
+                        "undefined step",
+                        "undefined steps",
+                        "undefined scenario",
+                        "undefined scenarios",
+                        "you can implement missing steps",
+                        "undefinedstepexception",
                         "browser executable",
                         "playwright install",
                         "connection refused",
