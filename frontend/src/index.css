@@ -4601,7 +4601,7 @@ body,
 :root {
   --aif-primary-fill-final: #E3725E;
   --aif-primary-border-final: #E3B45E;
-  --aif-session-fill-final: #FBECE9;
+  --aif-session-fill-final: #FCE874;
   --aif-session-border-final: #FCA474;
   --aif-sidebar-pane-final: #FFCBA0;
   --aif-messages-pane-final: #FFFFF6;
@@ -4772,7 +4772,7 @@ body,
    ========================================================= */
 
 :root {
-  --aif-ai-message-fill-final: #FBECE9;
+  --aif-ai-message-fill-final: #FEFBE6;
   --aif-ai-message-border-final: #E3725E;
   --aif-chat-input-fill-final: #FBECE9;
   --aif-chat-input-border-final: #E3725E;
@@ -5014,7 +5014,7 @@ body,
   --aif-minimal-border-soft: rgba(0, 0, 0, 0.09);
   --aif-minimal-border-strong: rgba(0, 0, 0, 0.22);
   --aif-minimal-shadow: 0 14px 34px rgba(0, 0, 0, 0.06);
-  --aif-framework-session-fill: #E6FEFB;
+  --aif-framework-session-fill: #FCE874;
   --aif-framework-session-border: #D94126;
   --aif-status-pass: #25835c;
   --aif-status-fail: #ad3e3e;
@@ -5129,8 +5129,8 @@ body,
 .input-shell,
 .runtime-variable-submit {
   color: var(--aif-minimal-black) !important;
-  background: #E6FEEE !important;
-  border: 2px solid #027328 !important;
+  background: #FEFBE6 !important;
+  border: 1px solid var(--aif-minimal-border) !important;
   box-shadow: none !important;
 }
 
@@ -5367,7 +5367,7 @@ body,
    ===================================================== */
 
 :root {
-  --aif-chat-user-panel-fill: #F0FEE6;
+  --aif-chat-user-panel-fill: #CCFC74;
   --aif-chat-send-fill: #D94126;
   --aif-chat-ink: #000000;
   --aif-chat-paper: #ffffff;
@@ -5382,7 +5382,7 @@ body,
 .app .sidebar .user-panel {
   color: var(--aif-chat-ink) !important;
   background: var(--aif-chat-user-panel-fill) !important;
-  border: 2px solid #88FC74 !important;
+  border: 1px solid rgba(0, 0, 0, 0.18) !important;
   box-shadow: none !important;
 }
 
@@ -5530,4 +5530,69 @@ body,
 .app .response-box:has(.status-fail) .status-fail {
   color: var(--aif-status-fail, #ad3e3e) !important;
   font-weight: 900 !important;
+}
+
+
+/* =====================================================
+   Help section only refinement - requested update
+   Scope: Help/Command Helper page only.
+   Command example rows use #E6FEEE with #027328 border.
+   Rest of help area stays minimal white with dark grey borders.
+   ===================================================== */
+
+.app .help-page,
+.app .help-grid,
+.app .help-header {
+  color: #000000 !important;
+  background: #ffffff !important;
+  border-color: #4a4a4a !important;
+  box-shadow: none !important;
+}
+
+.app .help-header {
+  border-bottom: 1px solid #4a4a4a !important;
+  backdrop-filter: none !important;
+}
+
+.app .help-header h2,
+.app .help-header span {
+  color: #000000 !important;
+}
+
+.app .help-section {
+  color: #000000 !important;
+  background: #ffffff !important;
+  border: 1px solid #4a4a4a !important;
+  box-shadow: none !important;
+}
+
+.app .help-section h3 {
+  color: #000000 !important;
+}
+
+.app .help-section p,
+.app .help-section span,
+.app .help-section small {
+  color: rgba(0, 0, 0, 0.72) !important;
+}
+
+.app .help-section code,
+.app .help-section pre,
+.app .help-section .command-line,
+.app .help-section .command-example,
+.app .help-section .helper-command,
+.app .help-section .prompt-example {
+  color: #000000 !important;
+  background: #E6FEEE !important;
+  border: 2px solid #027328 !important;
+  box-shadow: none !important;
+}
+
+.app .help-section code *,
+.app .help-section pre *,
+.app .help-section .command-line *,
+.app .help-section .command-example *,
+.app .help-section .helper-command *,
+.app .help-section .prompt-example * {
+  color: #000000 !important;
 }
