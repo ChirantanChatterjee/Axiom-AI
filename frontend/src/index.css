@@ -285,7 +285,7 @@ textarea:disabled {
 
 .auth-flow-node span {
   color: currentColor;
-  font-size: clamp(9px, 0.82vw, 12px);
+  font-size: clamp(12px, 1.08vw, 17px);
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0.12em;
@@ -297,12 +297,13 @@ textarea:disabled {
 
 .auth-flow-line {
   color: var(--flow-color);
+  fill: none;
   opacity: 0;
   stroke: currentColor;
-  stroke-width: 1.65;
+  stroke-width: 1.55;
   stroke-linecap: round;
-  stroke-dasharray: 1.2 4.2;
-  stroke-dashoffset: 24;
+  stroke-dasharray: 1.15 4.6;
+  stroke-dashoffset: 28;
   vector-effect: non-scaling-stroke;
   animation:
           authFlowLinkPulse 17.4s ease-in-out infinite,
@@ -312,39 +313,39 @@ textarea:disabled {
 }
 
 @keyframes authFlowNodePulse {
-  0%, 0.7%, 8.2%, 100% {
+  0%, 100% {
     opacity: 0;
     transform: translate3d(-50%, -50%, 0) scale(0.82);
   }
 
-  1.6%, 4.6% {
-    opacity: 0.32;
-    transform: translate3d(-50%, -50%, 0) scale(1);
+  8.333% {
+    opacity: 0.38;
+    transform: translate3d(-50%, -50%, 0) scale(1.02);
   }
 
-  6.2% {
-    opacity: 0.10;
-    transform: translate3d(-50%, -50%, 0) scale(1.04);
+  16.666% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.96);
   }
 }
 
 @keyframes authFlowLinkPulse {
-  0%, 2.1%, 8.2%, 100% {
+  0%, 1.2%, 10.8%, 100% {
     opacity: 0;
   }
 
-  3.1%, 6.8% {
-    opacity: 0.22;
+  3.2%, 7.7% {
+    opacity: 0.20;
   }
 
-  7.6% {
-    opacity: 0.06;
+  9.2% {
+    opacity: 0.07;
   }
 }
 
 @keyframes authFlowArrowDrift {
   from {
-    stroke-dashoffset: 24;
+    stroke-dashoffset: 28;
   }
 
   to {

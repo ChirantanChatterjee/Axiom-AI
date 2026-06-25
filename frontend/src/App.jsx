@@ -403,18 +403,18 @@ function BinaryRain() {
 }
 
 const authFlowNodes = [
-  { label: "GENERATE", x: 7, y: 18, color: "#5ed7ff" },
-  { label: "MEMORY", x: 25, y: 14, color: "#f1b211" },
-  { label: "EXECUTE", x: 45, y: 22, color: "#7dffb2" },
-  { label: "REPAIR", x: 66, y: 15, color: "#b89cff" },
-  { label: "REPORT", x: 86, y: 27, color: "#ff74bb" },
-  { label: "FLOW", x: 74, y: 47, color: "#52f5df" },
-  { label: "TAGS", x: 53, y: 42, color: "#ff9a62" },
-  { label: "RUN", x: 34, y: 55, color: "#6fa8ff" },
-  { label: "PASS", x: 12, y: 68, color: "#cffe5e" },
-  { label: "LOCK", x: 31, y: 84, color: "#ff6c55" },
-  { label: "AIF", x: 59, y: 78, color: "#D94126" },
-  { label: "READY", x: 88, y: 86, color: "#ffffff" }
+  { label: "GENERATE", x: 7, y: 18, cx: 14, cy: 5, color: "#5ed7ff" },
+  { label: "MEMORY", x: 25, y: 14, cx: 35, cy: 17, color: "#f1b211" },
+  { label: "EXECUTE", x: 45, y: 22, cx: 54, cy: 6, color: "#7dffb2" },
+  { label: "REPAIR", x: 66, y: 15, cx: 78, cy: 10, color: "#b89cff" },
+  { label: "REPORT", x: 86, y: 27, cx: 96, cy: 42, color: "#ff74bb" },
+  { label: "FLOW", x: 74, y: 47, cx: 66, cy: 58, color: "#52f5df" },
+  { label: "TAGS", x: 53, y: 42, cx: 43, cy: 50, color: "#ff9a62" },
+  { label: "RUN", x: 34, y: 55, cx: 22, cy: 55, color: "#6fa8ff" },
+  { label: "PASS", x: 12, y: 68, cx: 11, cy: 85, color: "#cffe5e" },
+  { label: "LOCK", x: 31, y: 84, cx: 45, cy: 95, color: "#ff6c55" },
+  { label: "AIF", x: 59, y: 78, cx: 75, cy: 70, color: "#D94126" },
+  { label: "READY", x: 88, y: 86, cx: 110, cy: 22, color: "#ffffff" }
 ];
 
 const authFlowStepSeconds = 1.45;
@@ -429,7 +429,7 @@ function AuthFlowBackdrop() {
             focusable="false"
         >
           <defs>
-            {authFlowNodes.slice(0, -1).map((node, index) => (
+            {authFlowNodes.map((node, index) => (
                 <marker
                     id={`auth-flow-arrow-${index}`}
                     key={`auth-flow-arrow-${index}`}
@@ -439,26 +439,24 @@ function AuthFlowBackdrop() {
                     refY="3.5"
                     orient="auto"
                 >
-                  <path d="M 0 0 L 7 3.5 L 0 7 z" fill={node.color} fillOpacity="0.55" />
+                  <path d="M 0 0 L 7 3.5 L 0 7 z" fill={node.color} fillOpacity="0.42" />
                 </marker>
             ))}
           </defs>
 
-          {authFlowNodes.slice(0, -1).map((node, index) => {
-            const nextNode = authFlowNodes[index + 1];
+          {authFlowNodes.map((node, index) => {
+            const nextNode =
+                authFlowNodes[(index + 1) % authFlowNodes.length];
 
             return (
-                <line
+                <path
                     className="auth-flow-line"
                     key={`auth-flow-line-${index}`}
-                    x1={node.x}
-                    y1={node.y}
-                    x2={nextNode.x}
-                    y2={nextNode.y}
+                    d={`M ${node.x} ${node.y} Q ${node.cx} ${node.cy} ${nextNode.x} ${nextNode.y}`}
                     markerEnd={`url(#auth-flow-arrow-${index})`}
                     style={{
                       "--flow-color": node.color,
-                      "--flow-delay": `${index * authFlowStepSeconds}s`
+                      "--flow-delay": `${(index * authFlowStepSeconds) + (authFlowStepSeconds * 0.34)}s`
                     }}
                 />
             );
