@@ -4601,8 +4601,8 @@ body,
 :root {
   --aif-primary-fill-final: #E3725E;
   --aif-primary-border-final: #E3B45E;
-  --aif-session-fill-final: #E3B45E;
-  --aif-session-border-final: #5E8DE3;
+  --aif-session-fill-final: #FCE874;
+  --aif-session-border-final: #FCA474;
   --aif-sidebar-pane-final: #FFCBA0;
   --aif-messages-pane-final: #FFFFF6;
   --aif-monaco-font: Monaco, "Courier New", Courier, monospace;
@@ -4747,7 +4747,7 @@ body,
 }
 
 .execution-card .status-pass {
-  color: #36E353 !important;
+  color: #106A0C !important;
 }
 
 .execution-card .status-fail {
