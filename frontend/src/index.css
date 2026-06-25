@@ -5014,7 +5014,7 @@ body,
   --aif-minimal-border-soft: rgba(0, 0, 0, 0.09);
   --aif-minimal-border-strong: rgba(0, 0, 0, 0.22);
   --aif-minimal-shadow: 0 14px 34px rgba(0, 0, 0, 0.06);
-  --aif-framework-session-fill: #ffffff;
+  --aif-framework-session-fill: #FEFBE6;
   --aif-framework-session-border: #D94126;
   --aif-status-pass: #25835c;
   --aif-status-fail: #ad3e3e;
@@ -5367,7 +5367,7 @@ body,
    ===================================================== */
 
 :root {
-  --aif-chat-user-panel-fill: #FBECE9;
+  --aif-chat-user-panel-fill: #F0FEE6;
   --aif-chat-send-fill: #D94126;
   --aif-chat-ink: #000000;
   --aif-chat-paper: #ffffff;
