@@ -4995,3 +4995,368 @@ body,
   font-weight: 600;
   letter-spacing: -0.01em;
 }
+
+/* =========================================================
+   AIF Minimal White/Grey Chat Refinement - Requested Update
+   Scope: Chat application shell only.
+   Keeps New Chat + Upload Modified Framework button styling unchanged.
+   Keeps framework session cards colored.
+   Keeps PASS/FAIL status colors.
+   Converts remaining chat UI surfaces to white with subtle grey borders and black text.
+   ========================================================= */
+
+:root {
+  --aif-minimal-white: #ffffff;
+  --aif-minimal-black: #000000;
+  --aif-minimal-text-soft: rgba(0, 0, 0, 0.72);
+  --aif-minimal-text-muted: rgba(0, 0, 0, 0.56);
+  --aif-minimal-border: rgba(0, 0, 0, 0.14);
+  --aif-minimal-border-soft: rgba(0, 0, 0, 0.09);
+  --aif-minimal-border-strong: rgba(0, 0, 0, 0.22);
+  --aif-minimal-shadow: 0 14px 34px rgba(0, 0, 0, 0.06);
+  --aif-framework-session-fill: #CFE35E;
+  --aif-framework-session-border: #5E8DE3;
+  --aif-status-pass: #25835c;
+  --aif-status-fail: #ad3e3e;
+}
+
+.app,
+.chat-container,
+.chat-view,
+.view-fill {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border-color: var(--aif-minimal-border-soft) !important;
+}
+
+.app::before {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.sidebar {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border: 0 !important;
+  border-right: 1px solid var(--aif-minimal-border) !important;
+  box-shadow: none !important;
+}
+
+.chat-header,
+.help-header,
+.input-area,
+.messages,
+.help-grid,
+.profile-body,
+.admin-body {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border-color: var(--aif-minimal-border-soft) !important;
+  box-shadow: none !important;
+}
+
+.chat-header,
+.help-header {
+  border-bottom: 1px solid var(--aif-minimal-border) !important;
+  backdrop-filter: none !important;
+}
+
+.input-area {
+  border-top: 1px solid var(--aif-minimal-border) !important;
+}
+
+/* Global text reset inside the chat application shell */
+.app,
+.app *,
+.chat-container,
+.chat-container *,
+.sidebar,
+.sidebar * {
+  color: var(--aif-minimal-black) !important;
+}
+
+.chat-header span,
+.help-header span,
+.session-summary p,
+.session-summary span,
+.tag-description,
+.help-section p,
+.profile-card p,
+.plain-text,
+.db-row,
+.input-meta,
+.user-panel span,
+.chat-list-text span,
+.runtime-variable-note,
+.variable-context-row span,
+.variable-context-row small,
+.metric-card small,
+.admin-detail-heading span,
+.admin-detail-row span,
+.admin-empty {
+  color: var(--aif-minimal-text-soft) !important;
+}
+
+/* Primary chat surfaces: white fill, grey border, black text */
+.user-panel,
+.secondary-action,
+.sidebar-action,
+.logout-button,
+.delete-chat-button,
+.ai .message-content,
+.user .message-content,
+.tag-card,
+.execution-card,
+.db-card,
+.help-section,
+.profile-card,
+.profile-details div,
+.metric-card,
+.testcase-row,
+.session-lock-card,
+.missing-variable-card,
+.runtime-variable-table-wrap,
+.runtime-variable-input,
+.response-box,
+.report-link,
+.variable-pill,
+.tag-pill,
+.missing-variable-card code,
+.help-section code,
+.variable-context-row,
+.admin-detail-panel,
+.admin-detail-row,
+.input-shell,
+.runtime-variable-submit {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border: 1px solid var(--aif-minimal-border) !important;
+  box-shadow: none !important;
+}
+
+.ai .message-content *,
+.user .message-content *,
+.execution-card *,
+.response-box *,
+.missing-variable-card *,
+.runtime-variable-form *,
+.runtime-variable-table *,
+.variable-context-row *,
+.tag-card *,
+.db-card *,
+.help-section *,
+.session-lock-card *,
+.profile-card *,
+.profile-details div *,
+.metric-card *,
+.admin-detail-panel *,
+.admin-detail-row * {
+  color: var(--aif-minimal-black) !important;
+}
+
+.message-content {
+  background: var(--aif-minimal-white) !important;
+  border: 1px solid var(--aif-minimal-border) !important;
+  box-shadow: var(--aif-minimal-shadow) !important;
+}
+
+.ai .message-content,
+.user .message-content {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border: 1px solid var(--aif-minimal-border) !important;
+  box-shadow: var(--aif-minimal-shadow) !important;
+}
+
+/* Runtime and report content should remain readable without dark fills */
+.response-box,
+.execution-card,
+.missing-variable-card,
+.runtime-variable-form,
+.runtime-variable-table,
+.runtime-variable-table-wrap,
+.runtime-variable-input,
+.missing-variable-card code,
+.variable-context-row {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border-color: var(--aif-minimal-border) !important;
+}
+
+.runtime-variable-table th,
+.runtime-variable-table td,
+.runtime-variable-table tr {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border-color: var(--aif-minimal-border-soft) !important;
+}
+
+.runtime-variable-table th {
+  border-bottom: 1px solid var(--aif-minimal-border) !important;
+}
+
+.runtime-variable-input,
+.input-shell textarea,
+.field-control input {
+  color: var(--aif-minimal-black) !important;
+  caret-color: var(--aif-minimal-black) !important;
+  background: transparent !important;
+}
+
+.runtime-variable-input::placeholder,
+.input-shell textarea::placeholder,
+.field-control input::placeholder {
+  color: var(--aif-minimal-text-muted) !important;
+}
+
+.input-shell:focus-within,
+.runtime-variable-input:focus,
+.field-control:focus-within {
+  border-color: var(--aif-minimal-border-strong) !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+.input-meta {
+  color: var(--aif-minimal-text-muted) !important;
+  border-top: 1px solid var(--aif-minimal-border-soft) !important;
+}
+
+/* Buttons in chat shell: neutral by default, except preserved New Chat / Upload Framework and framework sessions */
+.secondary-action,
+.sidebar-action,
+.logout-button,
+.delete-chat-button,
+.input-area button,
+.report-link,
+.runtime-variable-submit {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border: 1px solid var(--aif-minimal-border) !important;
+  box-shadow: none !important;
+}
+
+.secondary-action:hover,
+.sidebar-action:hover,
+.logout-button:hover,
+.delete-chat-button:hover,
+.input-area button:hover,
+.report-link:hover,
+.runtime-variable-submit:hover {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border-color: var(--aif-minimal-border-strong) !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Keep New Chat button exactly colored and prominent */
+.new-chat-button {
+  color: #ffffff !important;
+  background: #E3725E !important;
+  border: 2px solid #E3B45E !important;
+  box-shadow: 0 18px 46px rgba(245, 75, 17, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+.new-chat-button:hover {
+  color: #ffffff !important;
+  background: #E3725E !important;
+  border-color: #E3B45E !important;
+  box-shadow: 0 0 0 4px rgba(227, 180, 94, 0.42), 0 18px 46px rgba(245, 75, 17, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Keep Upload Modified Framework button exactly colored and prominent */
+.upload-framework-button {
+  color: #000000 !important;
+  background: #E3725E !important;
+  border: 2px solid #E3B45E !important;
+  box-shadow: 0 18px 46px rgba(245, 75, 17, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+.upload-framework-button:hover {
+  color: #000000 !important;
+  background: #E3725E !important;
+  border-color: #E3B45E !important;
+  box-shadow: 0 0 0 4px rgba(227, 180, 94, 0.42), 0 18px 46px rgba(245, 75, 17, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Keep framework session cards colored */
+.chat-select-button,
+.chat-history-item.active .chat-select-button,
+.chat-select-button:hover {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-framework-session-fill) !important;
+  border: 2px solid var(--aif-framework-session-border) !important;
+  box-shadow: none !important;
+}
+
+.chat-select-button:hover,
+.chat-history-item.active .chat-select-button:hover {
+  box-shadow: 0 0 0 4px rgba(94, 141, 227, 0.24) !important;
+}
+
+.chat-select-button svg,
+.chat-list-text strong,
+.chat-list-text span,
+.chat-lock-icon {
+  color: var(--aif-minimal-black) !important;
+}
+
+.chat-list-text span {
+  opacity: 0.72 !important;
+}
+
+.history-header h3,
+.session-summary h3,
+.sidebar-brand h1,
+.sidebar-brand p,
+.user-panel strong,
+.db-row strong,
+.testcase-row strong,
+.profile-details strong,
+.metric-card strong,
+.chat-header h2,
+.help-header h2 {
+  color: var(--aif-minimal-black) !important;
+}
+
+/* Preserve important status colors */
+.status-pass,
+.ai .execution-card .status-pass,
+.execution-card .status-pass,
+.testcase-row .status-pass {
+  color: var(--aif-status-pass) !important;
+  font-weight: 900 !important;
+}
+
+.status-fail,
+.ai .execution-card .status-fail,
+.execution-card .status-fail,
+.testcase-row .status-fail {
+  color: var(--aif-status-fail) !important;
+  font-weight: 900 !important;
+}
+
+/* Badge-like labels stay readable but neutral unless they use pass/fail classes */
+.tag-pill,
+.variable-pill,
+.runtime-variable-name strong {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border: 1px solid var(--aif-minimal-border) !important;
+}
+
+/* Admin/profile/help surfaces also follow minimal white when viewed inside the app shell */
+.metric-card:hover,
+.metric-card.active,
+.admin-detail-panel,
+.admin-detail-row,
+.admin-empty {
+  color: var(--aif-minimal-black) !important;
+  background: var(--aif-minimal-white) !important;
+  border-color: var(--aif-minimal-border) !important;
+  box-shadow: var(--aif-minimal-shadow) !important;
+}
+
+/* Scrollbar stays subtle grey */
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.20) !important;
+}
