@@ -70,7 +70,9 @@ const loadChats = (user) => {
     if (!stored) return [createChatSession()];
     const parsed = JSON.parse(stored);
     if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-  } catch {}
+  } catch {
+    // Fall through to a fresh session when stored chat data is invalid.
+  }
   return [createChatSession()];
 };
 
@@ -401,63 +403,78 @@ function BinaryRain() {
 }
 
 const authFlowNodes = [
-  { label: "GENERATE", x: "8%", y: "18%", color: "#5ed7ff", delay: "0s" },
-  { label: "MEMORY", x: "29%", y: "12%", color: "#f1b211", delay: "0.45s" },
-  { label: "EXECUTE", x: "55%", y: "16%", color: "#7dffb2", delay: "0.9s" },
-  { label: "REPORT", x: "81%", y: "20%", color: "#ff74bb", delay: "1.35s" },
-  { label: "TAGS", x: "15%", y: "46%", color: "#ff9a62", delay: "1.8s" },
-  { label: "REPAIR", x: "42%", y: "39%", color: "#b89cff", delay: "2.25s" },
-  { label: "FLOW", x: "70%", y: "47%", color: "#52f5df", delay: "2.7s" },
-  { label: "PASS", x: "90%", y: "57%", color: "#cffe5e", delay: "3.15s" },
-  { label: "LOCK", x: "10%", y: "78%", color: "#ff6c55", delay: "3.6s" },
-  { label: "RUN", x: "36%", y: "82%", color: "#6fa8ff", delay: "4.05s" },
-  { label: "AIF", x: "62%", y: "78%", color: "#D94126", delay: "4.5s" },
-  { label: "READY", x: "86%", y: "83%", color: "#ffffff", delay: "4.95s" }
+  { label: "GENERATE", x: 7, y: 18, color: "#5ed7ff" },
+  { label: "MEMORY", x: 25, y: 14, color: "#f1b211" },
+  { label: "EXECUTE", x: 45, y: 22, color: "#7dffb2" },
+  { label: "REPAIR", x: 66, y: 15, color: "#b89cff" },
+  { label: "REPORT", x: 86, y: 27, color: "#ff74bb" },
+  { label: "FLOW", x: 74, y: 47, color: "#52f5df" },
+  { label: "TAGS", x: 53, y: 42, color: "#ff9a62" },
+  { label: "RUN", x: 34, y: 55, color: "#6fa8ff" },
+  { label: "PASS", x: 12, y: 68, color: "#cffe5e" },
+  { label: "LOCK", x: 31, y: 84, color: "#ff6c55" },
+  { label: "AIF", x: 59, y: 78, color: "#D94126" },
+  { label: "READY", x: 88, y: 86, color: "#ffffff" }
 ];
 
-const authFlowLinks = [
-  { x: "10%", y: "21%", width: "21vw", rotate: "-13deg", color: "#5ed7ff", delay: "0s" },
-  { x: "31%", y: "15%", width: "25vw", rotate: "8deg", color: "#f1b211", delay: "0.35s" },
-  { x: "57%", y: "18%", width: "25vw", rotate: "4deg", color: "#7dffb2", delay: "0.7s" },
-  { x: "17%", y: "48%", width: "26vw", rotate: "-11deg", color: "#ff9a62", delay: "1.05s" },
-  { x: "44%", y: "42%", width: "27vw", rotate: "9deg", color: "#b89cff", delay: "1.4s" },
-  { x: "71%", y: "50%", width: "19vw", rotate: "22deg", color: "#52f5df", delay: "1.75s" },
-  { x: "11%", y: "80%", width: "26vw", rotate: "7deg", color: "#ff6c55", delay: "2.1s" },
-  { x: "38%", y: "82%", width: "24vw", rotate: "-6deg", color: "#6fa8ff", delay: "2.45s" },
-  { x: "63%", y: "80%", width: "23vw", rotate: "7deg", color: "#D94126", delay: "2.8s" },
-  { x: "18%", y: "30%", width: "24vw", rotate: "29deg", color: "#ff74bb", delay: "3.15s" },
-  { x: "61%", y: "30%", width: "26vw", rotate: "-27deg", color: "#cffe5e", delay: "3.5s" },
-  { x: "27%", y: "66%", width: "36vw", rotate: "-18deg", color: "#ffffff", delay: "3.85s" }
-];
+const authFlowStepSeconds = 1.45;
 
 function AuthFlowBackdrop() {
   return (
       <div className="auth-flow-backdrop" aria-hidden="true">
-        {authFlowLinks.map((link, index) => (
-            <span
-                className="auth-flow-link"
-                key={`auth-flow-link-${index}`}
-                style={{
-                  "--flow-x": link.x,
-                  "--flow-y": link.y,
-                  "--flow-width": link.width,
-                  "--flow-rotate": link.rotate,
-                  "--flow-color": link.color,
-                  "--flow-delay": link.delay
-                }}
-            />
-        ))}
+        <svg
+            className="auth-flow-svg"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            focusable="false"
+        >
+          <defs>
+            {authFlowNodes.slice(0, -1).map((node, index) => (
+                <marker
+                    id={`auth-flow-arrow-${index}`}
+                    key={`auth-flow-arrow-${index}`}
+                    markerWidth="7"
+                    markerHeight="7"
+                    refX="6"
+                    refY="3.5"
+                    orient="auto"
+                >
+                  <path d="M 0 0 L 7 3.5 L 0 7 z" fill={node.color} fillOpacity="0.55" />
+                </marker>
+            ))}
+          </defs>
 
-        {authFlowNodes.map((node) => (
+          {authFlowNodes.slice(0, -1).map((node, index) => {
+            const nextNode = authFlowNodes[index + 1];
+
+            return (
+                <line
+                    className="auth-flow-line"
+                    key={`auth-flow-line-${index}`}
+                    x1={node.x}
+                    y1={node.y}
+                    x2={nextNode.x}
+                    y2={nextNode.y}
+                    markerEnd={`url(#auth-flow-arrow-${index})`}
+                    style={{
+                      "--flow-color": node.color,
+                      "--flow-delay": `${index * authFlowStepSeconds}s`
+                    }}
+                />
+            );
+          })}
+        </svg>
+
+        {authFlowNodes.map((node, index) => (
             <span
                 className="auth-flow-node"
                 data-label={node.label}
                 key={node.label}
                 style={{
-                  "--flow-x": node.x,
-                  "--flow-y": node.y,
+                  "--flow-x": `${node.x}%`,
+                  "--flow-y": `${node.y}%`,
                   "--flow-color": node.color,
-                  "--flow-delay": node.delay
+                  "--flow-delay": `${index * authFlowStepSeconds}s`
                 }}
             >
               <span>{node.label}</span>

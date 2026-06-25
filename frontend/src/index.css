@@ -237,159 +237,118 @@ textarea:disabled {
   contain: layout paint style;
 }
 
+.auth-flow-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .auth-flow-node {
   position: absolute;
   left: var(--flow-x);
   top: var(--flow-y);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   color: var(--flow-color);
   opacity: 0;
   transform: translate3d(-50%, -50%, 0) scale(0.82);
-  animation: authFlowNodePulse 6s ease-in-out infinite;
+  animation: authFlowNodePulse 17.4s ease-in-out infinite;
   animation-delay: var(--flow-delay);
   will-change: opacity, transform;
 }
 
 .auth-flow-node::before {
   content: "";
-  width: clamp(8px, 0.72vw, 12px);
-  height: clamp(8px, 0.72vw, 12px);
+  width: clamp(6px, 0.58vw, 10px);
+  height: clamp(6px, 0.58vw, 10px);
   border-radius: 999px;
   background: currentColor;
   box-shadow:
-          0 0 0 6px color-mix(in srgb, currentColor 16%, transparent),
-          0 0 22px currentColor;
+          0 0 0 5px color-mix(in srgb, currentColor 10%, transparent),
+          0 0 14px color-mix(in srgb, currentColor 38%, transparent);
   flex: 0 0 auto;
 }
 
 .auth-flow-node::after {
-  content: attr(data-label);
+  content: "";
   position: absolute;
-  left: clamp(18px, 1.5vw, 24px);
-  top: calc(100% + 5px);
-  color: currentColor;
-  font-size: clamp(10px, 0.95vw, 14px);
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0.22;
-  transform: scaleY(-1);
-  transform-origin: top;
-  filter: blur(0.3px);
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent);
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent);
+  left: -7px;
+  top: -7px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  opacity: 0.14;
 }
 
 .auth-flow-node span {
   color: currentColor;
-  font-size: clamp(10px, 0.95vw, 14px);
+  font-size: clamp(9px, 0.82vw, 12px);
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-shadow:
-          0 0 10px color-mix(in srgb, currentColor 62%, transparent),
-          0 0 24px color-mix(in srgb, currentColor 32%, transparent);
+          0 0 9px color-mix(in srgb, currentColor 30%, transparent);
   white-space: nowrap;
 }
 
-.auth-flow-link {
-  position: absolute;
-  left: var(--flow-x);
-  top: var(--flow-y);
-  width: var(--flow-width);
-  height: 2px;
+.auth-flow-line {
+  color: var(--flow-color);
   opacity: 0;
-  transform: rotate(var(--flow-rotate));
-  transform-origin: left center;
-  background-image: repeating-linear-gradient(
-          90deg,
-          var(--flow-color) 0 7px,
-          transparent 7px 16px
-  );
-  background-size: 32px 2px;
-  filter: drop-shadow(0 0 8px var(--flow-color));
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-dasharray: 1.2 4.2;
+  stroke-dashoffset: 24;
+  vector-effect: non-scaling-stroke;
   animation:
-          authFlowLinkPulse 6s ease-in-out infinite,
-          authFlowArrowDrift 1.2s linear infinite;
-  animation-delay: var(--flow-delay), 0s;
-  will-change: opacity, background-position, transform;
-}
-
-.auth-flow-link::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  width: 100%;
-  height: 2px;
-  opacity: 0.22;
-  background-image: repeating-linear-gradient(
-          90deg,
-          var(--flow-color) 0 7px,
-          transparent 7px 16px
-  );
-  background-size: 32px 2px;
-  transform: scaleY(-1);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-}
-
-.auth-flow-link::after {
-  content: "";
-  position: absolute;
-  right: -8px;
-  top: 50%;
-  width: 0;
-  height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 9px solid var(--flow-color);
-  transform: translateY(-50%);
-  filter: drop-shadow(0 0 8px var(--flow-color));
+          authFlowLinkPulse 17.4s ease-in-out infinite,
+          authFlowArrowDrift 1.4s linear infinite;
+  animation-delay: var(--flow-delay), var(--flow-delay);
+  will-change: opacity, stroke-dashoffset;
 }
 
 @keyframes authFlowNodePulse {
-  0%, 13%, 100% {
+  0%, 0.7%, 8.2%, 100% {
     opacity: 0;
     transform: translate3d(-50%, -50%, 0) scale(0.82);
   }
 
-  22%, 48% {
-    opacity: 0.9;
+  1.6%, 4.6% {
+    opacity: 0.32;
     transform: translate3d(-50%, -50%, 0) scale(1);
   }
 
-  62% {
-    opacity: 0.18;
-    transform: translate3d(-50%, -50%, 0) scale(1.08);
+  6.2% {
+    opacity: 0.10;
+    transform: translate3d(-50%, -50%, 0) scale(1.04);
   }
 }
 
 @keyframes authFlowLinkPulse {
-  0%, 18%, 100% {
+  0%, 2.1%, 8.2%, 100% {
     opacity: 0;
   }
 
-  30%, 58% {
-    opacity: 0.56;
+  3.1%, 6.8% {
+    opacity: 0.22;
   }
 
-  72% {
-    opacity: 0.14;
+  7.6% {
+    opacity: 0.06;
   }
 }
 
 @keyframes authFlowArrowDrift {
   from {
-    background-position: 0 0;
+    stroke-dashoffset: 24;
   }
 
   to {
-    background-position: 32px 0;
+    stroke-dashoffset: 0;
   }
 }
 
