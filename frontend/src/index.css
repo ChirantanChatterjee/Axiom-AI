@@ -5129,8 +5129,8 @@ body,
 .input-shell,
 .runtime-variable-submit {
   color: var(--aif-minimal-black) !important;
-  background: #ffffff !important;
-  border: 2px solid #D94126 !important;
+  background: #E6FEEE !important;
+  border: 2px solid #027328 !important;
   box-shadow: none !important;
 }
 
