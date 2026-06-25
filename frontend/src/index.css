@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -4765,12 +4767,12 @@ body,
    AIF final chat bubble/composer color update - Jun 25
    Scope: AI message bubble + chat composer only.
    Requested colors:
-   - AIF message bubble fill #FFA0D4, border #CBA0FF
+   - AIF message bubble fill #FFCBA0, border #CBA0FF
    - Chat input/composer fill #A0A5FF, border #E3725E
    ========================================================= */
 
 :root {
-  --aif-ai-message-fill-final: #FFA0D4;
+  --aif-ai-message-fill-final: #FFCBA0;
   --aif-ai-message-border-final: #CBA0FF;
   --aif-chat-input-fill-final: #A0A5FF;
   --aif-chat-input-border-final: #E3725E;
@@ -4859,4 +4861,137 @@ body,
 .input-meta {
   color: rgba(0, 0, 0, 0.68) !important;
   border-top: 1px solid rgba(227, 114, 94, 0.28) !important;
+}
+
+/* =========================================================
+   AIF Inter typography update - Jun 25
+   Scope: login/auth page + chat page typography only.
+   Colors, fills, borders, layout, spacing, and animations are preserved.
+   ========================================================= */
+
+:root {
+  --aif-inter-font-final: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --aif-monaco-font: var(--aif-inter-font-final);
+}
+
+.auth-page,
+.auth-page *,
+.chat-container,
+.chat-container *,
+.sidebar,
+.sidebar * {
+  font-family: var(--aif-inter-font-final) !important;
+  font-style: normal !important;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.auth-page h1,
+.auth-page h2,
+.auth-page h3,
+.auth-brand h1,
+.auth-form-heading h2,
+.sidebar-brand h1,
+.chat-header h2,
+.help-header h2 {
+  font-family: var(--aif-inter-font-final) !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  font-style: normal !important;
+}
+
+.auth-page p,
+.auth-page span,
+.auth-page label,
+.auth-page input,
+.auth-page textarea,
+.auth-page button,
+.chat-container p,
+.chat-container span,
+.chat-container label,
+.chat-container input,
+.chat-container textarea,
+.chat-container button,
+.sidebar p,
+.sidebar span,
+.sidebar strong,
+.sidebar button {
+  font-family: var(--aif-inter-font-final) !important;
+  font-style: normal !important;
+}
+
+.auth-page button,
+.auth-submit,
+.social-login-grid button,
+.auth-tabs button,
+.email-presets button,
+.new-chat-button,
+.sidebar-action,
+.logout-button,
+.upload-framework-button,
+.input-area button,
+.report-link,
+.runtime-variable-submit,
+.chat-select-button,
+.delete-chat-button {
+  font-family: var(--aif-inter-font-final) !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.025em;
+}
+
+.message-content,
+.message-content *,
+.ai .message-content,
+.ai .message-content *,
+.user .message-content,
+.user .message-content *,
+.execution-card,
+.execution-card *,
+.response-box,
+.response-box *,
+.missing-variable-card,
+.missing-variable-card *,
+.runtime-variable-form,
+.runtime-variable-form *,
+.runtime-variable-table,
+.runtime-variable-table *,
+.input-shell textarea,
+.input-meta,
+.plain-text {
+  font-family: var(--aif-inter-font-final) !important;
+  font-style: normal !important;
+  letter-spacing: -0.015em;
+}
+
+.ai .message-content,
+.execution-card,
+.response-box,
+.missing-variable-card,
+.runtime-variable-form {
+  font-weight: 600;
+  line-height: 1.68;
+}
+
+.input-shell textarea {
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.chat-list-text strong,
+.user-panel strong,
+.history-header h3,
+.session-summary h3 {
+  font-weight: 900 !important;
+  letter-spacing: -0.025em;
+}
+
+.chat-list-text span,
+.user-panel span,
+.session-summary p,
+.session-summary span,
+.input-meta {
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
