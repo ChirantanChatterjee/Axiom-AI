@@ -4760,3 +4760,103 @@ body,
   color: #ffffff !important;
   font-family: var(--aif-monaco-font) !important;
 }
+
+/* =========================================================
+   AIF final chat bubble/composer color update - Jun 25
+   Scope: AI message bubble + chat composer only.
+   Requested colors:
+   - AIF message bubble fill #FFA0D4, border #CBA0FF
+   - Chat input/composer fill #A0A5FF, border #E3725E
+   ========================================================= */
+
+:root {
+  --aif-ai-message-fill-final: #FFA0D4;
+  --aif-ai-message-border-final: #CBA0FF;
+  --aif-chat-input-fill-final: #A0A5FF;
+  --aif-chat-input-border-final: #E3725E;
+}
+
+/* AIF / assistant message bubble */
+.ai .message-content {
+  color: #ffffff !important;
+  background: var(--aif-ai-message-fill-final) !important;
+  border: 2px solid var(--aif-ai-message-border-final) !important;
+  box-shadow:
+          0 18px 44px rgba(203, 160, 255, 0.26),
+          inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+.ai .message-content * {
+  color: #ffffff !important;
+}
+
+/* Cards/blocks rendered inside AIF messages should follow the new assistant bubble color */
+.ai .execution-card,
+.ai .tag-card,
+.ai .db-card,
+.ai .response-box,
+.ai .missing-variable-card,
+.ai .session-lock-card,
+.ai .runtime-variable-table-wrap,
+.ai .variable-context-row,
+.ai .missing-variable-card code {
+  color: #ffffff !important;
+  background: var(--aif-ai-message-fill-final) !important;
+  border: 2px solid var(--aif-ai-message-border-final) !important;
+  box-shadow:
+          0 14px 34px rgba(203, 160, 255, 0.20),
+          inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+.ai .execution-card *,
+.ai .tag-card *,
+.ai .db-card *,
+.ai .response-box *,
+.ai .missing-variable-card *,
+.ai .session-lock-card *,
+.ai .runtime-variable-table-wrap *,
+.ai .variable-context-row *,
+.ai .missing-variable-card code * {
+  color: #ffffff !important;
+}
+
+/* Keep status contrast inside the new lighter assistant card */
+.ai .execution-card .status-pass {
+  color: #ffffff !important;
+}
+
+.ai .execution-card .status-fail {
+  color: #ffffff !important;
+}
+
+/* Chat composer / user text entry area */
+.input-shell {
+  background: var(--aif-chat-input-fill-final) !important;
+  border: 2px solid var(--aif-chat-input-border-final) !important;
+  box-shadow:
+          0 14px 34px rgba(160, 165, 255, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+.input-shell:focus-within {
+  border-color: var(--aif-chat-input-border-final) !important;
+  box-shadow:
+          0 0 0 4px rgba(227, 114, 94, 0.28),
+          0 16px 38px rgba(160, 165, 255, 0.26),
+          inset 0 1px 0 rgba(255, 255, 255, 0.26) !important;
+}
+
+.input-shell textarea {
+  color: #000000 !important;
+  caret-color: #000000 !important;
+  background: transparent !important;
+}
+
+.input-shell textarea::placeholder {
+  color: rgba(0, 0, 0, 0.58) !important;
+}
+
+.input-meta {
+  color: rgba(0, 0, 0, 0.68) !important;
+  border-top: 1px solid rgba(227, 114, 94, 0.28) !important;
+}
