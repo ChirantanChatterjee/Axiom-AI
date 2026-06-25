@@ -4590,3 +4590,173 @@ body,
 .runtime-variable-form svg {
   color: #ffffff;
 }
+
+/* =========================================================
+   AIF requested palette/layout polish - Jun 25
+   Scope: colors, borders, hover glow, message readability.
+   ========================================================= */
+
+:root {
+  --aif-primary-fill-final: #E3725E;
+  --aif-primary-border-final: #E3B45E;
+  --aif-session-fill-final: #CFE35E;
+  --aif-session-border-final: #5E8DE3;
+  --aif-sidebar-pane-final: #FFCBA0;
+  --aif-messages-pane-final: #FFFAA0;
+  --aif-monaco-font: Monaco, "Courier New", Courier, monospace;
+}
+
+@keyframes aifPrimaryBorderGlow {
+  0% {
+    box-shadow:
+            0 0 0 0 rgba(227, 180, 94, 0.00),
+            0 14px 34px rgba(227, 114, 94, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  }
+
+  100% {
+    box-shadow:
+            0 0 0 4px rgba(227, 180, 94, 0.42),
+            0 18px 42px rgba(227, 114, 94, 0.24),
+            inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  }
+}
+
+@keyframes aifSessionBorderGlow {
+  0% {
+    box-shadow:
+            0 0 0 0 rgba(94, 141, 227, 0.00),
+            0 12px 30px rgba(94, 141, 227, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  100% {
+    box-shadow:
+            0 0 0 4px rgba(94, 141, 227, 0.38),
+            0 16px 38px rgba(94, 141, 227, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  }
+}
+
+/* 1. Sidebar pane color */
+.sidebar {
+  background: var(--aif-sidebar-pane-final) !important;
+  border-right: 2px solid rgba(227, 180, 94, 0.58) !important;
+  box-shadow: 18px 0 56px rgba(227, 114, 94, 0.18) !important;
+}
+
+.sidebar::before {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(227, 180, 94, 0.22) !important;
+}
+
+/* 2. Messages section background */
+.messages {
+  background: var(--aif-messages-pane-final) !important;
+}
+
+/* 3. Primary fill buttons/cards: fixed border always visible + glowing border on hover */
+.auth-submit,
+.new-chat-button,
+.upload-framework-button,
+.input-area button,
+.report-link,
+.runtime-variable-submit,
+.user .message-content {
+  background: var(--aif-primary-fill-final) !important;
+  border: 2px solid var(--aif-primary-border-final) !important;
+  box-shadow:
+          0 14px 34px rgba(227, 114, 94, 0.18),
+          inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+}
+
+.auth-submit:hover:not(:disabled),
+.new-chat-button:hover,
+.upload-framework-button:hover,
+.input-area button:hover,
+.report-link:hover,
+.runtime-variable-submit:hover,
+.user .message-content:hover {
+  background: var(--aif-primary-fill-final) !important;
+  border-color: var(--aif-primary-border-final) !important;
+  animation: aifPrimaryBorderGlow 1.15s ease-in-out infinite alternate;
+}
+
+/* 4. Framework session buttons: fill #CFE35E + border #5E8DE3 always visible + hover glow */
+.chat-select-button {
+  background: var(--aif-session-fill-final) !important;
+  border: 2px solid var(--aif-session-border-final) !important;
+  color: #000000 !important;
+  box-shadow:
+          0 12px 30px rgba(94, 141, 227, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+.chat-history-item.active .chat-select-button,
+.chat-select-button:hover {
+  background: var(--aif-session-fill-final) !important;
+  border-color: var(--aif-session-border-final) !important;
+  color: #000000 !important;
+  animation: aifSessionBorderGlow 1.15s ease-in-out infinite alternate;
+}
+
+.chat-select-button svg,
+.chat-list-text strong,
+.chat-list-text span,
+.chat-lock-icon {
+  color: #000000 !important;
+}
+
+.chat-list-text span {
+  opacity: 0.72;
+}
+
+/* Keep the delete icon controls visually calm beside the new framework session color */
+.delete-chat-button {
+  background: rgba(255, 255, 255, 0.34) !important;
+  border: 1px solid rgba(94, 141, 227, 0.34) !important;
+  color: #000000 !important;
+}
+
+.delete-chat-button:hover {
+  border-color: var(--aif-session-border-final) !important;
+  box-shadow: 0 0 0 4px rgba(94, 141, 227, 0.18) !important;
+}
+
+/* 5. AI/report/execution message readability: white Monaco text */
+.ai .message-content,
+.ai .message-content *,
+.execution-card,
+.execution-card *,
+.response-box,
+.response-box *,
+.plain-text {
+  color: #ffffff !important;
+  font-family: var(--aif-monaco-font) !important;
+}
+
+.ai .message-content,
+.execution-card {
+  background: rgba(58, 34, 24, 0.84) !important;
+  border: 2px solid rgba(227, 180, 94, 0.42) !important;
+  box-shadow:
+          0 18px 44px rgba(58, 34, 24, 0.24),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.execution-card .status-pass {
+  color: #CFE35E !important;
+}
+
+.execution-card .status-fail {
+  color: #ffffff !important;
+}
+
+/* Runtime variable card text should remain readable with the same Monaco treatment when shown inside chat */
+.missing-variable-card,
+.missing-variable-card *,
+.runtime-variable-form,
+.runtime-variable-form * {
+  color: #ffffff !important;
+  font-family: var(--aif-monaco-font) !important;
+}
