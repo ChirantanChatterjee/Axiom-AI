@@ -4601,7 +4601,7 @@ body,
 :root {
   --aif-primary-fill-final: #E3725E;
   --aif-primary-border-final: #E3B45E;
-  --aif-session-fill-final: #CFE35E;
+  --aif-session-fill-final: #E3B45E;
   --aif-session-border-final: #5E8DE3;
   --aif-sidebar-pane-final: #FFCBA0;
   --aif-messages-pane-final: #FFFFF6;
