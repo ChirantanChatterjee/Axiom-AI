@@ -58,6 +58,65 @@ public class FlowDetectionEngine {
         }
 
         // =================================================
+        // DETECT COMMERCE / WORKFLOW FLOWS
+        // =================================================
+
+        DetectedFlow sortFlow =
+                detectProductSortFlow(
+                        url,
+                        elements
+                );
+
+        if (sortFlow != null) {
+
+            flows.add(sortFlow);
+        }
+
+        DetectedFlow addToCartFlow =
+                detectAddToCartFlow(
+                        url,
+                        elements
+                );
+
+        if (addToCartFlow != null) {
+
+            flows.add(addToCartFlow);
+        }
+
+        DetectedFlow removeFromCartFlow =
+                detectRemoveFromCartFlow(
+                        url,
+                        elements
+                );
+
+        if (removeFromCartFlow != null) {
+
+            flows.add(removeFromCartFlow);
+        }
+
+        DetectedFlow cartFlow =
+                detectCartNavigationFlow(
+                        url,
+                        elements
+                );
+
+        if (cartFlow != null) {
+
+            flows.add(cartFlow);
+        }
+
+        DetectedFlow checkoutFlow =
+                detectCheckoutFlow(
+                        url,
+                        elements
+                );
+
+        if (checkoutFlow != null) {
+
+            flows.add(checkoutFlow);
+        }
+
+        // =================================================
         // DETECT FORM FLOW
         // =================================================
 
@@ -341,6 +400,320 @@ public class FlowDetectionEngine {
     }
 
     // =====================================================
+    // PRODUCT SORT FLOW
+    // =====================================================
+
+    private static DetectedFlow detectProductSortFlow(
+
+            String url,
+            List<PageElement> elements
+
+    ) {
+
+        PageElement sortControl =
+                firstByRole(
+                        elements,
+                        "SORT_SELECT"
+                );
+
+        if (
+                sortControl == null
+        ) {
+
+            return null;
+        }
+
+        List<FlowStep> steps =
+                new ArrayList<>();
+
+        steps.add(
+                typeStep(
+                        actionTarget(
+                                sortControl,
+                                "SORT"
+                        ),
+                        sortControl
+                )
+        );
+
+        return new DetectedFlow(
+
+                "PRODUCT_SORT",
+                url,
+                steps
+        );
+    }
+
+    // =====================================================
+    // ADD TO CART FLOW
+    // =====================================================
+
+    private static DetectedFlow detectAddToCartFlow(
+
+            String url,
+            List<PageElement> elements
+
+    ) {
+
+        PageElement addButton =
+                firstByRole(
+                        elements,
+                        "ADD_TO_CART_BUTTON"
+                );
+
+        if (
+                addButton == null
+        ) {
+
+            return null;
+        }
+
+        List<FlowStep> steps =
+                new ArrayList<>();
+
+        steps.add(
+                clickStep(
+                        actionTarget(
+                                addButton,
+                                "ADD_TO_CART_BUTTON"
+                        ),
+                        addButton
+                )
+        );
+
+        PageElement cartLink =
+                firstByRole(
+                        elements,
+                        "CART_LINK"
+                );
+
+        if (
+                cartLink != null
+        ) {
+
+            steps.add(
+                    clickStep(
+                            actionTarget(
+                                    cartLink,
+                                    "CART_LINK"
+                            ),
+                            cartLink
+                    )
+            );
+        }
+
+        return new DetectedFlow(
+
+                "ADD_TO_CART",
+                url,
+                steps
+        );
+    }
+
+    // =====================================================
+    // REMOVE FROM CART FLOW
+    // =====================================================
+
+    private static DetectedFlow detectRemoveFromCartFlow(
+
+            String url,
+            List<PageElement> elements
+
+    ) {
+
+        PageElement removeButton =
+                firstByRole(
+                        elements,
+                        "REMOVE_FROM_CART_BUTTON"
+                );
+
+        if (
+                removeButton == null
+        ) {
+
+            return null;
+        }
+
+        List<FlowStep> steps =
+                new ArrayList<>();
+
+        steps.add(
+                clickStep(
+                        actionTarget(
+                                removeButton,
+                                "REMOVE_FROM_CART_BUTTON"
+                        ),
+                        removeButton
+                )
+        );
+
+        return new DetectedFlow(
+
+                "REMOVE_FROM_CART",
+                url,
+                steps
+        );
+    }
+
+    // =====================================================
+    // CART NAVIGATION FLOW
+    // =====================================================
+
+    private static DetectedFlow detectCartNavigationFlow(
+
+            String url,
+            List<PageElement> elements
+
+    ) {
+
+        PageElement cartLink =
+                firstByRole(
+                        elements,
+                        "CART_LINK"
+                );
+
+        if (
+                cartLink == null
+        ) {
+
+            return null;
+        }
+
+        List<FlowStep> steps =
+                new ArrayList<>();
+
+        steps.add(
+                clickStep(
+                        actionTarget(
+                                cartLink,
+                                "CART_LINK"
+                        ),
+                        cartLink
+                )
+        );
+
+        return new DetectedFlow(
+
+                "CART_NAVIGATION",
+                url,
+                steps
+        );
+    }
+
+    // =====================================================
+    // CHECKOUT FLOW
+    // =====================================================
+
+    private static DetectedFlow detectCheckoutFlow(
+
+            String url,
+            List<PageElement> elements
+
+    ) {
+
+        PageElement checkoutButton =
+                firstByRole(
+                        elements,
+                        "CHECKOUT_BUTTON"
+                );
+
+        PageElement continueButton =
+                firstByRole(
+                        elements,
+                        "NEXT_BUTTON"
+                );
+
+        List<PageElement> checkoutFields =
+                elements.stream()
+                        .filter(element ->
+                                hasRole(
+                                        element,
+                                        "FIRST_NAME_FIELD"
+                                )
+                                        ||
+                                        hasRole(
+                                                element,
+                                                "LAST_NAME_FIELD"
+                                        )
+                                        ||
+                                        hasRole(
+                                                element,
+                                                "POSTAL_CODE_FIELD"
+                                        )
+                        )
+                        .toList();
+
+        if (
+                checkoutButton == null
+                        &&
+                        checkoutFields.isEmpty()
+        ) {
+
+            return null;
+        }
+
+        List<FlowStep> steps =
+                new ArrayList<>();
+
+        if (
+                checkoutButton != null
+        ) {
+
+            steps.add(
+                    clickStep(
+                            actionTarget(
+                                    checkoutButton,
+                                    "CHECKOUT_BUTTON"
+                            ),
+                            checkoutButton
+                    )
+            );
+        }
+
+        for (
+                PageElement field
+                : checkoutFields
+        ) {
+
+            steps.add(
+                    typeStep(
+                            actionTarget(
+                                    field,
+                                    field.getBusinessRole()
+                            ),
+                            field
+                    )
+            );
+        }
+
+        if (
+                continueButton != null
+                        &&
+                        !checkoutFields.isEmpty()
+        ) {
+
+            steps.add(
+                    clickStep(
+                            actionTarget(
+                                    continueButton,
+                                    "CONTINUE"
+                            ),
+                            continueButton
+                    )
+            );
+        }
+
+        return new DetectedFlow(
+
+                checkoutFields.isEmpty()
+                        ? "CHECKOUT_START"
+                        : "CHECKOUT_INFORMATION",
+                url,
+                steps
+        );
+    }
+
+    // =====================================================
     // FORM FLOW
     // =====================================================
 
@@ -364,15 +737,7 @@ public class FlowDetectionEngine {
                     );
 
             if (
-
-                    role.equals("TEXT_INPUT")
-                            ||
-
-                            role.equals("AUTH_FIELD")
-                            ||
-
-                            role.equals("PASSWORD_FIELD")
-
+                    isFormInputRole(role)
             ) {
 
                 textInputs.add(element);
@@ -663,6 +1028,96 @@ public class FlowDetectionEngine {
             String fallback
     ) {
 
+        String role =
+                safe(element.getBusinessRole());
+
+        if (
+                role.equals("ADD_TO_CART_BUTTON")
+        ) {
+
+            return productActionLabel(
+                    "add",
+                    "to cart",
+                    element,
+                    "add to cart"
+            );
+        }
+
+        if (
+                role.equals("REMOVE_FROM_CART_BUTTON")
+        ) {
+
+            return productActionLabel(
+                    "remove",
+                    "",
+                    element,
+                    "remove"
+            );
+        }
+
+        if (
+                role.equals("CART_LINK")
+        ) {
+
+            return "cart";
+        }
+
+        if (
+                role.equals("CHECKOUT_BUTTON")
+        ) {
+
+            return "checkout";
+        }
+
+        if (
+                role.equals("CONTINUE_SHOPPING_BUTTON")
+        ) {
+
+            return "continue shopping";
+        }
+
+        if (
+                role.equals("FINISH_BUTTON")
+        ) {
+
+            return "finish";
+        }
+
+        if (
+                role.equals("CANCEL_BUTTON")
+        ) {
+
+            return "cancel";
+        }
+
+        if (
+                role.equals("SORT_SELECT")
+        ) {
+
+            return "sort";
+        }
+
+        if (
+                role.equals("FIRST_NAME_FIELD")
+        ) {
+
+            return "first name";
+        }
+
+        if (
+                role.equals("LAST_NAME_FIELD")
+        ) {
+
+            return "last name";
+        }
+
+        if (
+                role.equals("POSTAL_CODE_FIELD")
+        ) {
+
+            return "postal code";
+        }
+
         String label =
                 firstNonBlank(
                         element.getText(),
@@ -698,9 +1153,6 @@ public class FlowDetectionEngine {
             return "Search";
         }
 
-        String role =
-                safe(element.getBusinessRole());
-
         if (
                 role.equals("NEXT_BUTTON")
         ) {
@@ -716,6 +1168,157 @@ public class FlowDetectionEngine {
         }
 
         return fallback;
+    }
+
+    private static PageElement firstByRole(
+            List<PageElement> elements,
+            String role
+    ) {
+
+        if (
+                elements == null
+                        ||
+                        role == null
+        ) {
+
+            return null;
+        }
+
+        return elements.stream()
+                .filter(element -> hasRole(element, role))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static boolean hasRole(
+            PageElement element,
+            String role
+    ) {
+
+        return element != null
+                &&
+                safe(element.getBusinessRole())
+                        .equals(role);
+    }
+
+    private static boolean isFormInputRole(
+            String role
+    ) {
+
+        return role.equals("TEXT_INPUT")
+                ||
+                role.equals("AUTH_FIELD")
+                ||
+                role.equals("PASSWORD_FIELD")
+                ||
+                role.endsWith("_FIELD");
+    }
+
+    private static String productActionLabel(
+            String prefix,
+            String suffix,
+            PageElement element,
+            String fallback
+    ) {
+
+        String product =
+                productNameFromElement(element);
+
+        if (
+                product.isBlank()
+        ) {
+
+            return fallback;
+        }
+
+        StringBuilder label =
+                new StringBuilder(prefix)
+                        .append(" ")
+                        .append(product);
+
+        if (
+                suffix != null
+                        &&
+                        !suffix.isBlank()
+        ) {
+
+            label.append(" ")
+                    .append(suffix);
+        }
+
+        return label.toString();
+    }
+
+    private static String productNameFromElement(
+            PageElement element
+    ) {
+
+        String raw =
+                firstNonBlank(
+                        element.getDataTestId(),
+                        element.getName(),
+                        element.getText(),
+                        element.getAriaLabel()
+                );
+
+        String normalized =
+                safe(raw)
+                        .toLowerCase()
+                        .replace("add-to-cart-", "")
+                        .replace("remove-", "")
+                        .replace("add to cart", "")
+                        .replace("remove", "")
+                        .replaceAll("[^a-z0-9]+", " ")
+                        .trim();
+
+        if (
+                normalized.isBlank()
+                        ||
+                        normalized.equals("cart")
+        ) {
+
+            return "";
+        }
+
+        StringBuilder title =
+                new StringBuilder();
+
+        for (
+                String part
+                : normalized.split("\\s+")
+        ) {
+
+            if (
+                    part.isBlank()
+            ) {
+
+                continue;
+            }
+
+            if (
+                    title.length() > 0
+            ) {
+
+                title.append(" ");
+            }
+
+            title.append(
+                    Character.toUpperCase(
+                            part.charAt(0)
+                    )
+            );
+
+            if (
+                    part.length() > 1
+            ) {
+
+                title.append(
+                        part.substring(1)
+                );
+            }
+        }
+
+        return title.toString();
     }
 
     private static String firstNonBlank(

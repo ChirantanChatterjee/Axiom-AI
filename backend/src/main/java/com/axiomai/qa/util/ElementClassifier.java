@@ -88,6 +88,172 @@ public class ElementClassifier {
                         tag.equals("a");
 
         // =================================================
+        // COMMERCE / WORKFLOW ACTIONS
+        // =================================================
+
+        if (
+
+                actionLike
+                        &&
+                        (
+                                actionDescriptor.contains("add to cart")
+                                        ||
+                                        actionDescriptor.contains("add-to-cart")
+                                        ||
+                                        actionDescriptor.contains("addtocart")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "ADD_TO_CART_BUTTON"
+            );
+
+            element.setImportanceScore(92);
+
+            return;
+        }
+
+        if (
+
+                actionLike
+                        &&
+                        (
+                                actionDescriptor.contains("remove")
+                                        ||
+                                        actionDescriptor.contains("remove-from-cart")
+                                        ||
+                                        actionDescriptor.contains("removefromcart")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "REMOVE_FROM_CART_BUTTON"
+            );
+
+            element.setImportanceScore(86);
+
+            return;
+        }
+
+        if (
+
+                actionLike
+                        &&
+                        (
+                                actionDescriptor.contains("shopping cart")
+                                        ||
+                                        actionDescriptor.contains("shopping-cart")
+                                        ||
+                                        actionDescriptor.contains("cart")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "CART_LINK"
+            );
+
+            element.setImportanceScore(84);
+
+            return;
+        }
+
+        if (
+
+                actionLike
+                        &&
+                        actionDescriptor.contains("checkout")
+
+        ) {
+
+            element.setBusinessRole(
+                    "CHECKOUT_BUTTON"
+            );
+
+            element.setImportanceScore(88);
+
+            return;
+        }
+
+        if (
+
+                actionLike
+                        &&
+                        actionDescriptor.contains("continue shopping")
+
+        ) {
+
+            element.setBusinessRole(
+                    "CONTINUE_SHOPPING_BUTTON"
+            );
+
+            element.setImportanceScore(76);
+
+            return;
+        }
+
+        if (
+
+                actionLike
+                        &&
+                        actionDescriptor.contains("finish")
+
+        ) {
+
+            element.setBusinessRole(
+                    "FINISH_BUTTON"
+            );
+
+            element.setImportanceScore(78);
+
+            return;
+        }
+
+        if (
+
+                actionLike
+                        &&
+                        actionDescriptor.contains("cancel")
+
+        ) {
+
+            element.setBusinessRole(
+                    "CANCEL_BUTTON"
+            );
+
+            element.setImportanceScore(62);
+
+            return;
+        }
+
+        // =================================================
+        // SORT / FILTER CONTROLS
+        // =================================================
+
+        if (
+
+                inputLike
+                        &&
+                        (
+                                combined.contains("sort")
+                                        ||
+                                        combined.contains("filter")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "SORT_SELECT"
+            );
+
+            element.setImportanceScore(82);
+
+            return;
+        }
+
+        // =================================================
         // PASSWORD FIELD
         // =================================================
 
@@ -239,6 +405,79 @@ public class ElementClassifier {
             );
 
             element.setImportanceScore(80);
+
+            return;
+        }
+
+        // =================================================
+        // NAMED FORM FIELDS
+        // =================================================
+
+        if (
+
+                inputLike
+                        &&
+                        (
+                                combined.contains("first-name")
+                                        ||
+                                        combined.contains("firstname")
+                                        ||
+                                        combined.contains("first name")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "FIRST_NAME_FIELD"
+            );
+
+            element.setImportanceScore(76);
+
+            return;
+        }
+
+        if (
+
+                inputLike
+                        &&
+                        (
+                                combined.contains("last-name")
+                                        ||
+                                        combined.contains("lastname")
+                                        ||
+                                        combined.contains("last name")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "LAST_NAME_FIELD"
+            );
+
+            element.setImportanceScore(76);
+
+            return;
+        }
+
+        if (
+
+                inputLike
+                        &&
+                        (
+                                combined.contains("postal")
+                                        ||
+                                        combined.contains("zip")
+                                        ||
+                                        combined.contains("postcode")
+                        )
+
+        ) {
+
+            element.setBusinessRole(
+                    "POSTAL_CODE_FIELD"
+            );
+
+            element.setImportanceScore(74);
 
             return;
         }

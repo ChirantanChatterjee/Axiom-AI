@@ -221,7 +221,7 @@ const domainFromUrl = (url) => {
 const compactResponseData = (type, data) => {
   if (!data) return null;
   if (Array.isArray(data)) return data;
-  if (type === "framework") return { sessionId: data.sessionId, frameworkPath: data.frameworkPath, downloadUrl: data.downloadUrl, flowsDetected: data.flowsDetected, websiteUrl: data.websiteUrl, domainName: data.domainName };
+  if (type === "framework") return { sessionId: data.sessionId, frameworkPath: data.frameworkPath, downloadUrl: data.downloadUrl, flowsDetected: data.flowsDetected, flows: data.flows || [], testCaseCount: data.testCaseCount, testCases: data.testCases || [], websiteUrl: data.websiteUrl, domainName: data.domainName };
   if (type === "feature") return { featureName: data.featureName, frameworkPath: data.frameworkPath, downloadUrl: data.downloadUrl, variables: data.variables, testCaseCount: data.testCaseCount, testCases: data.testCases };
   if (type === "generated-test-execution") return { success: data.success, tagExpression: data.tagExpression, reportUrl: data.reportUrl, exitCode: data.exitCode };
   if (type === "generated-test-execution-queued") return { jobId: data.jobId, status: data.status, success: data.success, tagExpression: data.tagExpression, reportUrl: data.reportUrl, exitCode: data.exitCode, message: data.message, errorMessage: data.errorMessage };
@@ -887,7 +887,31 @@ function StructuredMessage({ msg, onDownloadFramework, onSubmitRuntimeVariables,
             <div className="execution-card">
               <div className="db-row"><span>Website:</span><strong>{msg.data.domainName || msg.data.websiteUrl}</strong></div>
               <div className="db-row"><span>Flows detected:</span><strong>{msg.data.flowsDetected}</strong></div>
+              {msg.data.testCaseCount > 0 && <div className="db-row"><span>Test cases:</span><strong>{msg.data.testCaseCount}</strong></div>}
               <div className="db-row"><span>Session:</span><strong>{msg.data.sessionId}</strong></div>
+              {msg.data.flows?.length > 0 && (
+                  <div className="flow-list">
+                    {msg.data.flows.map((flow, index) => (
+                        <div className="flow-card" key={`${flow.flowType || "flow"}-${index}`}>
+                          <strong>{flow.flowType || "Generated flow"}</strong>
+                          <span>{flow.pageUrl}</span>
+                          {flow.steps?.length > 0 && (
+                              <p>{flow.steps.map(step => `${step.action} ${step.target}`).join(" -> ")}</p>
+                          )}
+                        </div>
+                    ))}
+                  </div>
+              )}
+              {msg.data.testCases?.length > 0 && (
+                  <div className="testcase-list">
+                    <div className="testcase-row testcase-header"><strong>TC ID</strong><span>Story</span><p>Scenario</p><p>Test Data</p><p>Expected</p></div>
+                    {msg.data.testCases.map(tc => (
+                        <div key={tc.tcId} className="testcase-row">
+                          <strong>{tc.tcId}</strong><span>{tc.userStory}</span><p>{tc.scenario}</p><p>{tc.testData}</p><p>{tc.expectedResult}</p>
+                        </div>
+                    ))}
+                  </div>
+              )}
             </div>
         )}
 

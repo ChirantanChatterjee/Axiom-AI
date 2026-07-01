@@ -22,6 +22,7 @@ import com.axiomai.qa.flow.FlowDetectionEngine;
 import com.axiomai.qa.execution.entity.GeneratedTestExecutionJobEntity;
 import com.axiomai.qa.execution.service.GeneratedTestExecutionJobDto;
 import com.axiomai.qa.execution.service.GeneratedTestExecutionQueueService;
+import com.axiomai.qa.models.FlowStep;
 import com.axiomai.qa.models.GeneratedFramework;
 import com.axiomai.qa.models.PageNode;
 import com.axiomai.qa.models.SiteMapResult;
@@ -1101,6 +1102,15 @@ public class AICommandOrchestrator {
         data.put("artifact", artifact);
         data.put("downloadUrl", artifact.getDownloadUrl());
         data.put("flowsDetected", allFlows.size());
+        data.put("flows", flowSummary(allFlows));
+        data.put("testCases", framework.getTestCases());
+        data.put(
+                "testCaseCount",
+                framework.getTestCases() == null
+                        ? 0
+                        : framework.getTestCases()
+                        .size()
+        );
         data.put("websiteUrl", command.getUrl());
         data.put("domainName", extractDomain(command.getUrl()));
 
@@ -2475,6 +2485,84 @@ public class AICommandOrchestrator {
         return new ArrayList<>(
                 unique.values()
         );
+    }
+
+    private List<Map<String, Object>> flowSummary(
+            List<DetectedFlow> flows
+    ) {
+
+        List<Map<String, Object>> summaries =
+                new ArrayList<>();
+
+        if (
+                flows == null
+        ) {
+
+            return summaries;
+        }
+
+        for (
+                DetectedFlow flow
+                : flows
+        ) {
+
+            if (
+                    flow == null
+            ) {
+
+                continue;
+            }
+
+            Map<String, Object> summary =
+                    new LinkedHashMap<>();
+
+            summary.put("flowType", flow.getFlowType());
+            summary.put("pageUrl", flow.getPageUrl());
+            summary.put("steps", stepSummary(flow.getSteps()));
+
+            summaries.add(summary);
+        }
+
+        return summaries;
+    }
+
+    private List<Map<String, Object>> stepSummary(
+            List<FlowStep> steps
+    ) {
+
+        List<Map<String, Object>> summaries =
+                new ArrayList<>();
+
+        if (
+                steps == null
+        ) {
+
+            return summaries;
+        }
+
+        for (
+                FlowStep step
+                : steps
+        ) {
+
+            if (
+                    step == null
+            ) {
+
+                continue;
+            }
+
+            Map<String, Object> summary =
+                    new LinkedHashMap<>();
+
+            summary.put("action", step.getAction());
+            summary.put("target", step.getTarget());
+            summary.put("businessRole", step.getBusinessRole());
+
+            summaries.add(summary);
+        }
+
+        return summaries;
     }
 
     private String flowSignature(

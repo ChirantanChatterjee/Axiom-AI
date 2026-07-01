@@ -784,11 +784,28 @@ public class WebsiteCrawlerService {
                         continue;
                     }
 
+                    String normalizedHref =
+                            href.trim()
+                                    .toLowerCase();
+
+                    if (
+                            normalizedHref.startsWith("#")
+                                    ||
+                                    normalizedHref.startsWith("javascript:")
+                                    ||
+                                    normalizedHref.startsWith("mailto:")
+                                    ||
+                                    normalizedHref.startsWith("tel:")
+                    ) {
+
+                        continue;
+                    }
+
                     // =========================================
                     // RELATIVE URL
                     // =========================================
 
-                    if (href.startsWith("/")) {
+                    if (!href.startsWith("http")) {
 
                         href =
                                 resolveUrl(

@@ -1950,6 +1950,23 @@ textarea:disabled {
 .db-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #526872; }
 .db-row strong { color: #24313a; text-align: right; overflow-wrap: anywhere; }
 
+.flow-list { margin-top: 12px; display: grid; gap: 8px; }
+
+.flow-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #425862;
+  background: rgba(237, 247, 242, 0.72);
+  border: 1px solid rgba(81, 111, 116, 0.10);
+}
+
+.flow-card strong { color: #24313a; overflow-wrap: anywhere; }
+.flow-card span,
+.flow-card p { color: #526872; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.flow-card p { margin: 0; }
+
 .testcase-list { margin-top: 12px; display: grid; gap: 8px; max-height: 420px; overflow: auto; }
 
 .testcase-row {
@@ -2783,6 +2800,8 @@ textarea:disabled {
 .app .chat-view.chat-view-dark .plain-text,
 .app .chat-view.chat-view-dark .tag-description,
 .app .chat-view.chat-view-dark .db-row,
+.app .chat-view.chat-view-dark .flow-card span,
+.app .chat-view.chat-view-dark .flow-card p,
 .app .chat-view.chat-view-dark .runtime-variable-note,
 .app .chat-view.chat-view-dark .variable-context-row span,
 .app .chat-view.chat-view-dark .variable-context-row small {
@@ -2792,6 +2811,7 @@ textarea:disabled {
 .app .chat-view.chat-view-dark .tag-card,
 .app .chat-view.chat-view-dark .execution-card,
 .app .chat-view.chat-view-dark .db-card,
+.app .chat-view.chat-view-dark .flow-card,
 .app .chat-view.chat-view-dark .missing-variable-card,
 .app .chat-view.chat-view-dark .session-lock-card,
 .app .chat-view.chat-view-dark .variable-context-row,

@@ -435,6 +435,90 @@ class FlowDetectionEngineTest {
         );
     }
 
+    @Test
+    void detectsSauceDemoInventoryFlowsBeyondLogin() {
+
+        PageElement sort =
+                element(
+                        "SELECT",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "[data-test='product_sort_container']"
+                );
+        sort.setDataTestId("product_sort_container");
+
+        PageElement addToCart =
+                element(
+                        "BUTTON",
+                        "Add to cart",
+                        "button",
+                        "",
+                        "",
+                        "",
+                        "[data-test='add-to-cart-sauce-labs-backpack']"
+                );
+        addToCart.setDataTestId("add-to-cart-sauce-labs-backpack");
+
+        PageElement cart =
+                element(
+                        "A",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "[data-test='shopping-cart-link']"
+                );
+        cart.setDataTestId("shopping-cart-link");
+
+        ElementClassifier.classify(sort);
+        ElementClassifier.classify(addToCart);
+        ElementClassifier.classify(cart);
+
+        List<DetectedFlow> flows =
+                FlowDetectionEngine.detectFlows(
+                        "https://www.saucedemo.com/inventory.html",
+                        List.of(
+                                sort,
+                                addToCart,
+                                cart
+                        )
+                );
+
+        assertTrue(
+                flows.stream()
+                        .anyMatch(flow -> "PRODUCT_SORT".equals(flow.getFlowType()))
+        );
+
+        DetectedFlow addToCartFlow =
+                flows.stream()
+                        .filter(flow -> "ADD_TO_CART".equals(flow.getFlowType()))
+                        .findFirst()
+                        .orElseThrow();
+
+        assertEquals(
+                "add Sauce Labs Backpack to cart",
+                addToCartFlow.getSteps()
+                        .get(0)
+                        .getTarget()
+        );
+
+        assertEquals(
+                "cart",
+                addToCartFlow.getSteps()
+                        .get(1)
+                        .getTarget()
+        );
+
+        assertTrue(
+                flows.stream()
+                        .anyMatch(flow -> "CART_NAVIGATION".equals(flow.getFlowType()))
+        );
+    }
+
     private PageElement element(
 
             String tag,
