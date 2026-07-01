@@ -3,8 +3,8 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   FiArrowLeft, FiBarChart2, FiBookOpen, FiDatabase, FiExternalLink,
-  FiHelpCircle, FiLock, FiLogOut, FiMail, FiMessageSquare, FiPlus,
-  FiSend, FiShield, FiTrash2, FiUpload, FiUser
+  FiHelpCircle, FiLock, FiLogOut, FiMail, FiMessageSquare, FiMoon, FiPlus,
+  FiSend, FiShield, FiSun, FiTrash2, FiUpload, FiUser
 } from "react-icons/fi";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
 import "./index.css";
@@ -12,6 +12,7 @@ import "./index.css";
 const AUTH_STORAGE_KEY = "aif.auth.session.v1";
 const CHAT_STORAGE_PREFIX = "aif.chat.sessions.v2";
 const ACTIVE_CHAT_PREFIX = "aif.chat.activeSession.v2";
+const CHAT_THEME_STORAGE_KEY = "aif.chat.theme.v1";
 const TERMINAL_EXECUTION_STATUSES = new Set(["PASSED", "FAILED", "CANCELLED"]);
 const DEFAULT_API_BASE_URL = "[axiom-ai-production-1ab3.up.railway.app](https://axiom-ai-production-1ab3.up.railway.app)";
 const LOCAL_BACKEND_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
@@ -59,6 +60,12 @@ const loadStoredAuth = () => {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
   } catch { return null; }
+};
+
+const loadStoredChatTheme = () => {
+  try {
+    return localStorage.getItem(CHAT_THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+  } catch { return "light"; }
 };
 
 const sessionTokenForUser = (user) =>
@@ -1052,6 +1059,7 @@ function App() {
   const [adminMetrics, setAdminMetrics] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState("");
+  const [chatTheme, setChatTheme] = useState(loadStoredChatTheme);
 
   const inputRef = useRef(null);
   const frameworkUploadRef = useRef(null);
@@ -1060,6 +1068,8 @@ function App() {
 
   const activeChat = useMemo(() => chats.find(chat => chat.id === activeChatId) || chats[0], [chats, activeChatId]);
   const messages = activeChat?.messages || [];
+  const isChatDark = chatTheme === "dark";
+  const chatThemeToggleLabel = isChatDark ? "Switch to light mode" : "Switch to dark mode";
 
   useEffect(() => { if (!oauthErrorFromLocation()) return; clearOAuthRoute(); }, []);
 
@@ -1148,6 +1158,11 @@ function App() {
   }, [authSessionToken, authUser]);
 
   useEffect(() => { if (!authUser) return; localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser)); }, [authUser]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    localStorage.setItem(CHAT_THEME_STORAGE_KEY, chatTheme);
+  }, [authUser, chatTheme]);
 
   useEffect(() => {
     if (!authUser || !chatSyncReady || chats.length === 0) return;
@@ -1353,6 +1368,10 @@ function App() {
 
   const openAdmin = () => { setView("admin"); loadAdminMetrics(); };
 
+  const toggleChatTheme = () => {
+    setChatTheme(current => current === "dark" ? "light" : "dark");
+  };
+
   const uploadModifiedFramework = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -1505,13 +1524,19 @@ function App() {
                     <AdminView metrics={adminMetrics} loading={adminLoading} error={adminError} onBack={() => setView("chat")} onRefresh={loadAdminMetrics} />
                   </motion.div>
               ) : (
-                  <motion.div key="chat" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="chat-view">
+                  <motion.div key="chat" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className={isChatDark ? "chat-view chat-view-dark" : "chat-view"}>
                     <header className="chat-header">
                       <div>
                         <h2>{activeChat?.domainName || activeChat?.title || "AIF Runtime Intelligence"}</h2>
                         <span>{activeChat?.frameworkLocked ? "One chat, one website, one framework context" : "Create or select a framework session"}</span>
                       </div>
-                      <button type="button" className="secondary-action" onClick={() => setView("help")}><FiHelpCircle />Help</button>
+                      <div className="chat-header-actions">
+                        <button type="button" className="chat-theme-toggle" onClick={toggleChatTheme} aria-label={chatThemeToggleLabel} title={chatThemeToggleLabel} aria-pressed={isChatDark}>
+                          {isChatDark ? <FiSun /> : <FiMoon />}
+                          <span>{isChatDark ? "Light" : "Dark"}</span>
+                        </button>
+                        <button type="button" className="secondary-action" onClick={() => setView("help")}><FiHelpCircle />Help</button>
+                      </div>
                     </header>
 
                     <section className="messages">
