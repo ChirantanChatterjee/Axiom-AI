@@ -85,6 +85,7 @@ Allowed intents:
 - EXECUTE_FEATURE
 - EXECUTE_FLOW
 - SHOW_GENERATED_TEST_TAGS
+- SHOW_GENERATED_TESTS
 - EXECUTE_GENERATED_TESTS
 - REPAIR_GENERATED_TESTS
 - DOWNLOAD_FRAMEWORK
@@ -102,6 +103,7 @@ Rules:
 - EXECUTE_FEATURE means the user wants to run a named generated feature.
 - EXECUTE_FLOW means the user wants to run a detected or stored flow.
 - SHOW_GENERATED_TEST_TAGS means the user asks for available generated-test tags.
+- SHOW_GENERATED_TESTS means the user asks to see/list/provide the generated tests, generated scenarios, generated test cases, or the test-case matrix. Do not use this for tag-only requests and do not use this for run/execute requests.
 - EXECUTE_GENERATED_TESTS means the user wants to run generated Cucumber tests by tag, all generated tests, or a named generated test feature.
 - REPAIR_GENERATED_TESTS means the user asks to inspect, fix, repair, heal, resolve, correct, or update a failed generated/Cucumber test, including natural phrasing like "I see some failures, can you fix it?", "fix the test", "heal this", locator corrections like "the field locator used for \"email\" field is incorrect", assertion-text corrections like "the actual assertion text was X", or invalid-step removal like "the step \"click old button\" is invalid, remove it".
 - If the user provides an actual assertion sentence/text/message/expectation after a failed generated test, classify it as REPAIR_GENERATED_TESTS, even if they do not repeat "fix". Examples: "The actual sentence is --> Please enter a valid number.", "The actual sentence is \"Please enter a valid number\"", "The assertion is incorrect because the actual expectation should be \"Bill Payment Complete\"", "The page says \"Bill Payment Complete\", not \"amount validation error\"".

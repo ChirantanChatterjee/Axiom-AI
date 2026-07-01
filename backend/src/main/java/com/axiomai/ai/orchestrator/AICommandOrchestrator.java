@@ -214,6 +214,9 @@ public class AICommandOrchestrator {
                 case "SHOW_GENERATED_TEST_TAGS" ->
                         showGeneratedTestTags(userId);
 
+                case "SHOW_GENERATED_TESTS" ->
+                        showGeneratedTests(userId);
+
                 case "EXECUTE_GENERATED_TESTS" ->
                         executeGeneratedTests(
                                 command,
@@ -2036,6 +2039,44 @@ public class AICommandOrchestrator {
                 .build();
     }
 
+    private AIResponse showGeneratedTests(
+            String userId
+    ) {
+
+        AutomationSession workspace =
+                automationWorkspaceService
+                        .getSession(userId);
+
+        GeneratedTestExecutionService.GeneratedTestCatalog catalog =
+                generatedTestExecutionService
+                        .listTests(
+                                workspace.getSessionId()
+                        );
+
+        Map<String, Object> data =
+                new LinkedHashMap<>();
+
+        data.put("featureName", "generated tests");
+        data.put("frameworkPath", catalog.getFrameworkRoot());
+        data.put("tags", catalog.getTags());
+        data.put("testCases", catalog.getTestCases());
+        data.put("testCaseCount", catalog.getTestCaseCount());
+
+        return AIResponse.builder()
+
+                .success(true)
+
+                .message(
+                        catalog.getMessage()
+                )
+
+                .type("generated-tests")
+
+                .data(data)
+
+                .build();
+    }
+
     private AIResponse executeGeneratedTests(
             AICommand command,
             String userId
@@ -2843,6 +2884,7 @@ public class AICommandOrchestrator {
 
         return switch (intent) {
             case "REPAIR_GENERATED_TESTS",
+                 "SHOW_GENERATED_TESTS",
                  "SHOW_GENERATED_TEST_TAGS",
                  "SHOW_REPORT",
                  "SHOW_DB",

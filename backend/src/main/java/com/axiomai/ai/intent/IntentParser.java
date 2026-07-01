@@ -71,6 +71,19 @@ public class IntentParser {
         }
 
         if (
+                containsGeneratedTestListRequest(message)
+        ) {
+
+            return AICommand.builder()
+
+                    .intent("SHOW_GENERATED_TESTS")
+
+                    .message(message)
+
+                    .build();
+        }
+
+        if (
                 containsGeneratedTestTagRequest(message)
         ) {
 
@@ -715,6 +728,16 @@ public class IntentParser {
         }
 
         if (
+                containsGeneratedTestListRequest(clause)
+        ) {
+
+            return AICommand.builder()
+                    .intent("SHOW_GENERATED_TESTS")
+                    .message(clause)
+                    .build();
+        }
+
+        if (
                 containsGeneratedTestExecutionRequest(clause)
         ) {
 
@@ -974,6 +997,58 @@ public class IntentParser {
                                 ||
                                 lower.contains("test")
                 );
+    }
+
+    private boolean containsGeneratedTestListRequest(
+            String message
+    ) {
+
+        if (
+                message == null
+                        ||
+                        message.isBlank()
+        ) {
+
+            return false;
+        }
+
+        String lower =
+                message.toLowerCase();
+
+        if (
+                lower.contains("tag")
+                        ||
+                        containsGeneratedTestExecutionRequest(message)
+                        ||
+                        containsGeneratedTestUpdateIntent(message)
+        ) {
+
+            return false;
+        }
+
+        boolean listIntent =
+                Pattern.compile(
+                                "\\b(?:show|list|provide|give|display|what|which)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
+
+        boolean generatedTestReference =
+                lower.contains("generated test")
+                        ||
+                        lower.contains("generated scenario")
+                        ||
+                        lower.contains("test case")
+                        ||
+                        lower.contains("test matrix")
+                        ||
+                        lower.contains("all the tests")
+                        ||
+                        lower.contains("all tests");
+
+        return listIntent
+                &&
+                generatedTestReference;
     }
 
     private boolean containsStandaloneZipRequest(

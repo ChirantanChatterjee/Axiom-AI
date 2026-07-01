@@ -223,6 +223,7 @@ const compactResponseData = (type, data) => {
   if (Array.isArray(data)) return data;
   if (type === "framework") return { sessionId: data.sessionId, frameworkPath: data.frameworkPath, downloadUrl: data.downloadUrl, flowsDetected: data.flowsDetected, flows: data.flows || [], testCaseCount: data.testCaseCount, testCases: data.testCases || [], websiteUrl: data.websiteUrl, domainName: data.domainName };
   if (type === "feature") return { featureName: data.featureName, frameworkPath: data.frameworkPath, downloadUrl: data.downloadUrl, variables: data.variables, testCaseCount: data.testCaseCount, testCases: data.testCases };
+  if (type === "generated-tests") return { featureName: data.featureName || "generated tests", frameworkPath: data.frameworkPath, tags: data.tags || [], testCaseCount: data.testCaseCount, testCases: data.testCases || [] };
   if (type === "generated-test-execution") return { success: data.success, tagExpression: data.tagExpression, reportUrl: data.reportUrl, exitCode: data.exitCode };
   if (type === "generated-test-execution-queued") return { jobId: data.jobId, status: data.status, success: data.success, tagExpression: data.tagExpression, reportUrl: data.reportUrl, exitCode: data.exitCode, message: data.message, errorMessage: data.errorMessage };
   if (type === "download") return { sessionId: data.sessionId, downloadUrl: data.downloadUrl };
@@ -258,7 +259,7 @@ const savedVariableSummary = (variables) =>
     Object.fromEntries(Object.keys(variables || {}).map(variable => [variable, "Saved"]));
 
 const isHandledStructuredType = (type) =>
-    ["tags","generated-test-execution","generated-test-execution-queued","framework","feature",
+    ["tags","generated-tests","generated-test-execution","generated-test-execution-queued","framework","feature",
       "download","framework-upload","missing-variables","session_guard","variables"].includes(type);
 
 const normalizeBackendUrl = (url) => {
@@ -915,7 +916,7 @@ function StructuredMessage({ msg, onDownloadFramework, onSubmitRuntimeVariables,
             </div>
         )}
 
-        {msg.type === "feature" && msg.data && (
+        {(msg.type === "feature" || msg.type === "generated-tests") && msg.data && (
             <div className="execution-card">
               <div className="db-row"><span>Feature:</span><strong>{msg.data.featureName}</strong></div>
               <div className="db-row"><span>Framework:</span><strong>{msg.data.frameworkPath}</strong></div>

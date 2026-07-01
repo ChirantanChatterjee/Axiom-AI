@@ -176,6 +176,92 @@ class GeneratedTestExecutionServiceTest {
     }
 
     @Test
+    void listsGeneratedTestsAsRequirementMatrix() throws Exception {
+
+        String sessionId =
+                "generated-test-list-"
+                        + UUID.randomUUID();
+
+        GeneratedProjectWriterService writerService =
+                writerService();
+
+        Path frameworkRoot =
+                writerService.getFrameworkRoot(sessionId);
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        try {
+
+            Files.createDirectories(featureRoot);
+
+            Files.writeString(
+                    frameworkRoot.resolve("pom.xml"),
+                    "<project></project>"
+            );
+
+            Files.writeString(
+                    featureRoot.resolve("generated.feature"),
+                    """
+                            Feature: generated
+
+                            @generated @flow_login @login
+                            Scenario: User logs into application
+                              Given user launches "https://example.crm.dynamics.com"
+                              When user enters "${username}" into "username"
+                              And user enters "${password}" into "password"
+                              Then flow should complete successfully
+                            """
+            );
+
+            GeneratedTestExecutionService service =
+                    generatedTestExecutionService(writerService);
+
+            GeneratedTestExecutionService.GeneratedTestCatalog catalog =
+                    service.listTests(sessionId);
+
+            assertEquals(
+                    1,
+                    catalog.getTestCaseCount()
+            );
+
+            assertEquals(
+                    "User logs into application",
+                    catalog.getTestCases()
+                            .get(0)
+                            .getScenario()
+            );
+
+            assertTrue(
+                    catalog.getTestCases()
+                            .get(0)
+                            .getTestData()
+                            .contains("${username}")
+            );
+
+            assertTrue(
+                    catalog.getTestCases()
+                            .get(0)
+                            .getExpectedResult()
+                            .contains("flow should complete successfully")
+            );
+
+            assertTrue(
+                    catalog.getTestCases()
+                            .get(0)
+                            .getTags()
+                            .contains("login")
+            );
+
+        } finally {
+
+            writerService.deleteWorkspace(sessionId);
+        }
+    }
+
+    @Test
     void refreshesPersistedFrameworkBeforeParsingTagsWhenLocalCopyIsRunnableButStale() throws Exception {
 
         String sessionId =

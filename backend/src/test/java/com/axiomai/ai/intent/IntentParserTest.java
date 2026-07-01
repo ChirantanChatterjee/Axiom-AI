@@ -100,6 +100,26 @@ class IntentParserTest {
     }
 
     @Test
+    void detectsGeneratedTestListingRequestBeforeOpenAi() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new OpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Can you provide me all the generated tests?"
+                );
+
+        assertEquals(
+                "SHOW_GENERATED_TESTS",
+                command.getIntent()
+        );
+    }
+
+    @Test
     void detectsGiveGeneratedTestTagsRequestBeforeOpenAi() {
 
         IntentParser parser =

@@ -10,6 +10,7 @@ import com.axiomai.ml.AIFRepairMLContext;
 import com.axiomai.ml.AIFTrainingDataService;
 import com.axiomai.ml.MLPrediction;
 import com.axiomai.ml.RepairRecommendationLabel;
+import com.axiomai.qa.models.RequirementTestCase;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -155,6 +156,52 @@ public class GeneratedTestExecutionService {
                 .tags(tags)
                 .message(
                         buildTagMessage(tags)
+                )
+                .build();
+    }
+
+    public GeneratedTestCatalog listTests(
+            String sessionId
+    ) {
+
+        Path frameworkRoot =
+                resolveFrameworkRoot(sessionId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        missingFrameworkMessage()
+                                )
+                        );
+
+        boolean featureFilesChanged =
+                normalizeFeatureFiles(frameworkRoot);
+
+        if (
+                featureFilesChanged
+                        &&
+                        generatedFrameworkPersistenceService != null
+        ) {
+
+            generatedFrameworkPersistenceService
+                    .persistFramework(sessionId);
+        }
+
+        List<GeneratedTestTag> tags =
+                parseTags(frameworkRoot);
+
+        List<RequirementTestCase> testCases =
+                parseGeneratedTestCases(frameworkRoot);
+
+        return GeneratedTestCatalog.builder()
+                .frameworkRoot(
+                        frameworkRoot.toAbsolutePath()
+                                .normalize()
+                                .toString()
+                )
+                .tags(tags)
+                .testCases(testCases)
+                .testCaseCount(testCases.size())
+                .message(
+                        buildTestCatalogMessage(testCases, tags)
                 )
                 .build();
     }
@@ -1634,6 +1681,475 @@ public class GeneratedTestExecutionService {
                 pendingTags.clear();
             }
         }
+    }
+
+    private List<RequirementTestCase> parseGeneratedTestCases(
+            Path frameworkRoot
+    ) {
+
+        List<RequirementTestCase> testCases =
+                new ArrayList<>();
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            List<Path> featureFiles =
+                    paths.filter(Files::isRegularFile)
+                            .filter(path -> path.getFileName()
+                                    .toString()
+                                    .endsWith(".feature"))
+                            .sorted()
+                            .toList();
+
+            for (
+                    Path featureFile
+                    : featureFiles
+            ) {
+
+                parseGeneratedTestCases(
+                        featureFile,
+                        testCases
+                );
+            }
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Unable to parse generated test cases.",
+                    e
+            );
+        }
+
+        return testCases;
+    }
+
+    private void parseGeneratedTestCases(
+            Path featureFile,
+            List<RequirementTestCase> testCases
+    ) throws IOException {
+
+        List<String> lines =
+                Files.readAllLines(featureFile);
+
+        String featureName =
+                featureFile.getFileName()
+                        .toString()
+                        .replaceFirst("\\.feature$", "");
+
+        List<String> pendingTags =
+                new ArrayList<>();
+
+        String scenario =
+                null;
+
+        List<String> scenarioTags =
+                new ArrayList<>();
+
+        List<String> steps =
+                new ArrayList<>();
+
+        for (
+                String line
+                : lines
+        ) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.isBlank()
+            ) {
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Feature:")
+            ) {
+
+                featureName =
+                        trimmed.substring(
+                                "Feature:".length()
+                        )
+                                .trim();
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTags.addAll(
+                        List.of(
+                                trimmed.split("\\s+")
+                        )
+                );
+
+                continue;
+            }
+
+            if (
+                    trimmed.startsWith("Scenario:")
+                            ||
+                            trimmed.startsWith("Scenario Outline:")
+            ) {
+
+                appendGeneratedTestCase(
+                        testCases,
+                        featureName,
+                        scenario,
+                        scenarioTags,
+                        steps
+                );
+
+                scenario =
+                        trimmed.substring(
+                                trimmed.indexOf(':') + 1
+                        )
+                                .trim();
+
+                scenarioTags =
+                        new ArrayList<>(pendingTags);
+
+                pendingTags.clear();
+
+                steps =
+                        new ArrayList<>();
+
+                continue;
+            }
+
+            if (
+                    scenario != null
+                            &&
+                            isGherkinStep(trimmed)
+            ) {
+
+                steps.add(trimmed);
+            }
+        }
+
+        appendGeneratedTestCase(
+                testCases,
+                featureName,
+                scenario,
+                scenarioTags,
+                steps
+        );
+    }
+
+    private void appendGeneratedTestCase(
+            List<RequirementTestCase> testCases,
+            String featureName,
+            String scenario,
+            List<String> tags,
+            List<String> steps
+    ) {
+
+        if (
+                scenario == null
+                        ||
+                        scenario.isBlank()
+        ) {
+
+            return;
+        }
+
+        String tcId =
+                "TC-%03d".formatted(
+                        testCases.size() + 1
+                );
+
+        testCases.add(
+                new RequirementTestCase(
+                        tcId,
+                        "US-%03d".formatted(
+                                testCases.size() + 1
+                        ),
+                        scenario,
+                        testDataSummary(steps),
+                        expectedSummary(steps),
+                        normalizeTags(tags, featureName)
+                )
+        );
+    }
+
+    private boolean isGherkinStep(
+            String line
+    ) {
+
+        return line.startsWith("Given ")
+                ||
+                line.startsWith("When ")
+                ||
+                line.startsWith("And ")
+                ||
+                line.startsWith("Then ")
+                ||
+                line.startsWith("But ");
+    }
+
+    private String testDataSummary(
+            List<String> steps
+    ) {
+
+        if (
+                steps == null
+                        ||
+                        steps.isEmpty()
+        ) {
+
+            return "Generated scenario steps";
+        }
+
+        List<String> actions =
+                new ArrayList<>();
+
+        boolean assertionPhase =
+                false;
+
+        for (
+                String step
+                : steps
+        ) {
+
+            if (
+                    step.startsWith("Then ")
+            ) {
+
+                assertionPhase =
+                        true;
+                continue;
+            }
+
+            if (
+                    assertionPhase
+                            &&
+                            (
+                                    step.startsWith("And ")
+                                            ||
+                                            step.startsWith("But ")
+                            )
+            ) {
+
+                continue;
+            }
+
+            if (
+                    !step.startsWith("Given ")
+            ) {
+
+                String action =
+                        stripStepKeyword(step);
+
+                if (
+                        !action.isBlank()
+                ) {
+
+                    actions.add(action);
+                }
+            }
+        }
+
+        return actions.isEmpty()
+                ? "Generated scenario setup"
+                : String.join(
+                        "; ",
+                        actions
+                );
+    }
+
+    private String expectedSummary(
+            List<String> steps
+    ) {
+
+        if (
+                steps == null
+                        ||
+                        steps.isEmpty()
+        ) {
+
+            return "Scenario completes successfully";
+        }
+
+        List<String> expectations =
+                new ArrayList<>();
+
+        boolean assertionPhase =
+                false;
+
+        for (
+                String step
+                : steps
+        ) {
+
+            if (
+                    step.startsWith("Then ")
+            ) {
+
+                assertionPhase =
+                        true;
+            }
+
+            if (
+                    assertionPhase
+                            &&
+                            (
+                                    step.startsWith("Then ")
+                                            ||
+                                            step.startsWith("And ")
+                                            ||
+                                            step.startsWith("But ")
+                            )
+            ) {
+
+                String expectation =
+                        stripStepKeyword(step);
+
+                if (
+                        !expectation.isBlank()
+                ) {
+
+                    expectations.add(expectation);
+                }
+            }
+        }
+
+        return expectations.isEmpty()
+                ? "Scenario completes successfully"
+                : String.join(
+                        "; ",
+                        expectations
+                );
+    }
+
+    private String stripStepKeyword(
+            String step
+    ) {
+
+        if (
+                step == null
+        ) {
+
+            return "";
+        }
+
+        return step.replaceFirst(
+                        "^(Given|When|And|Then|But)\\s+",
+                        ""
+                )
+                .trim();
+    }
+
+    private List<String> normalizeTags(
+            List<String> tags,
+            String featureName
+    ) {
+
+        Set<String> normalized =
+                new LinkedHashSet<>();
+
+        if (
+                tags != null
+        ) {
+
+            for (
+                    String tag
+                    : tags
+            ) {
+
+                String cleaned =
+                        tag == null
+                                ? ""
+                                : tag.trim();
+
+                if (
+                        cleaned.startsWith("@")
+                ) {
+
+                    cleaned =
+                            cleaned.substring(1);
+                }
+
+                if (
+                        !cleaned.isBlank()
+                ) {
+
+                    normalized.add(cleaned);
+                }
+            }
+        }
+
+        normalized.add("generated");
+        normalized.add(
+                slug(featureName)
+        );
+
+        return new ArrayList<>(normalized);
+    }
+
+    private String slug(
+            String value
+    ) {
+
+        String slug =
+                value == null
+                        ? ""
+                        : value.toLowerCase()
+                        .replaceAll("[^a-z0-9]+", "_")
+                        .replaceAll("^_+|_+$", "");
+
+        return slug.isBlank()
+                ? "generated"
+                : slug;
+    }
+
+    private String buildTestCatalogMessage(
+            List<RequirementTestCase> testCases,
+            List<GeneratedTestTag> tags
+    ) {
+
+        if (
+                testCases == null
+                        ||
+                        testCases.isEmpty()
+        ) {
+
+            return "I could not find any generated test scenarios yet. Generate a framework or add requirement tests first, then ask me for the generated tests again.";
+        }
+
+        return "Here are the generated tests currently linked to this workspace. "
+                + "I found "
+                + testCases.size()
+                + " scenario"
+                + (
+                testCases.size() == 1
+                        ? ""
+                        : "s"
+        )
+                + " across "
+                + (
+                tags == null
+                        ? 0
+                        : tags.size()
+        )
+                + " tag"
+                + (
+                tags != null
+                        &&
+                        tags.size() == 1
+                        ? ""
+                        : "s"
+        )
+                + ".";
     }
 
     private String buildTagMessage(
@@ -4531,6 +5047,10 @@ public class GeneratedTestExecutionService {
         private String frameworkRoot;
 
         private List<GeneratedTestTag> tags;
+
+        private List<RequirementTestCase> testCases;
+
+        private int testCaseCount;
 
         private String message;
     }
