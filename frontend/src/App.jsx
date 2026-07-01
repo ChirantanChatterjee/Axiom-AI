@@ -1440,7 +1440,7 @@ function App() {
         </AnimatePresence>
 
         <motion.div
-            className="app"
+            className={isChatDark ? "app app-chat-dark" : "app"}
             initial={{ opacity: 0, scale: 0.985, filter: "blur(8px)" }}
             animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
             transition={{ duration: 0.55, ease: [0.2, 0.9, 0.3, 1], delay: showLoginSuccess ? 1.1 : 0 }}

@@ -2575,6 +2575,7 @@ textarea:disabled {
   text-transform: none !important;
 }
 
+.app.app-chat-dark,
 .app .chat-view.chat-view-dark {
   --aif-chat-dark-bg: #101316;
   --aif-chat-dark-panel: #161b1f;
@@ -2591,6 +2592,129 @@ textarea:disabled {
   --aif-chat-dark-green: #58cfa0;
   color: var(--aif-chat-dark-text) !important;
   background: var(--aif-chat-dark-bg) !important;
+}
+
+.app.app-chat-dark {
+  color: var(--aif-chat-dark-text) !important;
+  background: var(--aif-chat-dark-bg) !important;
+  border-color: var(--aif-chat-dark-border) !important;
+}
+
+.app.app-chat-dark .sidebar {
+  color: var(--aif-chat-dark-text) !important;
+  background: var(--aif-chat-dark-panel) !important;
+  border: 0 !important;
+  border-right: 1px solid var(--aif-chat-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .sidebar-brand,
+.app.app-chat-dark .sidebar .user-panel {
+  color: var(--aif-chat-dark-text) !important;
+  background: var(--aif-chat-dark-card) !important;
+  border-color: var(--aif-chat-dark-border-strong) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .sidebar-brand h1,
+.app.app-chat-dark .sidebar .user-panel strong,
+.app.app-chat-dark .history-header h3,
+.app.app-chat-dark .session-summary h3,
+.app.app-chat-dark .chat-list-text strong {
+  color: var(--aif-chat-dark-text) !important;
+}
+
+.app.app-chat-dark .sidebar-brand p,
+.app.app-chat-dark .sidebar .user-panel span,
+.app.app-chat-dark .history-count,
+.app.app-chat-dark .session-summary p,
+.app.app-chat-dark .session-summary span,
+.app.app-chat-dark .chat-list-text span {
+  color: var(--aif-chat-dark-muted) !important;
+}
+
+.app.app-chat-dark .new-chat-button,
+.app.app-chat-dark .upload-framework-button {
+  color: #ffffff !important;
+  background: var(--aif-chat-dark-accent) !important;
+  border: 2px solid rgba(227, 180, 94, 0.72) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .new-chat-button svg,
+.app.app-chat-dark .upload-framework-button svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark .new-chat-button:hover,
+.app.app-chat-dark .upload-framework-button:hover {
+  background: #d65f4b !important;
+  border-color: rgba(227, 180, 94, 0.88) !important;
+  box-shadow: 0 0 0 4px rgba(227, 114, 94, 0.14) !important;
+}
+
+.app.app-chat-dark .sidebar-action,
+.app.app-chat-dark .logout-button,
+.app.app-chat-dark .delete-chat-button {
+  color: var(--aif-chat-dark-text) !important;
+  background: var(--aif-chat-dark-card) !important;
+  border-color: var(--aif-chat-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .sidebar-action svg,
+.app.app-chat-dark .logout-button svg,
+.app.app-chat-dark .delete-chat-button svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark .sidebar-action:hover,
+.app.app-chat-dark .logout-button:hover,
+.app.app-chat-dark .delete-chat-button:hover {
+  color: var(--aif-chat-dark-text) !important;
+  background: #242d33 !important;
+  border-color: rgba(227, 114, 94, 0.42) !important;
+  box-shadow: 0 0 0 4px rgba(227, 114, 94, 0.10) !important;
+}
+
+.app.app-chat-dark .sidebar-action.active {
+  color: var(--aif-chat-dark-text) !important;
+  background: #2b2535 !important;
+  border-color: rgba(197, 164, 255, 0.34) !important;
+}
+
+.app.app-chat-dark .chat-select-button,
+.app.app-chat-dark .chat-history-item.active .chat-select-button {
+  color: var(--aif-chat-dark-text) !important;
+  background: var(--aif-chat-dark-card) !important;
+  border: 1px solid var(--aif-chat-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .chat-history-item.active .chat-select-button {
+  background: #13221c !important;
+  border-color: rgba(88, 207, 160, 0.52) !important;
+}
+
+.app.app-chat-dark .chat-select-button:hover {
+  background: var(--aif-chat-dark-card-soft) !important;
+  border-color: rgba(88, 207, 160, 0.34) !important;
+}
+
+.app.app-chat-dark .chat-select-button svg,
+.app.app-chat-dark .chat-lock-icon {
+  color: var(--aif-chat-dark-soft) !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark .session-summary {
+  border-top-color: var(--aif-chat-dark-border) !important;
+}
+
+.app.app-chat-dark .chat-history-list::-webkit-scrollbar-thumb {
+  background: rgba(244, 247, 248, 0.28) !important;
 }
 
 .app .chat-view.chat-view-dark .chat-header,
