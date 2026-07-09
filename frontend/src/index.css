@@ -1404,8 +1404,11 @@ textarea:disabled {
 }
 
 .sidebar {
-  width: 340px;
+  position: relative;
+  width: var(--aif-sidebar-width, 340px);
   min-width: 300px;
+  max-width: min(560px, calc(100vw - 520px));
+  flex: 0 0 var(--aif-sidebar-width, 340px);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -1413,6 +1416,45 @@ textarea:disabled {
   background: rgba(255, 248, 242, 0.96);
   border: 1px solid rgba(245, 230, 221, 0.96);
   border-right: 1px solid rgba(180, 110, 80, 0.14);
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 12px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 20;
+}
+
+.sidebar-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 5px;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.sidebar-resize-handle:hover::after,
+.sidebar-resize-handle:focus-visible::after,
+.app.sidebar-resizing .sidebar-resize-handle::after {
+  background: rgba(0, 0, 0, 0.42);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.10);
+}
+
+.app.sidebar-resizing,
+.app.sidebar-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .sidebar-brand h1 {
@@ -1580,6 +1622,7 @@ textarea:disabled {
 
 .chat-list-text strong { color: #24313a; font-size: 14px; font-weight: 900; }
 .chat-list-text span   { color: #70858d; font-size: 12px; }
+.chat-list-text time   { color: #7c9097; font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-lock-icon        { color: #6a7fc8; }
 
 .delete-chat-button {
@@ -1715,6 +1758,38 @@ textarea:disabled {
 .user    { justify-content: flex-end; }
 .ai      { justify-content: flex-start; }
 
+.message-stack {
+  max-width: min(980px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.user .message-stack {
+  max-width: min(720px, 82%);
+  align-items: flex-end;
+}
+
+.message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #7c9097;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.message-meta span {
+  color: inherit;
+}
+
+.message-meta time {
+  color: inherit;
+  white-space: nowrap;
+}
+
 .message-content {
   max-width: min(980px, 100%);
   padding: 4px 0;
@@ -1722,6 +1797,10 @@ textarea:disabled {
   line-height: 1.7;
   font-size: 15px;
   overflow-wrap: anywhere;
+}
+
+.message-stack .message-content {
+  max-width: 100%;
 }
 
 .user .message-content {
@@ -2200,7 +2279,8 @@ textarea:disabled {
 @media (max-width: 980px) {
   body { overflow: auto; }
   .app { min-height: 100vh; height: auto; flex-direction: column; }
-  .sidebar { width: 100%; min-width: 0; max-height: none; }
+  .sidebar { width: 100%; min-width: 0; max-width: none; flex: 0 0 auto; max-height: none; }
+  .sidebar-resize-handle { display: none; }
   .chat-container { min-height: 720px; }
   .help-grid { grid-template-columns: 1fr; }
 }
@@ -2244,7 +2324,7 @@ textarea:disabled {
   --aif-framework-session-border: #b8b8b8;
   --aif-status-pass: #25835c;
   --aif-status-fail: #ad3e3e;
-  --aif-chat-user-panel-fill: #F0FEE6;
+  --aif-chat-user-panel-fill: #ffffff;
   --aif-chat-send-fill: #D94126;
   --aif-chat-ink: #000000;
   --aif-chat-paper: #ffffff;
@@ -2292,7 +2372,7 @@ textarea:disabled {
 
 .chat-header span, .help-header span, .session-summary p, .session-summary span,
 .tag-description, .help-section p, .profile-card p, .plain-text, .db-row,
-.input-meta, .user-panel span, .chat-list-text span, .runtime-variable-note,
+.input-meta, .user-panel span, .chat-list-text span, .chat-list-text time, .message-meta, .message-meta *, .runtime-variable-note,
 .variable-context-row span, .variable-context-row small, .metric-card small,
 .admin-detail-heading span, .admin-detail-row span, .admin-empty {
   color: var(--aif-minimal-text-soft) !important;
@@ -2383,8 +2463,8 @@ textarea:disabled {
 
 .app .sidebar .user-panel {
   color: var(--aif-chat-ink) !important;
-  background: var(--aif-chat-user-panel-fill) !important;
-  border: 2px solid #88FC74 !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.18) !important;
   box-shadow: none !important;
 }
 
@@ -3451,6 +3531,9 @@ textarea:disabled {
 .app .admin-detail-heading span,
 .app .admin-detail-row span,
 .app .chat-list-text span,
+.app .chat-list-text time,
+.app .message-meta,
+.app .message-meta *,
 .app .tag-description,
 .app .runtime-variable-note,
 .app .variable-context-row span,
@@ -3666,6 +3749,351 @@ textarea:disabled {
 .app .chat-view .execution-card .status-fail,
 .app .chat-view .testcase-row .status-fail {
   color: var(--aif-status-fail) !important;
+}
+
+/* Dark mode consistency pass: ChatGPT-like gray scale, preserving send, logo, and pass/fail accents. */
+.app.app-chat-dark {
+  --aif-dark-bg: #212121;
+  --aif-dark-sidebar: #171717;
+  --aif-dark-surface: #2f2f2f;
+  --aif-dark-surface-hover: #3a3a3a;
+  --aif-dark-surface-raised: #262626;
+  --aif-dark-text: #f4f4f4;
+  --aif-dark-text-soft: rgba(255, 255, 255, 0.72);
+  --aif-dark-text-muted: rgba(255, 255, 255, 0.56);
+  --aif-dark-border: rgba(255, 255, 255, 0.14);
+  --aif-dark-border-strong: rgba(255, 255, 255, 0.24);
+  --aif-dark-glow: rgba(255, 255, 255, 0.14);
+}
+
+.app.app-chat-dark,
+.app.app-chat-dark .chat-container,
+.app.app-chat-dark .chat-view,
+.app.app-chat-dark .view-fill,
+.app.app-chat-dark .help-page,
+.app.app-chat-dark .profile-page,
+.app.app-chat-dark .admin-page,
+.app.app-chat-dark .messages,
+.app.app-chat-dark .help-grid,
+.app.app-chat-dark .profile-body,
+.app.app-chat-dark .admin-body {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-bg) !important;
+  border-color: var(--aif-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .sidebar {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-sidebar) !important;
+  border-right: 1px solid var(--aif-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .sidebar-resize-handle:hover::after,
+.app.app-chat-dark .sidebar-resize-handle:focus-visible::after,
+.app.app-chat-dark.sidebar-resizing .sidebar-resize-handle::after {
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+.app.app-chat-dark .chat-header,
+.app.app-chat-dark .help-header,
+.app.app-chat-dark .input-area {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-bg) !important;
+  border-color: var(--aif-dark-border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.app.app-chat-dark .sidebar-brand,
+.app.app-chat-dark .sidebar .user-panel,
+.app.app-chat-dark .session-summary,
+.app.app-chat-dark .help-section,
+.app.app-chat-dark .profile-card,
+.app.app-chat-dark .profile-details div,
+.app.app-chat-dark .metric-card,
+.app.app-chat-dark .admin-detail-panel,
+.app.app-chat-dark .admin-detail-row,
+.app.app-chat-dark .admin-empty,
+.app.app-chat-dark .tag-card,
+.app.app-chat-dark .execution-card,
+.app.app-chat-dark .db-card,
+.app.app-chat-dark .flow-card,
+.app.app-chat-dark .missing-variable-card,
+.app.app-chat-dark .session-lock-card,
+.app.app-chat-dark .variable-context-row,
+.app.app-chat-dark .runtime-variable-table-wrap,
+.app.app-chat-dark .testcase-row,
+.app.app-chat-dark .response-box {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-surface) !important;
+  border: 1px solid var(--aif-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .sidebar .user-panel {
+  background: var(--aif-dark-surface) !important;
+  border-color: var(--aif-dark-border) !important;
+}
+
+.app.app-chat-dark .chat-header h2,
+.app.app-chat-dark .help-header h2,
+.app.app-chat-dark .sidebar-brand h1,
+.app.app-chat-dark .history-header h3,
+.app.app-chat-dark .session-summary h3,
+.app.app-chat-dark .help-section h3,
+.app.app-chat-dark .profile-card h3,
+.app.app-chat-dark .profile-details strong,
+.app.app-chat-dark .metric-card strong,
+.app.app-chat-dark .admin-detail-heading h3,
+.app.app-chat-dark .admin-detail-row strong,
+.app.app-chat-dark .user-panel strong,
+.app.app-chat-dark .chat-list-text strong,
+.app.app-chat-dark .db-row strong,
+.app.app-chat-dark .flow-card strong,
+.app.app-chat-dark .testcase-row strong,
+.app.app-chat-dark .message-content,
+.app.app-chat-dark .message-content *:not(.status-pass):not(.status-fail) {
+  color: var(--aif-dark-text) !important;
+}
+
+.app.app-chat-dark .chat-header span,
+.app.app-chat-dark .help-header span,
+.app.app-chat-dark .sidebar-brand p,
+.app.app-chat-dark .user-panel span,
+.app.app-chat-dark .history-count,
+.app.app-chat-dark .session-summary p,
+.app.app-chat-dark .session-summary span,
+.app.app-chat-dark .help-section p,
+.app.app-chat-dark .profile-card p,
+.app.app-chat-dark .profile-details span,
+.app.app-chat-dark .metric-card span,
+.app.app-chat-dark .metric-card small,
+.app.app-chat-dark .admin-detail-heading span,
+.app.app-chat-dark .admin-detail-row span,
+.app.app-chat-dark .chat-list-text span,
+.app.app-chat-dark .chat-list-text time,
+.app.app-chat-dark .message-meta,
+.app.app-chat-dark .message-meta *,
+.app.app-chat-dark .tag-description,
+.app.app-chat-dark .runtime-variable-note,
+.app.app-chat-dark .variable-context-row span,
+.app.app-chat-dark .variable-context-row small,
+.app.app-chat-dark .flow-card span,
+.app.app-chat-dark .flow-card p,
+.app.app-chat-dark .db-row,
+.app.app-chat-dark .input-meta,
+.app.app-chat-dark .plain-text {
+  color: var(--aif-dark-text-soft) !important;
+}
+
+.app.app-chat-dark .ai .message-content,
+.app.app-chat-dark .user .message-content {
+  color: var(--aif-dark-text) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .ai .message-content.message-important,
+.app.app-chat-dark .user .message-content.message-important,
+.app.app-chat-dark .message-content.message-type-error,
+.app.app-chat-dark .message-content.message-type-missing-variables {
+  background: var(--aif-dark-surface) !important;
+  border: 1px solid var(--aif-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .help-section code,
+.app.app-chat-dark .tag-pill,
+.app.app-chat-dark .variable-pill,
+.app.app-chat-dark .runtime-variable-name strong,
+.app.app-chat-dark .runtime-variable-table th,
+.app.app-chat-dark .testcase-header,
+.app.app-chat-dark .missing-variable-card code {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-surface-raised) !important;
+  border-color: var(--aif-dark-border) !important;
+}
+
+.app.app-chat-dark .runtime-variable-table td {
+  color: var(--aif-dark-text) !important;
+  border-color: var(--aif-dark-border) !important;
+}
+
+.app.app-chat-dark .chat-select-button,
+.app.app-chat-dark .chat-select-button:hover {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-surface-raised) !important;
+  border: 1px solid var(--aif-dark-border) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .chat-select-button:hover {
+  background: var(--aif-dark-surface-hover) !important;
+  border-color: var(--aif-dark-border-strong) !important;
+}
+
+.app.app-chat-dark .chat-history-item.active .chat-select-button {
+  color: #111111 !important;
+  background: #f4f4f4 !important;
+  border-color: #f4f4f4 !important;
+  box-shadow: inset 4px 0 0 #111111, 0 0 0 4px rgba(255, 255, 255, 0.14) !important;
+}
+
+.app.app-chat-dark .chat-history-item.active .chat-select-button *,
+.app.app-chat-dark .chat-history-item.active .chat-list-text strong,
+.app.app-chat-dark .chat-history-item.active .chat-list-text span,
+.app.app-chat-dark .chat-history-item.active .chat-lock-icon {
+  color: #111111 !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark .new-chat-button,
+.app.app-chat-dark .upload-framework-button {
+  color: #ffffff !important;
+  background: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .new-chat-button *,
+.app.app-chat-dark .upload-framework-button * {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark .sidebar-action,
+.app.app-chat-dark .logout-button,
+.app.app-chat-dark .secondary-action,
+.app.app-chat-dark .chat-theme-toggle,
+.app.app-chat-dark .delete-chat-button,
+.app.app-chat-dark .profile-upload-button,
+.app.app-chat-dark .profile-remove-button,
+.app.app-chat-dark .report-link,
+.app.app-chat-dark .runtime-variable-submit {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-surface) !important;
+  border: 1px solid var(--aif-dark-border-strong) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .sidebar-action.active,
+.app.app-chat-dark .metric-card.active {
+  color: #111111 !important;
+  background: #f4f4f4 !important;
+  border-color: #f4f4f4 !important;
+}
+
+.app.app-chat-dark .sidebar-action.active *,
+.app.app-chat-dark .metric-card.active * {
+  color: #111111 !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark button:hover:not(:disabled),
+.app.app-chat-dark .report-link:hover,
+.app.app-chat-dark .profile-upload-button:hover {
+  box-shadow: 0 0 0 4px var(--aif-dark-glow), 0 14px 30px rgba(0, 0, 0, 0.34) !important;
+}
+
+.app.app-chat-dark .new-chat-button:hover:not(:disabled),
+.app.app-chat-dark .upload-framework-button:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: #000000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 4px var(--aif-dark-glow), 0 14px 30px rgba(0, 0, 0, 0.34) !important;
+}
+
+.app.app-chat-dark .input-shell,
+.app.app-chat-dark .chat-view.chat-view-dark .input-shell {
+  color: var(--aif-dark-text) !important;
+  background: var(--aif-dark-surface) !important;
+  border: 1px solid var(--aif-dark-border-strong) !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .input-shell:focus-within,
+.app.app-chat-dark .chat-view.chat-view-dark .input-shell:focus-within {
+  border-color: rgba(255, 255, 255, 0.38) !important;
+  box-shadow: 0 0 0 4px var(--aif-dark-glow) !important;
+}
+
+.app.app-chat-dark .input-shell textarea,
+.app.app-chat-dark .runtime-variable-input {
+  color: var(--aif-dark-text) !important;
+  background: transparent !important;
+  caret-color: var(--aif-dark-text) !important;
+  border-color: var(--aif-dark-border-strong) !important;
+}
+
+.app.app-chat-dark .input-shell textarea::placeholder,
+.app.app-chat-dark .runtime-variable-input::placeholder {
+  color: var(--aif-dark-text-muted) !important;
+}
+
+.app.app-chat-dark .input-area button,
+.app.app-chat-dark .input-area button:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: var(--aif-chat-send-fill) !important;
+  border-color: var(--aif-chat-send-fill) !important;
+}
+
+.app.app-chat-dark .input-area button svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark .profile-avatar {
+  color: #111111 !important;
+  background: #f4f4f4 !important;
+  border: 1px solid rgba(255, 255, 255, 0.34) !important;
+}
+
+.app.app-chat-dark .profile-avatar svg {
+  color: #111111 !important;
+  stroke: currentColor !important;
+}
+
+.app.app-chat-dark .brand-emblem,
+.app.app-chat-dark .brand-emblem *,
+.app.app-chat-dark .runtime-core,
+.app.app-chat-dark .runtime-core * {
+  color: #ffffff !important;
+}
+
+.app.app-chat-dark .execution-card:has(.status-pass) {
+  background: #132820 !important;
+  border-color: rgba(88, 207, 160, 0.46) !important;
+}
+
+.app.app-chat-dark .execution-card:has(.status-fail) {
+  background: #321d1b !important;
+  border-color: rgba(255, 147, 133, 0.46) !important;
+}
+
+.app.app-chat-dark .status-pass,
+.app.app-chat-dark .ai .execution-card .status-pass,
+.app.app-chat-dark .execution-card .status-pass,
+.app.app-chat-dark .testcase-row .status-pass,
+.app.app-chat-dark .chat-view .status-pass,
+.app.app-chat-dark .chat-view .ai .execution-card .status-pass,
+.app.app-chat-dark .chat-view .execution-card .status-pass,
+.app.app-chat-dark .chat-view .testcase-row .status-pass {
+  color: #6be2a8 !important;
+}
+
+.app.app-chat-dark .status-fail,
+.app.app-chat-dark .ai .execution-card .status-fail,
+.app.app-chat-dark .execution-card .status-fail,
+.app.app-chat-dark .testcase-row .status-fail,
+.app.app-chat-dark .chat-view .status-fail,
+.app.app-chat-dark .chat-view .ai .execution-card .status-fail,
+.app.app-chat-dark .chat-view .execution-card .status-fail,
+.app.app-chat-dark .chat-view .testcase-row .status-fail {
+  color: #ff9385 !important;
 }
 
 @media (max-width: 640px) {
