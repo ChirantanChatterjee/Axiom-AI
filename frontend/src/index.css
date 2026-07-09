@@ -2240,8 +2240,8 @@ textarea:disabled {
   --aif-minimal-border-soft: rgba(0, 0, 0, 0.09);
   --aif-minimal-border-strong: rgba(0, 0, 0, 0.22);
   --aif-minimal-shadow: 0 14px 34px rgba(0, 0, 0, 0.06);
-  --aif-framework-session-fill: #fff2eb;
-  --aif-framework-session-border: #E3B45E;
+  --aif-framework-session-fill: #f7f7f7;
+  --aif-framework-session-border: #b8b8b8;
   --aif-status-pass: #25835c;
   --aif-status-fail: #ad3e3e;
   --aif-chat-user-panel-fill: #F0FEE6;
@@ -2988,42 +2988,42 @@ textarea:disabled {
   background: rgba(244, 247, 248, 0.28) !important;
 }
 
-/* Final chat palette: warm sidebar selection, neutral chat canvas. */
+/* Final chat palette: monochrome sidebar selection, neutral chat canvas. */
 .app .chat-select-button,
 .app .chat-select-button:hover {
   color: #151515 !important;
-  background: linear-gradient(180deg, #fff8f4 0%, #ffefe7 100%) !important;
-  border: 2px solid #e9bc64 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f1f1 100%) !important;
+  border: 2px solid #b8b8b8 !important;
   box-shadow: none !important;
 }
 
 .app .chat-history-item.active .chat-select-button {
-  color: #000000 !important;
-  background: linear-gradient(180deg, #ffe2d4 0%, #ffd4bf 100%) !important;
-  border: 2px solid #d94126 !important;
-  box-shadow: 0 0 0 3px rgba(227, 180, 94, 0.46), inset 4px 0 0 #e3b45e !important;
+  color: #ffffff !important;
+  background: linear-gradient(180deg, #2f2f2f 0%, #111111 100%) !important;
+  border: 2px solid #000000 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18), inset 4px 0 0 #ffffff !important;
 }
 
 .app .chat-history-item.active .chat-list-text strong,
 .app .chat-history-item.active .chat-list-text span,
 .app .chat-history-item.active .chat-select-button svg,
 .app .chat-history-item.active .chat-lock-icon {
-  color: #000000 !important;
+  color: #ffffff !important;
   opacity: 1 !important;
 }
 
 .app .delete-chat-button {
   color: #202020 !important;
-  background: #fff8f4 !important;
-  border: 1px solid #e9bc64 !important;
+  background: #ffffff !important;
+  border: 1px solid #b8b8b8 !important;
   box-shadow: none !important;
 }
 
 .app .delete-chat-button:hover {
-  color: #000000 !important;
-  background: #ffe8dc !important;
-  border-color: #d94126 !important;
-  box-shadow: 0 0 0 3px rgba(227, 180, 94, 0.32) !important;
+  color: #ffffff !important;
+  background: #111111 !important;
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.14) !important;
 }
 
 .app .chat-view,
@@ -3298,6 +3298,55 @@ textarea:disabled {
   width: 18px !important;
   height: 18px !important;
   color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+/* Final button contrast guard for controls inside chat messages. */
+.app .chat-view .runtime-variable-submit,
+.app .chat-view.chat-view-dark .runtime-variable-submit {
+  color: #ffffff !important;
+  background: #111111 !important;
+  border: 1px solid #111111 !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .runtime-variable-submit:hover:not(:disabled),
+.app .chat-view.chat-view-dark .runtime-variable-submit:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: #000000 !important;
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.10) !important;
+}
+
+.app .chat-view .runtime-variable-submit:disabled,
+.app .chat-view.chat-view-dark .runtime-variable-submit:disabled {
+  color: #ffffff !important;
+  background: #5f5f5f !important;
+  border-color: #5f5f5f !important;
+  opacity: 0.76 !important;
+}
+
+.app .chat-view .report-link,
+.app .chat-view.chat-view-dark .report-link {
+  color: #111111 !important;
+  background: #ffffff !important;
+  border: 1px solid #5f5f5f !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .report-link:hover,
+.app .chat-view.chat-view-dark .report-link:hover {
+  color: #ffffff !important;
+  background: #111111 !important;
+  border-color: #111111 !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.10) !important;
+}
+
+.app .chat-view .runtime-variable-submit *,
+.app .chat-view .report-link *,
+.app .chat-view.chat-view-dark .runtime-variable-submit *,
+.app .chat-view.chat-view-dark .report-link * {
+  color: currentColor !important;
   stroke: currentColor !important;
 }
 
