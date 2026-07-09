@@ -2240,8 +2240,8 @@ textarea:disabled {
   --aif-minimal-border-soft: rgba(0, 0, 0, 0.09);
   --aif-minimal-border-strong: rgba(0, 0, 0, 0.22);
   --aif-minimal-shadow: 0 14px 34px rgba(0, 0, 0, 0.06);
-  --aif-framework-session-fill: #E6FEFB;
-  --aif-framework-session-border: #04CDCD;
+  --aif-framework-session-fill: #fff2eb;
+  --aif-framework-session-border: #E3B45E;
   --aif-status-pass: #25835c;
   --aif-status-fail: #ad3e3e;
   --aif-chat-user-panel-fill: #F0FEE6;
@@ -2253,10 +2253,10 @@ textarea:disabled {
   --aif-chat-pass-border: #BFEFA9;
   --aif-chat-fail-bg: #FFF0EF;
   --aif-chat-fail-border: #F0B6B0;
-  --aif-ai-message-fill-final: #FBECE9;
-  --aif-ai-message-border-final: #E3725E;
-  --aif-chat-input-fill-final: #FBECE9;
-  --aif-chat-input-border-final: #E3725E;
+  --aif-ai-message-fill-final: #f4f4f4;
+  --aif-ai-message-border-final: #8d8d8d;
+  --aif-chat-input-fill-final: #f4f4f4;
+  --aif-chat-input-border-final: #8d8d8d;
   --aif-inter-font-final: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -2988,9 +2988,347 @@ textarea:disabled {
   background: rgba(244, 247, 248, 0.28) !important;
 }
 
+/* Final chat palette: warm sidebar selection, neutral chat canvas. */
+.app .chat-select-button,
+.app .chat-select-button:hover {
+  color: #151515 !important;
+  background: linear-gradient(180deg, #fff8f4 0%, #ffefe7 100%) !important;
+  border: 2px solid #e9bc64 !important;
+  box-shadow: none !important;
+}
+
+.app .chat-history-item.active .chat-select-button {
+  color: #000000 !important;
+  background: linear-gradient(180deg, #ffe2d4 0%, #ffd4bf 100%) !important;
+  border: 2px solid #d94126 !important;
+  box-shadow: 0 0 0 3px rgba(227, 180, 94, 0.46), inset 4px 0 0 #e3b45e !important;
+}
+
+.app .chat-history-item.active .chat-list-text strong,
+.app .chat-history-item.active .chat-list-text span,
+.app .chat-history-item.active .chat-select-button svg,
+.app .chat-history-item.active .chat-lock-icon {
+  color: #000000 !important;
+  opacity: 1 !important;
+}
+
+.app .delete-chat-button {
+  color: #202020 !important;
+  background: #fff8f4 !important;
+  border: 1px solid #e9bc64 !important;
+  box-shadow: none !important;
+}
+
+.app .delete-chat-button:hover {
+  color: #000000 !important;
+  background: #ffe8dc !important;
+  border-color: #d94126 !important;
+  box-shadow: 0 0 0 3px rgba(227, 180, 94, 0.32) !important;
+}
+
+.app .chat-view,
+.app .chat-view .chat-header,
+.app .chat-view .messages,
+.app .chat-view .input-area {
+  color: #111111 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f6f6 100%) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .chat-header {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f1f1 100%) !important;
+}
+
+.app .chat-view .message-content.message-important,
+.app .chat-view .tag-card,
+.app .chat-view .execution-card,
+.app .chat-view .db-card,
+.app .chat-view .flow-card,
+.app .chat-view .missing-variable-card,
+.app .chat-view .session-lock-card,
+.app .chat-view .variable-context-row,
+.app .chat-view .runtime-variable-table-wrap,
+.app .chat-view .testcase-row,
+.app .chat-view .response-box,
+.app .chat-view .report-link {
+  color: #111111 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eeeeee 100%) !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .tag-pill,
+.app .chat-view .variable-pill,
+.app .chat-view .runtime-variable-name strong,
+.app .chat-view .runtime-variable-table th,
+.app .chat-view .testcase-header,
+.app .chat-view .missing-variable-card code {
+  color: #111111 !important;
+  background: linear-gradient(180deg, #f8f8f8 0%, #e7e7e7 100%) !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .input-shell,
+.app .chat-view.chat-view-dark .input-shell {
+  color: #111111 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eeeeee 100%) !important;
+  border: 2px solid rgba(0, 0, 0, 0.28) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .input-shell:focus-within,
+.app .chat-view.chat-view-dark .input-shell:focus-within {
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.10) !important;
+}
+
+.app .chat-view .runtime-variable-input,
+.app .chat-view.chat-view-dark .runtime-variable-input {
+  color: #111111 !important;
+  caret-color: #111111 !important;
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.24) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .runtime-variable-input:focus,
+.app .chat-view.chat-view-dark .runtime-variable-input:focus {
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.10) !important;
+}
+
+.app .chat-view .input-area button,
+.app .chat-view .runtime-variable-submit,
+.app .chat-view.chat-view-dark .input-area button {
+  color: #ffffff !important;
+  background: #111111 !important;
+  border-color: #111111 !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .input-area button:hover,
+.app .chat-view .runtime-variable-submit:hover,
+.app .chat-view.chat-view-dark .input-area button:hover {
+  color: #ffffff !important;
+  background: #000000 !important;
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.10) !important;
+}
+
+.app .chat-view .chat-header-actions .secondary-action,
+.app .chat-view .chat-theme-toggle,
+.app .chat-view.chat-view-dark .chat-header-actions .secondary-action,
+.app .chat-view.chat-view-dark .chat-theme-toggle {
+  color: #111111 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eeeeee 100%) !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .chat-header-actions .secondary-action:hover,
+.app .chat-view .chat-theme-toggle:hover,
+.app .chat-view.chat-view-dark .chat-header-actions .secondary-action:hover,
+.app .chat-view.chat-view-dark .chat-theme-toggle:hover {
+  color: #000000 !important;
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.34) !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+.app .chat-view .message-content,
+.app .chat-view .message-content *,
+.app .chat-view .tag-description,
+.app .chat-view .db-row,
+.app .chat-view .flow-card span,
+.app .chat-view .flow-card p,
+.app .chat-view .runtime-variable-note,
+.app .chat-view .variable-context-row span,
+.app .chat-view .variable-context-row small,
+.app .chat-view.chat-view-dark .message-content,
+.app .chat-view.chat-view-dark .message-content *,
+.app .chat-view.chat-view-dark .tag-description,
+.app .chat-view.chat-view-dark .db-row,
+.app .chat-view.chat-view-dark .flow-card span,
+.app .chat-view.chat-view-dark .flow-card p,
+.app .chat-view.chat-view-dark .runtime-variable-note,
+.app .chat-view.chat-view-dark .variable-context-row span,
+.app .chat-view.chat-view-dark .variable-context-row small {
+  color: #111111 !important;
+}
+
+.app .chat-view .input-shell textarea,
+.app .chat-view.chat-view-dark .input-shell textarea {
+  color: #111111 !important;
+  caret-color: #111111 !important;
+  background: transparent !important;
+}
+
+.app .chat-view .input-shell textarea::placeholder,
+.app .chat-view.chat-view-dark .input-shell textarea::placeholder,
+.app .chat-view .input-meta,
+.app .chat-view.chat-view-dark .input-meta {
+  color: rgba(0, 0, 0, 0.58) !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+}
+
+.app .chat-view .thinking-dot,
+.app .chat-view.chat-view-dark .thinking-dot {
+  background: #111111 !important;
+}
+
+.app .chat-view .execution-card:has(.status-pass) {
+  background: #E6FEEB !important;
+}
+
+.app .chat-view .execution-card:has(.status-fail) {
+  background: #F6B3A4 !important;
+}
+
+.app .chat-view .status-pass,
+.app .chat-view .ai .execution-card .status-pass,
+.app .chat-view .execution-card .status-pass,
+.app .chat-view .testcase-row .status-pass {
+  color: var(--aif-status-pass) !important;
+}
+
+.app .chat-view .status-fail,
+.app .chat-view .ai .execution-card .status-fail,
+.app .chat-view .execution-card .status-fail,
+.app .chat-view .testcase-row .status-fail {
+  color: var(--aif-status-fail) !important;
+}
+
+.app .chat-view.chat-view-dark .status-pass,
+.app .chat-view.chat-view-dark .ai .execution-card .status-pass,
+.app .chat-view.chat-view-dark .execution-card .status-pass,
+.app .chat-view.chat-view-dark .testcase-row .status-pass {
+  color: #6be2a8 !important;
+}
+
+.app .chat-view.chat-view-dark .status-fail,
+.app .chat-view.chat-view-dark .ai .execution-card .status-fail,
+.app .chat-view.chat-view-dark .execution-card .status-fail,
+.app .chat-view.chat-view-dark .testcase-row .status-fail {
+  color: #ff9385 !important;
+}
+
+/* ChatGPT-style dynamic composer. */
+.app .chat-view .input-area,
+.app .chat-view.chat-view-dark .input-area {
+  position: relative !important;
+  display: block !important;
+  padding: 16px 24px 24px !important;
+  background: linear-gradient(180deg, rgba(250, 250, 250, 0.78) 0%, #ffffff 100%) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.app .chat-view .input-shell,
+.app .chat-view.chat-view-dark .input-shell {
+  width: 100% !important;
+  max-width: 880px !important;
+  margin: 0 auto !important;
+  overflow: hidden !important;
+  color: #111111 !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.16) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+.app .chat-view .input-shell:focus-within,
+.app .chat-view.chat-view-dark .input-shell:focus-within {
+  border-color: rgba(0, 0, 0, 0.52) !important;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06), 0 10px 28px rgba(0, 0, 0, 0.10) !important;
+}
+
+.app .chat-view .input-shell textarea,
+.app .chat-view.chat-view-dark .input-shell textarea {
+  min-height: 56px !important;
+  max-height: 180px !important;
+  padding: 16px 64px 16px 18px !important;
+  color: #111111 !important;
+  caret-color: #111111 !important;
+  background: #ffffff !important;
+  line-height: 1.5 !important;
+}
+
+.app .chat-view .input-shell textarea::placeholder,
+.app .chat-view.chat-view-dark .input-shell textarea::placeholder {
+  color: rgba(0, 0, 0, 0.48) !important;
+}
+
+.app .chat-view .input-meta,
+.app .chat-view.chat-view-dark .input-meta {
+  display: none !important;
+}
+
+.app .chat-view .input-area button,
+.app .chat-view.chat-view-dark .input-area button {
+  position: absolute !important;
+  right: max(36px, calc((100% - 880px) / 2 + 12px)) !important;
+  bottom: 34px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 999px !important;
+  color: #ffffff !important;
+  background: var(--aif-chat-send-fill) !important;
+  border: 1px solid var(--aif-chat-send-fill) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .input-area button:hover,
+.app .chat-view.chat-view-dark .input-area button:hover {
+  color: #ffffff !important;
+  background: #c93620 !important;
+  border-color: #c93620 !important;
+  box-shadow: 0 0 0 4px rgba(217, 65, 38, 0.16) !important;
+}
+
+.app .chat-view .input-area button:disabled,
+.app .chat-view.chat-view-dark .input-area button:disabled {
+  cursor: wait !important;
+  opacity: 0.58 !important;
+}
+
+.app .chat-view .input-area button svg,
+.app .chat-view.chat-view-dark .input-area button svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
 @media (max-width: 640px) {
   .app .chat-header-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .app .chat-view .input-area,
+  .app .chat-view.chat-view-dark .input-area {
+    padding: 12px 14px 18px !important;
+  }
+
+  .app .chat-view .input-shell,
+  .app .chat-view.chat-view-dark .input-shell {
+    border-radius: 24px !important;
+  }
+
+  .app .chat-view .input-shell textarea,
+  .app .chat-view.chat-view-dark .input-shell textarea {
+    min-height: 52px !important;
+    padding: 14px 58px 14px 16px !important;
+  }
+
+  .app .chat-view .input-area button,
+  .app .chat-view.chat-view-dark .input-area button {
+    right: 24px !important;
+    bottom: 26px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
   }
 }
