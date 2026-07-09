@@ -4123,6 +4123,74 @@ textarea:disabled {
   background-image: none !important;
 }
 
+/* Final chat-message action contrast guard. Keeps runtime/report buttons readable before hover. */
+.app .chat-view .message-content .runtime-variable-submit,
+.app .chat-view .message-content .report-link,
+.app .chat-view .message-content button,
+.app .chat-view .runtime-variable-submit,
+.app .chat-view .report-link {
+  color: #ffffff !important;
+  background: #000000 !important;
+  background-image: none !important;
+  border: 1px solid #000000 !important;
+  box-shadow: none !important;
+}
+
+.app.app-chat-dark .chat-view .message-content .runtime-variable-submit,
+.app.app-chat-dark .chat-view .message-content .report-link,
+.app.app-chat-dark .chat-view .message-content button,
+.app.app-chat-dark .chat-view .runtime-variable-submit,
+.app.app-chat-dark .chat-view .report-link {
+  color: #ffffff !important;
+  background: #000000 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-view .message-content .runtime-variable-submit *,
+.app .chat-view .message-content .report-link *,
+.app .chat-view .message-content button *,
+.app .chat-view .runtime-variable-submit *,
+.app .chat-view .report-link *,
+.app.app-chat-dark .chat-view .message-content .runtime-variable-submit *,
+.app.app-chat-dark .chat-view .message-content .report-link *,
+.app.app-chat-dark .chat-view .message-content button *,
+.app.app-chat-dark .chat-view .runtime-variable-submit *,
+.app.app-chat-dark .chat-view .report-link * {
+  color: inherit !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.app .chat-view .message-content .runtime-variable-submit:hover:not(:disabled),
+.app .chat-view .message-content .report-link:hover,
+.app .chat-view .message-content button:hover:not(:disabled),
+.app .chat-view .runtime-variable-submit:hover:not(:disabled),
+.app .chat-view .report-link:hover,
+.app.app-chat-dark .chat-view .message-content .runtime-variable-submit:hover:not(:disabled),
+.app.app-chat-dark .chat-view .message-content .report-link:hover,
+.app.app-chat-dark .chat-view .message-content button:hover:not(:disabled),
+.app.app-chat-dark .chat-view .runtime-variable-submit:hover:not(:disabled),
+.app.app-chat-dark .chat-view .report-link:hover {
+  color: #ffffff !important;
+  background: #000000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.12) !important;
+}
+
+.app .chat-view .message-content .runtime-variable-submit:disabled,
+.app .chat-view .message-content button:disabled,
+.app .chat-view .runtime-variable-submit:disabled,
+.app.app-chat-dark .chat-view .message-content .runtime-variable-submit:disabled,
+.app.app-chat-dark .chat-view .message-content button:disabled,
+.app.app-chat-dark .chat-view .runtime-variable-submit:disabled {
+  color: #ffffff !important;
+  background: #5f5f5f !important;
+  border-color: #5f5f5f !important;
+  opacity: 0.82 !important;
+}
+
 @media (max-width: 640px) {
   .app .chat-header-actions {
     width: 100%;
