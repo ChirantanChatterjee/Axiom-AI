@@ -53,7 +53,7 @@ const createChatSession = () => {
   const now = new Date().toISOString();
   return {
     id: createChatId(), title: "New chat", websiteUrl: null, domainName: null,
-    frameworkLocked: false, createdAt: now, updatedAt: now,
+    frameworkLocked: false, createdAt: now, updatedAt: now, lastActivityAt: now,
     messages: [createWelcomeMessage(now)]
   };
 };
@@ -210,6 +210,48 @@ const loadInitialChatState = (user) => {
   return { chats, activeChatId };
 };
 
+const parseTimeValue = (value) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const messageActivityTime = (message) =>
+    Math.max(
+        parseTimeValue(message?.lastActivityAt),
+        parseTimeValue(message?.createdAt),
+        parseTimeValue(message?.timestamp),
+        parseTimeValue(message?.time),
+        parseTimeValue(message?.updatedAt)
+    );
+
+const latestMessageTime = (messages) =>
+    (Array.isArray(messages) ? messages : []).reduce((latest, message) => Math.max(latest, messageActivityTime(message)), 0);
+
+const chatActivityTime = (chat) => {
+  const explicitActivityTime = Math.max(parseTimeValue(chat?.lastActivityAt), parseTimeValue(chat?.activityAt));
+  if (explicitActivityTime > 0) return explicitActivityTime;
+  const latestMessageActivityTime = latestMessageTime(chat?.messages);
+  if (latestMessageActivityTime > 0) return latestMessageActivityTime;
+  return Math.max(parseTimeValue(chat?.updatedAt), parseTimeValue(chat?.createdAt));
+};
+
+const activityIsoString = (chat, fallbackValue) => {
+  const value = chatActivityTime(chat) || parseTimeValue(fallbackValue) || Date.now();
+  return new Date(value).toISOString();
+};
+
+const sortChatsNewestFirst = (chatList) =>
+    [...(Array.isArray(chatList) ? chatList : [])]
+        .map((chat, index) => ({ chat, index }))
+        .sort((left, right) =>
+            chatActivityTime(right.chat) - chatActivityTime(left.chat) ||
+            parseTimeValue(right.chat?.createdAt) - parseTimeValue(left.chat?.createdAt) ||
+            left.index - right.index
+        )
+        .map(({ chat }) => chat);
+
 const normalizeChatSession = (chat) => {
   const fallback = createChatSession();
   if (!chat) return fallback;
@@ -217,7 +259,8 @@ const normalizeChatSession = (chat) => {
   const updatedAt = chat.updatedAt || chat.lastUpdatedAt || createdAt;
   const rawMessages = Array.isArray(chat.messages) && chat.messages.length > 0
       ? chat.messages : fallback.messages;
-  return {
+  const messages = rawMessages.map(message => normalizeMessage(message, createdAt));
+  const normalizedChat = {
     ...fallback, ...chat,
     id: chat.id || chat.sessionId || fallback.id,
     title: chat.title || "New chat",
@@ -226,7 +269,11 @@ const normalizeChatSession = (chat) => {
     frameworkLocked: Boolean(chat.frameworkLocked),
     createdAt,
     updatedAt,
-    messages: rawMessages.map(message => normalizeMessage(message, createdAt))
+    messages
+  };
+  return {
+    ...normalizedChat,
+    lastActivityAt: activityIsoString(normalizedChat, updatedAt)
   };
 };
 
@@ -268,14 +315,6 @@ const isMeaningfulChat = (chat) =>
     Boolean(chat?.websiteUrl || chat?.domainName || chat?.frameworkLocked ||
         (chat?.title && chat.title !== "New chat") || !isWelcomeOnlyChat(chat));
 
-const chatTime = (chat) => {
-  const value = Date.parse(chat?.updatedAt || chat?.createdAt || "");
-  return Number.isNaN(value) ? 0 : value;
-};
-
-const sortChatsNewestFirst = (chatList) =>
-    [...(Array.isArray(chatList) ? chatList : [])].sort((left, right) => chatTime(right) - chatTime(left));
-
 const mergeChatSessions = (remoteChats, localChats, deletedIds = new Set()) => {
   const merged = new Map();
   remoteChats.forEach(chat => {
@@ -286,7 +325,7 @@ const mergeChatSessions = (remoteChats, localChats, deletedIds = new Set()) => {
   localChats.map(normalizeChatSession).filter(isMeaningfulChat).forEach(localChat => {
     if (isDeletedChatId(deletedIds, localChat.id)) return;
     const remoteChat = merged.get(localChat.id);
-    if (!remoteChat || chatTime(localChat) >= chatTime(remoteChat)) {
+    if (!remoteChat || chatActivityTime(localChat) >= chatActivityTime(remoteChat)) {
       merged.set(localChat.id, {
         ...remoteChat, ...localChat,
         messages: Array.isArray(localChat.messages) && localChat.messages.length > 0
@@ -1296,7 +1335,7 @@ function App() {
       const nextState = await loadRemoteChatState(authenticatedUser);
       remoteLoadedTokenRef.current = sessionTokenForUser(authenticatedUser);
       setAuthUser(authenticatedUser);
-      setChats(nextState.chats);
+      setChats(sortChatsNewestFirst(nextState.chats));
       setActiveChatId(nextState.activeChatId);
       setChatSyncReady(true);
       setDeletingChatIds([]);
@@ -1347,7 +1386,7 @@ function App() {
         const nextState = await loadRemoteChatState(authUser);
         if (cancelled) return;
         remoteLoadedTokenRef.current = authSessionToken;
-        setChats(nextState.chats);
+        setChats(sortChatsNewestFirst(nextState.chats));
         setActiveChatId(nextState.activeChatId);
         setDeletingChatIds([]);
         setChatSyncReady(true);
@@ -1399,11 +1438,11 @@ function App() {
     };
   }, [isResizingSidebar]);
 
-  useEffect(() => {
-    if (!authUser || !chatSyncReady || chats.length === 0) return;
-    const deletedIds = loadDeletedChatIds(authUser);
-    const activeChats = filterDeletedChats(chats, deletedIds);
-    localStorage.setItem(chatStorageKey(authUser), JSON.stringify(activeChats));
+	  useEffect(() => {
+	    if (!authUser || !chatSyncReady || chats.length === 0) return;
+	    const deletedIds = loadDeletedChatIds(authUser);
+	    const activeChats = sortChatsNewestFirst(filterDeletedChats(chats, deletedIds).map(normalizeChatSession));
+	    localStorage.setItem(chatStorageKey(authUser), JSON.stringify(activeChats));
     const syncTimer = window.setTimeout(() => {
       activeChats.filter(isMeaningfulChat).forEach(chat => { saveRemoteChatSession(authUser, chat).catch(error => { reportChatSyncFailure("save", error); }); });
     }, 500);
@@ -1432,8 +1471,9 @@ function App() {
   const patchChat = (chatId, patcher) => {
     setChats(prev => sortChatsNewestFirst(prev.map(chat => {
       if (chat.id !== chatId) return chat;
+      const now = new Date().toISOString();
       const patch = patcher(chat) || {};
-      return { ...chat, ...patch, updatedAt: new Date().toISOString() };
+      return { ...chat, ...patch, updatedAt: now, lastActivityAt: patch.lastActivityAt || now };
     })));
   };
 
@@ -1490,7 +1530,7 @@ function App() {
 
   const startNewChat = () => {
     const chat = createChatSession();
-    setChats(prev => [chat, ...prev]);
+    setChats(prev => sortChatsNewestFirst([chat, ...prev]));
     setActiveChatId(chat.id);
     setInput("");
     setView("chat");
@@ -1592,7 +1632,7 @@ function App() {
       const nextState = await loadRemoteChatState(authenticatedUser);
       remoteLoadedTokenRef.current = sessionTokenForUser(authenticatedUser);
       setAuthUser(authenticatedUser);
-      setChats(nextState.chats);
+      setChats(sortChatsNewestFirst(nextState.chats));
       setActiveChatId(nextState.activeChatId);
       setChatSyncReady(true);
       setDeletingChatIds([]);
@@ -1791,7 +1831,7 @@ function App() {
               <div className="chat-history-list">
                 {sortedChats.map(chat => {
                   const isDeletingChat = deletingChatIds.includes(chat.id);
-                  const chatTimestamp = chat.updatedAt || chat.createdAt;
+                  const chatTimestamp = chat.lastActivityAt || chat.updatedAt || chat.createdAt;
                   return (
                       <div key={chat.id} className={chat.id === activeChatId ? "chat-history-item active" : "chat-history-item"}>
                         <button type="button" className="chat-select-button" onClick={() => { setActiveChatId(chat.id); setView("chat"); }}>
@@ -1815,7 +1855,7 @@ function App() {
             <div className="session-summary">
               <h3>Active Session</h3>
               <p>{activeChat?.websiteUrl || "Ready for a new framework"}</p>
-              <span>Updated {formatChatTime(activeChat?.updatedAt)} · Created {formatChatTime(activeChat?.createdAt)}</span>
+              <span>Updated {formatChatTime(activeChat?.lastActivityAt || activeChat?.updatedAt)} · Created {formatChatTime(activeChat?.createdAt)}</span>
               <input ref={frameworkUploadRef} type="file" accept=".zip" className="hidden-file-input" onChange={uploadModifiedFramework} />
               <button type="button" className="upload-framework-button" onClick={() => frameworkUploadRef.current?.click()} disabled={uploadingFramework || !activeChat}>
                 <FiUpload />{uploadingFramework ? "Uploading..." : "Upload modified framework"}
