@@ -4096,6 +4096,33 @@ textarea:disabled {
   color: #ff9385 !important;
 }
 
+/* Framework Sessions active card: remove inset strip and keep the selected session solid black. */
+.app .chat-history-section .chat-history-item.active .chat-select-button,
+.app.app-chat-dark .chat-history-section .chat-history-item.active .chat-select-button {
+  color: #ffffff !important;
+  background: #000000 !important;
+  background-image: none !important;
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.16) !important;
+}
+
+.app .chat-history-section .chat-history-item.active .chat-select-button::before,
+.app .chat-history-section .chat-history-item.active .chat-select-button::after,
+.app.app-chat-dark .chat-history-section .chat-history-item.active .chat-select-button::before,
+.app.app-chat-dark .chat-history-section .chat-history-item.active .chat-select-button::after {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.app .chat-history-section .chat-history-item.active .chat-select-button *,
+.app.app-chat-dark .chat-history-section .chat-history-item.active .chat-select-button * {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+
 @media (max-width: 640px) {
   .app .chat-header-actions {
     width: 100%;
