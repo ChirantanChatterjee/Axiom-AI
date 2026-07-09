@@ -6,6 +6,8 @@ import com.axiomai.workspace.entity.WorkspaceChatSessionEntity;
 import com.axiomai.workspace.repository.WorkspaceChatSessionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.lang.reflect.Proxy;
 import java.time.Instant;
@@ -15,6 +17,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WorkspaceChatSessionServiceTest {
 
@@ -150,6 +155,242 @@ class WorkspaceChatSessionServiceTest {
         );
     }
 
+    @Test
+    void deletedChatIsNotListedAndCannotBeSavedAgain() {
+
+        Map<String, WorkspaceChatSessionEntity> store =
+                new HashMap<>();
+
+        WorkspaceChatSessionService service =
+                new WorkspaceChatSessionService(
+                        repository(store),
+                        new StubAuthService(),
+                        new ObjectMapper()
+                );
+
+        service.saveForCurrentUser(
+                "token-a",
+                "session-a",
+                WorkspaceChatSessionDto.builder()
+                        .title("Checkout tests")
+                        .messages(List.of(
+                                Map.of(
+                                        "sender",
+                                        "user",
+                                        "text",
+                                        "Generate checkout tests"
+                                ),
+                                Map.of(
+                                        "sender",
+                                        "ai",
+                                        "text",
+                                        "Generated checkout tests."
+                                )
+                        ))
+                        .build()
+        );
+
+        WorkspaceChatSessionDeletionResult deletion =
+                service.deleteForCurrentUser(
+                        "token-a",
+                        "session-a"
+                );
+
+        assertTrue(
+                deletion.deleted()
+        );
+
+        assertEquals(
+                2,
+                deletion.messageCount()
+        );
+
+        assertTrue(
+                store.get("session-a")
+                        .isDeleted()
+        );
+
+        assertEquals(
+                0,
+                service.listForCurrentUser("token-a")
+                        .size()
+        );
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> service.saveForCurrentUser(
+                                "token-a",
+                                "session-a",
+                                WorkspaceChatSessionDto.builder()
+                                        .title("Resurrected")
+                                        .build()
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.GONE,
+                exception.getStatusCode()
+        );
+
+        assertEquals(
+                0,
+                service.listForCurrentUser("token-a")
+                        .size()
+        );
+    }
+
+    @Test
+    void deletedChatCannotBeResurrectedByAppend() {
+
+        Map<String, WorkspaceChatSessionEntity> store =
+                new HashMap<>();
+
+        WorkspaceChatSessionService service =
+                new WorkspaceChatSessionService(
+                        repository(store),
+                        new StubAuthService(),
+                        new ObjectMapper()
+                );
+
+        service.appendMessagesForCurrentUser(
+                "token-a",
+                "session-a",
+                WorkspaceChatSessionDto.builder()
+                        .build(),
+                List.of(
+                        Map.of(
+                                "sender",
+                                "user",
+                                "text",
+                                "Run checkout"
+                        )
+                )
+        );
+
+        service.deleteForCurrentUser(
+                "token-a",
+                "session-a"
+        );
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> service.appendMessagesForCurrentUser(
+                                "token-a",
+                                "session-a",
+                                WorkspaceChatSessionDto.builder()
+                                        .build(),
+                                List.of(
+                                        Map.of(
+                                                "sender",
+                                                "ai",
+                                                "text",
+                                                "Started checkout run."
+                                        )
+                                )
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.GONE,
+                exception.getStatusCode()
+        );
+
+        assertEquals(
+                0,
+                service.listForCurrentUser("token-a")
+                        .size()
+        );
+    }
+
+    @Test
+    void deletingMissingChatCreatesTombstoneThatBlocksFutureSave() {
+
+        Map<String, WorkspaceChatSessionEntity> store =
+                new HashMap<>();
+
+        WorkspaceChatSessionService service =
+                new WorkspaceChatSessionService(
+                        repository(store),
+                        new StubAuthService(),
+                        new ObjectMapper()
+                );
+
+        WorkspaceChatSessionDeletionResult deletion =
+                service.deleteForCurrentUser(
+                        "token-a",
+                        "session-a"
+                );
+
+        assertTrue(
+                deletion.deleted()
+        );
+
+        assertTrue(
+                store.get("session-a")
+                        .isDeleted()
+        );
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> service.saveForCurrentUser(
+                                "token-a",
+                                "session-a",
+                                WorkspaceChatSessionDto.builder()
+                                        .title("Old local chat")
+                                        .build()
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.GONE,
+                exception.getStatusCode()
+        );
+    }
+
+    @Test
+    void userCannotDeleteAnotherUsersChat() {
+
+        Map<String, WorkspaceChatSessionEntity> store =
+                new HashMap<>();
+
+        WorkspaceChatSessionService service =
+                new WorkspaceChatSessionService(
+                        repository(store),
+                        new StubAuthService(),
+                        new ObjectMapper()
+                );
+
+        service.saveForCurrentUser(
+                "token-a",
+                "session-a",
+                WorkspaceChatSessionDto.builder()
+                        .title("Private chat")
+                        .build()
+        );
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> service.deleteForCurrentUser(
+                                "token-b",
+                                "session-a"
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.FORBIDDEN,
+                exception.getStatusCode()
+        );
+
+        assertFalse(
+                store.get("session-a")
+                        .isDeleted()
+        );
+    }
+
     private WorkspaceChatSessionRepository repository(
             Map<String, WorkspaceChatSessionEntity> store
     ) {
@@ -174,15 +415,19 @@ class WorkspaceChatSessionServiceTest {
                             );
                             yield entity;
                         }
-                        case "findByUserIdOrderByUpdatedAtDesc" ->
+                        case "findActiveByUserIdOrderByUpdatedAtDesc" ->
                                 store.values()
                                         .stream()
                                         .filter(entity -> entity.getUserId()
                                                 .equals(args[0]))
+                                        .filter(entity -> !entity.isDeleted())
                                         .sorted((left, right) -> right.getUpdatedAt()
                                                 .compareTo(left.getUpdatedAt()))
                                         .toList();
                         case "deleteById" -> store.remove(args[0]);
+                        case "delete" -> store.remove(
+                                ((WorkspaceChatSessionEntity) args[0]).getSessionId()
+                        );
                         default -> null;
                     };
                 }
@@ -206,9 +451,12 @@ class WorkspaceChatSessionServiceTest {
                 String token
         ) {
 
+            boolean secondUser =
+                    "token-b".equals(token);
+
             return AifUserEntity.builder()
-                    .id(1L)
-                    .email("user@example.test")
+                    .id(secondUser ? 2L : 1L)
+                    .email(secondUser ? "other@example.test" : "user@example.test")
                     .displayName("User")
                     .passwordHash("hash")
                     .provider("email")

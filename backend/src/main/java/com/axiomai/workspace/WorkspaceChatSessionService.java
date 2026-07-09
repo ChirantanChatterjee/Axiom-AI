@@ -46,7 +46,7 @@ public class WorkspaceChatSessionService {
                 authService.requireUser(token);
 
         List<WorkspaceChatSessionDto> sessions =
-                repository.findByUserIdOrderByUpdatedAtDesc(user.getId())
+                repository.findActiveByUserIdOrderByUpdatedAtDesc(user.getId())
                 .stream()
                 .map(this::toDto)
                 .toList();
@@ -86,11 +86,16 @@ public class WorkspaceChatSessionService {
                                                 : request.getCreatedAt(),
                                         Instant.now()
                                 ))
+                                .deleted(false)
                                 .build());
 
         assertOwner(
                 entity,
                 user
+        );
+
+        assertNotDeleted(
+                entity
         );
 
         Instant now =
@@ -124,6 +129,9 @@ public class WorkspaceChatSessionService {
                         &&
                         request.isFrameworkLocked()
         );
+        entity.setDeleted(false);
+        entity.setDeletedAt(null);
+        entity.setDeletedBy(null);
         entity.setUpdatedAt(now);
         entity.setMessagesJson(
                 serializeMessages(
@@ -177,6 +185,10 @@ public class WorkspaceChatSessionService {
         assertOwner(
                 entity,
                 user
+        );
+
+        assertNotDeleted(
+                entity
         );
 
         entity.setUserEmail(
@@ -240,13 +252,29 @@ public class WorkspaceChatSessionService {
             String sessionId
     ) {
 
-        repository.deleteById(
-                normalizeSessionId(sessionId)
+        String normalizedSessionId =
+                normalizeSessionId(sessionId);
+
+        WorkspaceChatSessionEntity entity =
+                repository.findById(normalizedSessionId)
+                        .orElse(null);
+
+        if (
+                entity == null
+        ) {
+
+            return;
+        }
+
+        softDelete(
+                entity,
+                null,
+                normalizedSessionId
         );
     }
 
     @Transactional
-    public boolean deleteForCurrentUser(
+    public WorkspaceChatSessionDeletionResult deleteForCurrentUser(
             String token,
             String sessionId
     ) {
@@ -265,7 +293,30 @@ public class WorkspaceChatSessionService {
                 entity == null
         ) {
 
-            return false;
+            WorkspaceChatSessionEntity tombstone =
+                    deletedTombstone(
+                            normalizedSessionId,
+                            user
+                    );
+
+            repository.save(tombstone);
+
+            log.info(
+                    "Workspace chat session delete requested userId={} email={} sessionId={} rowCount={} messageCount={} alreadyDeleted={} mode={}",
+                    user.getId(),
+                    maskedEmail(user.getEmail()),
+                    normalizedSessionId,
+                    1,
+                    0,
+                    false,
+                    "soft"
+            );
+
+            return WorkspaceChatSessionDeletionResult.softDeleted(
+                    normalizedSessionId,
+                    false,
+                    0
+            );
         }
 
         assertOwner(
@@ -273,9 +324,27 @@ public class WorkspaceChatSessionService {
                 user
         );
 
-        repository.delete(entity);
+        WorkspaceChatSessionDeletionResult result =
+                softDelete(
+                        entity,
+                        user,
+                        normalizedSessionId
+                );
 
-        return true;
+        log.info(
+                "Workspace chat session delete requested userId={} email={} sessionId={} rowCount={} messageCount={} alreadyDeleted={} mode={}",
+                user.getId(),
+                maskedEmail(user.getEmail()),
+                normalizedSessionId,
+                result.alreadyDeleted()
+                        ? 0
+                        : 1,
+                result.messageCount(),
+                result.alreadyDeleted(),
+                result.deletionMode()
+        );
+
+        return result;
     }
 
     private WorkspaceChatSessionDto toDto(
@@ -319,6 +388,7 @@ public class WorkspaceChatSessionService {
                         ))
                         .updatedAt(Instant.now())
                         .messagesJson("[]")
+                        .deleted(false)
                         .build());
     }
 
@@ -419,6 +489,82 @@ public class WorkspaceChatSessionService {
         }
 
         messages.add(normalized);
+    }
+
+    private WorkspaceChatSessionDeletionResult softDelete(
+            WorkspaceChatSessionEntity entity,
+            AifUserEntity user,
+            String normalizedSessionId
+    ) {
+
+        int messageCount =
+                deserializeMessages(
+                        entity.getMessagesJson()
+                )
+                        .size();
+
+        boolean alreadyDeleted =
+                entity.isDeleted();
+
+        if (
+                !alreadyDeleted
+        ) {
+
+            Instant now =
+                    Instant.now();
+
+            entity.setDeleted(true);
+            entity.setDeletedAt(now);
+            entity.setDeletedBy(
+                    user == null
+                            ? "system"
+                            : firstNonBlank(
+                                    user.getEmail(),
+                                    user.getId() == null
+                                            ? "unknown"
+                                            : String.valueOf(user.getId())
+                            )
+            );
+            entity.setUpdatedAt(now);
+
+            repository.save(entity);
+        }
+
+        return WorkspaceChatSessionDeletionResult.softDeleted(
+                normalizedSessionId,
+                alreadyDeleted,
+                messageCount
+        );
+    }
+
+    private WorkspaceChatSessionEntity deletedTombstone(
+            String normalizedSessionId,
+            AifUserEntity user
+    ) {
+
+        Instant now =
+                Instant.now();
+
+        return WorkspaceChatSessionEntity.builder()
+                .sessionId(normalizedSessionId)
+                .userId(user.getId())
+                .userEmail(user.getEmail())
+                .title("Deleted chat")
+                .frameworkLocked(false)
+                .createdAt(now)
+                .updatedAt(now)
+                .messagesJson("[]")
+                .deleted(true)
+                .deletedAt(now)
+                .deletedBy(
+                        firstNonBlank(
+                                user.getEmail(),
+                                user.getId() == null
+                                        ? "unknown"
+                                        : String.valueOf(user.getId())
+                        )
+                )
+                .build();
     }
 
     private String serializeMessages(
@@ -618,6 +764,23 @@ public class WorkspaceChatSessionService {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "This chat belongs to a different user."
+            );
+        }
+    }
+
+    private void assertNotDeleted(
+            WorkspaceChatSessionEntity entity
+    ) {
+
+        if (
+                entity != null
+                        &&
+                        entity.isDeleted()
+        ) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.GONE,
+                    "This chat has been deleted."
             );
         }
     }

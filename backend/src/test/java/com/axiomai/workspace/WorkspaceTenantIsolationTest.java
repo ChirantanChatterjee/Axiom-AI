@@ -833,14 +833,22 @@ class WorkspaceTenantIsolationTest {
         }
 
         @Override
-        public boolean deleteForCurrentUser(
+        public WorkspaceChatSessionDeletionResult deleteForCurrentUser(
                 String token,
                 String sessionId
         ) {
 
             deleteForCurrentUserCalls++;
 
-            return deleteForCurrentUserResult;
+            return deleteForCurrentUserResult
+                    ? WorkspaceChatSessionDeletionResult.softDeleted(
+                            sessionId,
+                            false,
+                            0
+                    )
+                    : WorkspaceChatSessionDeletionResult.notFound(
+                            sessionId
+                    );
         }
 
         @Override

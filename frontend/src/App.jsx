@@ -12,6 +12,7 @@ import "./index.css";
 const AUTH_STORAGE_KEY = "aif.auth.session.v1";
 const CHAT_STORAGE_PREFIX = "aif.chat.sessions.v2";
 const ACTIVE_CHAT_PREFIX = "aif.chat.activeSession.v2";
+const DELETED_CHAT_STORAGE_PREFIX = "aif.chat.deletedSessions.v1";
 const CHAT_THEME_STORAGE_KEY = "aif.chat.theme.v1";
 const TERMINAL_EXECUTION_STATUSES = new Set(["PASSED", "FAILED", "CANCELLED"]);
 const DEFAULT_API_BASE_URL = "[axiom-ai-production-1ab3.up.railway.app](https://axiom-ai-production-1ab3.up.railway.app)";
@@ -54,6 +55,63 @@ const userStorageKey = (user) =>
 
 const chatStorageKey = (user) => `${CHAT_STORAGE_PREFIX}.${userStorageKey(user)}`;
 const activeChatKey  = (user) => `${ACTIVE_CHAT_PREFIX}.${userStorageKey(user)}`;
+const deletedChatKey = (user) => `${DELETED_CHAT_STORAGE_PREFIX}.${userStorageKey(user)}`;
+
+const logChatDeleteDev = (message, details = {}) => {
+  if (import.meta.env.DEV) console.debug(`AIF chat delete: ${message}`, details);
+};
+
+const loadDeletedChatIds = (user) => {
+  try {
+    const stored = localStorage.getItem(deletedChatKey(user));
+    const parsed = stored ? JSON.parse(stored) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveDeletedChatIds = (user, deletedIds) => {
+  const ids = Array.from(deletedIds || []).filter(Boolean).map(String);
+  localStorage.setItem(deletedChatKey(user), JSON.stringify(ids));
+};
+
+const rememberDeletedChat = (user, chatId) => {
+  if (!chatId) return loadDeletedChatIds(user);
+  const deletedIds = loadDeletedChatIds(user);
+  deletedIds.add(String(chatId));
+  saveDeletedChatIds(user, deletedIds);
+  return deletedIds;
+};
+
+const isDeletedChatId = (deletedIds, chatId) =>
+    Boolean(chatId && deletedIds?.has(String(chatId)));
+
+const isChatDeletedLocally = (user, chatId) =>
+    isDeletedChatId(loadDeletedChatIds(user), chatId);
+
+const filterDeletedChats = (chats, deletedIds) =>
+    (Array.isArray(chats) ? chats : []).filter(chat => !isDeletedChatId(deletedIds, chat?.id || chat?.sessionId));
+
+const removeStoredChatById = (user, chatId) => {
+  if (!chatId) return;
+  try {
+    const key = chatStorageKey(user);
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const remaining = parsed.filter(chat => (chat?.id || chat?.sessionId) !== chatId);
+        localStorage.setItem(key, JSON.stringify(remaining));
+      }
+    }
+    if (localStorage.getItem(activeChatKey(user)) === chatId) {
+      localStorage.removeItem(activeChatKey(user));
+    }
+  } catch {
+    localStorage.removeItem(activeChatKey(user));
+  }
+};
 
 const loadStoredAuth = () => {
   try {
@@ -84,9 +142,12 @@ const loadChats = (user) => {
 };
 
 const loadInitialChatState = (user) => {
-  const chats = loadChats(user);
+  const deletedIds = loadDeletedChatIds(user);
+  const storedChats = filterDeletedChats(loadChats(user).map(normalizeChatSession), deletedIds);
+  const chats = storedChats.length > 0 ? storedChats : [createChatSession()];
   const storedActiveId = localStorage.getItem(activeChatKey(user));
-  const activeChatId = chats.some(chat => chat.id === storedActiveId)
+  if (isDeletedChatId(deletedIds, storedActiveId)) localStorage.removeItem(activeChatKey(user));
+  const activeChatId = storedActiveId && !isDeletedChatId(deletedIds, storedActiveId) && chats.some(chat => chat.id === storedActiveId)
       ? storedActiveId : chats[0].id;
   return { chats, activeChatId };
 };
@@ -119,6 +180,10 @@ const reportChatSyncFailure = (action, error) => {
 
 const saveRemoteChatSession = async (user, chat) => {
   if (!sessionTokenForUser(user) || !chat?.id) return;
+  if (isChatDeletedLocally(user, chat.id)) {
+    logChatDeleteDev("skipping save for locally deleted chat", { chatId: chat.id });
+    return;
+  }
   await axios.put(
       `${API_BASE_URL}/api/workspace/sessions/${encodeURIComponent(chat.id)}`,
       normalizeChatSession(chat),
@@ -142,13 +207,15 @@ const chatTime = (chat) => {
   return Number.isNaN(value) ? 0 : value;
 };
 
-const mergeChatSessions = (remoteChats, localChats) => {
+const mergeChatSessions = (remoteChats, localChats, deletedIds = new Set()) => {
   const merged = new Map();
   remoteChats.forEach(chat => {
     const normalized = normalizeChatSession(chat);
+    if (isDeletedChatId(deletedIds, normalized.id)) return;
     merged.set(normalized.id, normalized);
   });
   localChats.map(normalizeChatSession).filter(isMeaningfulChat).forEach(localChat => {
+    if (isDeletedChatId(deletedIds, localChat.id)) return;
     const remoteChat = merged.get(localChat.id);
     if (!remoteChat || chatTime(localChat) >= chatTime(remoteChat)) {
       merged.set(localChat.id, {
@@ -163,38 +230,40 @@ const mergeChatSessions = (remoteChats, localChats) => {
 
 const loadRemoteChatState = async (user) => {
   if (!sessionTokenForUser(user)) return loadInitialChatState(user);
+  const deletedIds = loadDeletedChatIds(user);
   const localState = loadInitialChatState(user);
   const guestState = userStorageKey(user) === "guest"
       ? { chats: [], activeChatId: null } : loadInitialChatState(null);
-  const localChats = mergeChatSessions(localState.chats, guestState.chats);
+  const localChats = mergeChatSessions(localState.chats, guestState.chats, deletedIds);
   try {
     const response = await axios.get(`${API_BASE_URL}/api/workspace/sessions`, { headers: authHeaders(user) });
-    const remoteChats = Array.isArray(response.data) ? response.data.map(normalizeChatSession) : [];
+    const remoteChats = filterDeletedChats(Array.isArray(response.data) ? response.data.map(normalizeChatSession) : [], deletedIds);
     if (remoteChats.length > 0) {
-      const mergedChats = mergeChatSessions(remoteChats, localChats);
+      const mergedChats = mergeChatSessions(remoteChats, localChats, deletedIds);
       const storedActiveId = localStorage.getItem(activeChatKey(user)) ||
           localState.activeChatId || guestState.activeChatId;
       localStorage.setItem(chatStorageKey(user), JSON.stringify(mergedChats));
-      await Promise.all(mergedChats.filter(isMeaningfulChat).map(chat =>
+      await Promise.all(mergedChats.filter(chat => isMeaningfulChat(chat) && !isDeletedChatId(deletedIds, chat.id)).map(chat =>
           saveRemoteChatSession(user, chat).catch(error => { reportChatSyncFailure("save", error); return null; })
       ));
       return {
         chats: mergedChats,
-        activeChatId: mergedChats.some(chat => chat.id === storedActiveId) ? storedActiveId : mergedChats[0].id
+        activeChatId: !isDeletedChatId(deletedIds, storedActiveId) && mergedChats.some(chat => chat.id === storedActiveId) ? storedActiveId : mergedChats[0].id
       };
     }
   } catch (error) {
     reportChatSyncFailure("load", error);
     return loadInitialChatState(user);
   }
-  await Promise.all(localChats.map(chat =>
+  const availableLocalChats = localChats.length > 0 ? localChats : [createChatSession()];
+  await Promise.all(availableLocalChats.filter(chat => isMeaningfulChat(chat) && !isDeletedChatId(deletedIds, chat.id)).map(chat =>
       saveRemoteChatSession(user, chat).catch(error => { reportChatSyncFailure("save", error); return null; })
   ));
-  localStorage.setItem(chatStorageKey(user), JSON.stringify(localChats));
+  localStorage.setItem(chatStorageKey(user), JSON.stringify(availableLocalChats));
   return {
-    chats: localChats,
-    activeChatId: localChats.some(chat => chat.id === localState.activeChatId)
-        ? localState.activeChatId : localChats[0]?.id
+    chats: availableLocalChats,
+    activeChatId: !isDeletedChatId(deletedIds, localState.activeChatId) && availableLocalChats.some(chat => chat.id === localState.activeChatId)
+        ? localState.activeChatId : availableLocalChats[0]?.id
   };
 };
 
@@ -1198,15 +1267,22 @@ function App() {
 
   useEffect(() => {
     if (!authUser || !chatSyncReady || chats.length === 0) return;
-    localStorage.setItem(chatStorageKey(authUser), JSON.stringify(chats));
+    const deletedIds = loadDeletedChatIds(authUser);
+    const activeChats = filterDeletedChats(chats, deletedIds);
+    localStorage.setItem(chatStorageKey(authUser), JSON.stringify(activeChats));
     const syncTimer = window.setTimeout(() => {
-      chats.forEach(chat => { saveRemoteChatSession(authUser, chat).catch(error => { reportChatSyncFailure("save", error); }); });
+      activeChats.filter(isMeaningfulChat).forEach(chat => { saveRemoteChatSession(authUser, chat).catch(error => { reportChatSyncFailure("save", error); }); });
     }, 500);
     return () => { window.clearTimeout(syncTimer); };
   }, [authUser, chatSyncReady, chats]);
 
   useEffect(() => {
-    if (authUser && activeChatId) localStorage.setItem(activeChatKey(authUser), activeChatId);
+    if (!authUser) return;
+    if (activeChatId && !isChatDeletedLocally(authUser, activeChatId)) {
+      localStorage.setItem(activeChatKey(authUser), activeChatId);
+      return;
+    }
+    localStorage.removeItem(activeChatKey(authUser));
   }, [authUser, activeChatId]);
 
   useEffect(() => {
@@ -1292,9 +1368,11 @@ function App() {
       if (remaining.length === 0) {
         const replacement = createChatSession();
         setActiveChatId(replacement.id);
+        setLoadingChatId(current => current === chatId ? null : current);
         return [replacement];
       }
       setActiveChatId(current => current === chatId ? remaining[0].id : current);
+      setLoadingChatId(current => current === chatId ? null : current);
       return remaining;
     });
   };
@@ -1304,9 +1382,24 @@ function App() {
     if (deletingChatIds.includes(chatId)) return;
     setDeletingChatIds(prev => prev.includes(chatId) ? prev : [...prev, chatId]);
     try {
-      await axios.delete(`${API_BASE_URL}/api/workspace/sessions/${encodeURIComponent(chatId)}`, { headers: { ...authHeaders(authUser) } });
+      logChatDeleteDev("delete requested", { chatId });
+      const response = await axios.delete(`${API_BASE_URL}/api/workspace/sessions/${encodeURIComponent(chatId)}`, { headers: { ...authHeaders(authUser) } });
+      logChatDeleteDev("delete API completed", { chatId, status: response.status });
+      rememberDeletedChat(authUser, chatId);
+      removeStoredChatById(authUser, chatId);
+      removeStoredChatById(null, chatId);
       removeChatLocally(chatId);
+      logChatDeleteDev("local sidebar state updated", { chatId });
+      try {
+        const refetch = await axios.get(`${API_BASE_URL}/api/workspace/sessions`, { headers: { ...authHeaders(authUser) } });
+        const deletedIds = loadDeletedChatIds(authUser);
+        const refetchedChats = filterDeletedChats(Array.isArray(refetch.data) ? refetch.data : [], deletedIds);
+        logChatDeleteDev("refetch completed", { chatId, count: refetchedChats.length });
+      } catch (refreshError) {
+        reportChatSyncFailure("delete-refetch", refreshError);
+      }
     } catch (error) {
+      logChatDeleteDev("delete failed", { chatId, status: error?.response?.status });
       appendMessage(chatId, { sender: "ai", text: error.response?.data?.message || error.response?.data?.error || "Unable to delete this chat workspace. Try again.", type: "error" });
     } finally {
       setDeletingChatIds(prev => prev.filter(id => id !== chatId));

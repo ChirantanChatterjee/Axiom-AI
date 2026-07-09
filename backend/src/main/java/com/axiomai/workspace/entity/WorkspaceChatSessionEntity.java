@@ -53,4 +53,19 @@ public class WorkspaceChatSessionEntity {
     @Lob
     @Column(nullable = false, columnDefinition = "text")
     private String messagesJson;
+
+    @Builder.Default
+    @Column
+    private Boolean deleted = false;
+
+    @Column
+    private Instant deletedAt;
+
+    @Column(length = 320)
+    private String deletedBy;
+
+    public boolean isDeleted() {
+
+        return Boolean.TRUE.equals(deleted);
+    }
 }

@@ -386,5 +386,18 @@ class WorkspaceAuditLoggingTest {
                 String sessionId
         ) {
         }
+
+        @Override
+        public WorkspaceChatSessionDeletionResult deleteForCurrentUser(
+                String token,
+                String sessionId
+        ) {
+
+            return WorkspaceChatSessionDeletionResult.softDeleted(
+                    sessionId,
+                    false,
+                    0
+            );
+        }
     }
 }

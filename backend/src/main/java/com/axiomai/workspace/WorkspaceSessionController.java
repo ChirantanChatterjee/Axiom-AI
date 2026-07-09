@@ -49,6 +49,12 @@ public class WorkspaceSessionController {
             @RequestHeader("X-AIF-Session") String token
     ) {
 
+        log.info(
+                "Workspace chat delete request received sessionId={} hasSessionHeader={}",
+                sessionId,
+                hasSessionHeader(token)
+        );
+
         String normalizedSessionId;
 
         try {
@@ -61,13 +67,24 @@ public class WorkspaceSessionController {
 
         } catch (org.springframework.web.server.ResponseStatusException e) {
 
+            WorkspaceChatSessionDeletionResult chatDeletion =
+                    null;
+
             if (
-                    !isUnassignedWorkspaceAccessFailure(e)
+                    isUnassignedWorkspaceAccessFailure(e)
+            ) {
+
+                chatDeletion =
+                        workspaceChatSessionService.deleteForCurrentUser(
+                                token,
+                                sessionId
+                        );
+            }
+
+            if (
+                    chatDeletion == null
                             ||
-                            !workspaceChatSessionService.deleteForCurrentUser(
-                                    token,
-                                    sessionId
-                            )
+                            !chatDeletion.deleted()
             ) {
 
                 throw e;
@@ -79,20 +96,40 @@ public class WorkspaceSessionController {
             auditWorkspaceDeleted(
                     token,
                     normalizedSessionId,
-                    Map.of("cleanup", "chat-only")
+                    Map.of(
+                            "cleanup",
+                            "chat-only",
+                            "deletionMode",
+                            chatDeletion.deletionMode(),
+                            "chatMessagesAffected",
+                            chatDeletion.messageCount()
+                    )
             );
 
-            return new WorkspaceCleanupResult(
+            WorkspaceCleanupResult result =
+                    new WorkspaceCleanupResult(
                     normalizedSessionId,
                     false,
                     false,
                     0,
                     0,
                     null
+            )
+                            .withChatDeletion(chatDeletion);
+
+            log.info(
+                    "Workspace chat delete completed sessionId={} chatDeleted={} activeSessionDeleted={} messageCount={} finalDeletionMode={}",
+                    normalizedSessionId,
+                    result.chatSessionDeleted(),
+                    false,
+                    result.chatMessagesAffected(),
+                    result.deletionMode()
             );
+
+            return result;
         }
 
-        WorkspaceCleanupResult result =
+        WorkspaceCleanupResult cleanupResult =
                 workspaceCleanupService.cleanup(
                         normalizedSessionId
                 );
@@ -101,14 +138,47 @@ public class WorkspaceSessionController {
                 normalizedSessionId
         );
 
-        workspaceChatSessionService.delete(
-                normalizedSessionId
-        );
+        WorkspaceChatSessionDeletionResult chatDeletion =
+                workspaceChatSessionService.deleteForCurrentUser(
+                        token,
+                        normalizedSessionId
+                );
 
         auditWorkspaceDeleted(
                 token,
                 normalizedSessionId,
-                Map.of("cleanup", "completed")
+                Map.of(
+                        "cleanup",
+                        "completed",
+                        "deletionMode",
+                        chatDeletion.deletionMode(),
+                        "chatMessagesAffected",
+                        chatDeletion.messageCount()
+                )
+        );
+
+        WorkspaceCleanupResult result =
+                (
+                        cleanupResult == null
+                                ? new WorkspaceCleanupResult(
+                                        normalizedSessionId,
+                                        false,
+                                        false,
+                                        0,
+                                        0,
+                                        null
+                                )
+                                : cleanupResult
+                )
+                        .withChatDeletion(chatDeletion);
+
+        log.info(
+                "Workspace chat delete completed sessionId={} chatDeleted={} activeSessionDeleted={} messageCount={} finalDeletionMode={}",
+                normalizedSessionId,
+                result.chatSessionDeleted(),
+                true,
+                result.chatMessagesAffected(),
+                result.deletionMode()
         );
 
         return result;
