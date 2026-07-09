@@ -3350,6 +3350,324 @@ textarea:disabled {
   stroke: currentColor !important;
 }
 
+/* Final monochrome consistency pass. Keep AIF logo, send button, and pass/fail accents. */
+.app,
+.app .sidebar,
+.app .chat-container,
+.app .chat-view,
+.app .view-fill,
+.app .help-page,
+.app .profile-page,
+.app .admin-page,
+.app .messages,
+.app .help-grid,
+.app .profile-body,
+.app .admin-body,
+.app .input-area,
+.app .chat-header,
+.app .help-header {
+  color: #111111 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%) !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  box-shadow: none !important;
+}
+
+.app .sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.18) !important;
+}
+
+.app .sidebar-brand,
+.app .user-panel,
+.app .session-summary,
+.app .help-section,
+.app .profile-card,
+.app .profile-details div,
+.app .metric-card,
+.app .admin-detail-panel,
+.app .admin-detail-row,
+.app .admin-empty,
+.app .tag-card,
+.app .execution-card,
+.app .db-card,
+.app .flow-card,
+.app .missing-variable-card,
+.app .session-lock-card,
+.app .variable-context-row,
+.app .runtime-variable-table-wrap,
+.app .testcase-row,
+.app .response-box {
+  color: #111111 !important;
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+  box-shadow: none !important;
+}
+
+.app .help-section code,
+.app .tag-pill,
+.app .variable-pill,
+.app .runtime-variable-name strong,
+.app .runtime-variable-table th,
+.app .testcase-header,
+.app .missing-variable-card code {
+  color: #111111 !important;
+  background: #f1f1f1 !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+}
+
+.app .chat-header h2,
+.app .help-header h2,
+.app .sidebar-brand h1,
+.app .history-header h3,
+.app .session-summary h3,
+.app .help-section h3,
+.app .profile-card h3,
+.app .profile-details strong,
+.app .metric-card strong,
+.app .admin-detail-heading h3,
+.app .admin-detail-row strong,
+.app .user-panel strong,
+.app .chat-list-text strong,
+.app .db-row strong,
+.app .flow-card strong,
+.app .testcase-row strong,
+.app .message-content,
+.app .message-content *:not(.status-pass):not(.status-fail) {
+  color: #111111 !important;
+}
+
+.app .chat-header span,
+.app .help-header span,
+.app .sidebar-brand p,
+.app .user-panel span,
+.app .history-count,
+.app .session-summary p,
+.app .session-summary span,
+.app .help-section p,
+.app .profile-card p,
+.app .profile-details span,
+.app .metric-card span,
+.app .metric-card small,
+.app .admin-detail-heading span,
+.app .admin-detail-row span,
+.app .chat-list-text span,
+.app .tag-description,
+.app .runtime-variable-note,
+.app .variable-context-row span,
+.app .variable-context-row small,
+.app .flow-card span,
+.app .flow-card p,
+.app .db-row {
+  color: rgba(0, 0, 0, 0.68) !important;
+}
+
+.app .profile-avatar {
+  color: #ffffff !important;
+  background: #111111 !important;
+  border: 1px solid #000000 !important;
+}
+
+.app .profile-avatar svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app .chat-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app .chat-title-row > div {
+  min-width: 0;
+}
+
+.app .chat-header-avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+}
+
+.app .profile-card-main {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.app .profile-avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.app .profile-upload-button,
+.app .profile-remove-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: #111111 !important;
+  background: #ffffff !important;
+  border: 1px solid #111111 !important;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.app .profile-upload-button input {
+  display: none;
+}
+
+.app .profile-avatar-error {
+  color: #111111 !important;
+  font-weight: 800;
+}
+
+.app .new-chat-button,
+.app .upload-framework-button {
+  color: #ffffff !important;
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+  box-shadow: none !important;
+}
+
+.app .new-chat-button svg,
+.app .upload-framework-button svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app .sidebar-action,
+.app .logout-button,
+.app .secondary-action,
+.app .chat-theme-toggle,
+.app .metric-card,
+.app .profile-upload-button,
+.app .profile-remove-button {
+  color: #111111 !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.22) !important;
+  box-shadow: none !important;
+}
+
+.app .sidebar-action.active,
+.app .metric-card.active {
+  color: #ffffff !important;
+  background: #111111 !important;
+  border-color: #111111 !important;
+}
+
+.app .sidebar-action.active *,
+.app .metric-card.active * {
+  color: #ffffff !important;
+}
+
+.app .chat-select-button,
+.app .chat-select-button:hover {
+  color: #111111 !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.20) !important;
+  box-shadow: none !important;
+}
+
+.app .chat-history-item.active .chat-select-button {
+  color: #ffffff !important;
+  background: #111111 !important;
+  border-color: #000000 !important;
+  box-shadow: inset 4px 0 0 #ffffff, 0 0 0 3px rgba(0, 0, 0, 0.16) !important;
+}
+
+.app .chat-history-item.active .chat-select-button *,
+.app .chat-history-item.active .chat-list-text strong,
+.app .chat-history-item.active .chat-list-text span,
+.app .chat-history-item.active .chat-lock-icon {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app button,
+.app .report-link,
+.app .profile-upload-button {
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease,
+    font-size 220ms ease !important;
+}
+
+.app button:hover:not(:disabled),
+.app .report-link:hover,
+.app .profile-upload-button:hover {
+  transform: translateY(-1px) scale(1.01) !important;
+  font-size: 1.03em !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.10), 0 12px 28px rgba(0, 0, 0, 0.12) !important;
+}
+
+.app .new-chat-button:hover:not(:disabled),
+.app .upload-framework-button:hover:not(:disabled),
+.app .sidebar-action.active:hover:not(:disabled),
+.app .metric-card.active:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: #000000 !important;
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.16), 0 14px 30px rgba(0, 0, 0, 0.18) !important;
+}
+
+.app .input-area button,
+.app .input-area button:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: var(--aif-chat-send-fill) !important;
+  border-color: var(--aif-chat-send-fill) !important;
+}
+
+.app .input-area button svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.app .brand-emblem,
+.app .brand-emblem *,
+.app .runtime-core,
+.app .runtime-core * {
+  color: #ffffff !important;
+}
+
+.app .execution-card:has(.status-pass) {
+  background: #E6FEEB !important;
+}
+
+.app .execution-card:has(.status-fail) {
+  background: #F6B3A4 !important;
+}
+
+.app .status-pass,
+.app .ai .execution-card .status-pass,
+.app .execution-card .status-pass,
+.app .testcase-row .status-pass,
+.app .chat-view .status-pass,
+.app .chat-view .ai .execution-card .status-pass,
+.app .chat-view .execution-card .status-pass,
+.app .chat-view .testcase-row .status-pass {
+  color: var(--aif-status-pass) !important;
+}
+
+.app .status-fail,
+.app .ai .execution-card .status-fail,
+.app .execution-card .status-fail,
+.app .testcase-row .status-fail,
+.app .chat-view .status-fail,
+.app .chat-view .ai .execution-card .status-fail,
+.app .chat-view .execution-card .status-fail,
+.app .chat-view .testcase-row .status-fail {
+  color: var(--aif-status-fail) !important;
+}
+
 @media (max-width: 640px) {
   .app .chat-header-actions {
     width: 100%;

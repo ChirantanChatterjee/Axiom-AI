@@ -15,6 +15,7 @@ const ACTIVE_CHAT_PREFIX = "aif.chat.activeSession.v2";
 const DELETED_CHAT_STORAGE_PREFIX = "aif.chat.deletedSessions.v1";
 const CHAT_THEME_STORAGE_KEY = "aif.chat.theme.v1";
 const TERMINAL_EXECUTION_STATUSES = new Set(["PASSED", "FAILED", "CANCELLED"]);
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 const DEFAULT_API_BASE_URL = "[axiom-ai-production-1ab3.up.railway.app](https://axiom-ai-production-1ab3.up.railway.app)";
 const LOCAL_BACKEND_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
@@ -847,8 +848,7 @@ function HelpView({ onBack }) {
 
 // ─── Profile View ─────────────────────────────────────────────────────────────
 
-function ProfileView({ user, onBack }) {
-  const initials = (user?.displayName || user?.email || "A").slice(0, 1).toUpperCase();
+function ProfileView({ user, onBack, onAvatarUpload, onAvatarRemove, avatarError }) {
   return (
       <div className="profile-page">
         <div className="help-header">
@@ -858,9 +858,33 @@ function ProfileView({ user, onBack }) {
         <div className="profile-body">
           <section className="profile-card">
             <div className="profile-avatar large">
-              {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.displayName || user.email} /> : initials}
+              {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.displayName || user.email} /> : <FiUser />}
             </div>
-            <div><h3>{user?.displayName}</h3><p>{user?.email}</p></div>
+            <div className="profile-card-main">
+              <h3>{user?.displayName}</h3>
+              <p>{user?.email}</p>
+              <div className="profile-avatar-actions">
+                <label className="profile-upload-button">
+                  <FiUpload />
+                  Upload image
+                  <input
+                      type="file"
+                      accept="image/*"
+                      onChange={event => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        onAvatarUpload?.(file);
+                      }}
+                  />
+                </label>
+                {user?.avatarUrl && (
+                    <button type="button" className="profile-remove-button" onClick={onAvatarRemove}>
+                      Remove image
+                    </button>
+                )}
+              </div>
+              {avatarError && <p className="profile-avatar-error">{avatarError}</p>}
+            </div>
           </section>
           <section className="profile-details">
             <div><span>Provider</span><strong>{user?.provider || "email"}</strong></div>
@@ -1161,6 +1185,7 @@ function App() {
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState("");
   const [chatTheme, setChatTheme] = useState(loadStoredChatTheme);
+  const [profileImageError, setProfileImageError] = useState("");
 
   const inputRef = useRef(null);
   const frameworkUploadRef = useRef(null);
@@ -1478,7 +1503,7 @@ function App() {
     if (isSupabaseConfigured && supabase) supabase.auth.signOut();
     remoteLoadedTokenRef.current = null;
     setAuthUser(null); setChatSyncReady(true); setChats([]); setActiveChatId(null);
-    setDeletingChatIds([]); setInput(""); setView("chat");
+    setDeletingChatIds([]); setProfileImageError(""); setInput(""); setView("chat");
   };
 
   const loadAdminMetrics = async () => {
@@ -1495,6 +1520,36 @@ function App() {
 
   const toggleChatTheme = () => {
     setChatTheme(current => current === "dark" ? "light" : "dark");
+  };
+
+  const updateProfileImage = (file) => {
+    setProfileImageError("");
+    if (!file) return;
+    if (!file.type?.startsWith("image/")) {
+      setProfileImageError("Upload an image file.");
+      return;
+    }
+    if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+      setProfileImageError("Image must be 2 MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const avatarUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!avatarUrl) {
+        setProfileImageError("Unable to read this image.");
+        return;
+      }
+      setAuthUser(current => current ? { ...current, avatarUrl } : current);
+    };
+    reader.onerror = () => setProfileImageError("Unable to read this image.");
+    reader.readAsDataURL(file);
+  };
+
+  const removeProfileImage = () => {
+    setProfileImageError("");
+    setAuthUser(current => current ? { ...current, avatarUrl: null } : current);
   };
 
   const uploadModifiedFramework = async (event) => {
@@ -1642,7 +1697,7 @@ function App() {
                   </motion.div>
               ) : view === "profile" ? (
                   <motion.div key="profile" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="view-fill">
-                    <ProfileView user={authUser} onBack={() => setView("chat")} />
+                    <ProfileView user={authUser} onBack={() => setView("chat")} onAvatarUpload={updateProfileImage} onAvatarRemove={removeProfileImage} avatarError={profileImageError} />
                   </motion.div>
               ) : view === "admin" ? (
                   <motion.div key="admin" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="view-fill">
@@ -1651,9 +1706,14 @@ function App() {
               ) : (
                   <motion.div key="chat" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className={isChatDark ? "chat-view chat-view-dark" : "chat-view"}>
                     <header className="chat-header">
-                      <div>
-                        <h2>{activeChat?.domainName || activeChat?.title || "AIF Runtime Intelligence"}</h2>
-                        <span>{activeChat?.frameworkLocked ? "One chat, one website, one framework context" : "Create or select a framework session"}</span>
+                      <div className="chat-title-row">
+                        <span className="profile-avatar chat-header-avatar">
+                          {authUser.avatarUrl ? <img src={authUser.avatarUrl} alt={authUser.displayName || authUser.email} /> : <FiUser />}
+                        </span>
+                        <div>
+                          <h2>{activeChat?.domainName || activeChat?.title || "AIF Runtime Intelligence"}</h2>
+                          <span>{activeChat?.frameworkLocked ? "One chat, one website, one framework context" : "Create or select a framework session"}</span>
+                        </div>
                       </div>
                       <div className="chat-header-actions">
                         <button type="button" className="chat-theme-toggle" onClick={toggleChatTheme} aria-label={chatThemeToggleLabel} title={chatThemeToggleLabel} aria-pressed={isChatDark}>
