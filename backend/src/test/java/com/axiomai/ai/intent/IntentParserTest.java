@@ -823,6 +823,56 @@ class IntentParserTest {
     }
 
     @Test
+    void detectsPlainRunAllTestsAsGeneratedSuite() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Can you please run all the tests?"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "ALL",
+                command.getTarget()
+        );
+    }
+
+    @Test
+    void explicitGeneratedTagIsAuthoritative() {
+
+        IntentParser parser =
+                new IntentParser(
+                        new UnexpectedOpenAIIntentService(),
+                        new ScenarioPlanner()
+                );
+
+        AICommand command =
+                parser.parse(
+                        "Can you please run all tests with @generated?"
+                );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                command.getIntent()
+        );
+
+        assertEquals(
+                "@generated",
+                command.getTarget()
+        );
+    }
+
+    @Test
     void detectsConversationalGeneratedTestRerunBeforeOpenAi() {
 
         IntentParser parser =

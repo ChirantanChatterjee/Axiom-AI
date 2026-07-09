@@ -1271,9 +1271,16 @@ public class IntentParser {
         }
 
         if (
+                isAllGeneratedTestSuiteRequest(lower)
+        ) {
+
+            return "ALL";
+        }
+
+        if (
                 lower.contains("bill pay")
                         ||
-                        lower.contains("billpay")
+                lower.contains("billpay")
         ) {
 
             return billPayTagExpression(lower);
@@ -1282,28 +1289,17 @@ public class IntentParser {
         if (
                 lower.contains("register")
                         ||
-                        lower.contains("registration")
+                lower.contains("registration")
                         ||
-                        lower.contains("signup")
+                lower.contains("signup")
                         ||
-                        lower.contains("sign up")
+                lower.contains("sign up")
         ) {
 
             return featureTagExpression(
                     "(@register or @registration)",
                     lower
             );
-        }
-
-        if (
-                lower.contains("all")
-                        &&
-                lower.contains("generated")
-                        &&
-                        lower.contains("test")
-        ) {
-
-            return "ALL";
         }
 
         Pattern pattern =
@@ -1369,6 +1365,30 @@ public class IntentParser {
                 operator,
                 tags
         );
+    }
+
+    private boolean isAllGeneratedTestSuiteRequest(
+            String lower
+    ) {
+
+        if (
+                lower == null
+        ) {
+
+            return false;
+        }
+
+        return Pattern.compile(
+                        "\\b(?:all|every)\\s+(?:the\\s+)?(?:generated\\s+)?(?:cucumber\\s+)?tests?\\b"
+                )
+                .matcher(lower)
+                .find()
+                ||
+                Pattern.compile(
+                                "\\b(?:all|every)\\s+(?:the\\s+)?(?:generated\\s+)?scenarios?\\b"
+                        )
+                        .matcher(lower)
+                        .find();
     }
 
     private String extractExplicitTagExpression(

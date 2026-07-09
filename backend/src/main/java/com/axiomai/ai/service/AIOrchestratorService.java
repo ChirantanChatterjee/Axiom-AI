@@ -1017,6 +1017,25 @@ public class AIOrchestratorService {
         // =================================================
 
         if (
+                "UNKNOWN".equalsIgnoreCase(
+                        command.getIntent()
+                )
+                        &&
+                        looksLikeGeneratedTestExtensionCommand(lower)
+        ) {
+
+            command.setIntent(
+                    "GENERATE_FEATURE"
+            );
+
+            command.setFeatureName(
+                    extractFeatureName(message)
+            );
+
+            return;
+        }
+
+        if (
 
                 "UNKNOWN".equalsIgnoreCase(
                         command.getIntent()
@@ -1028,6 +1047,10 @@ public class AIOrchestratorService {
                         &&
                         !command.getVariables()
                                 .isEmpty()
+                        &&
+                        !looksLikeGeneratedTestCommand(
+                                lower
+                        )
 
         ) {
 
@@ -1169,6 +1192,33 @@ public class AIOrchestratorService {
 
             command.setIntent(
                     "REPAIR_GENERATED_TESTS"
+            );
+
+            return;
+        }
+
+        if (
+
+                "UNKNOWN".equalsIgnoreCase(
+                        command.getIntent()
+                )
+
+                        &&
+
+                        isRunRequest(lower)
+
+                        &&
+
+                        authoritativeGeneratedTestTarget(lower) != null
+
+        ) {
+
+            command.setIntent(
+                    "EXECUTE_GENERATED_TESTS"
+            );
+
+            command.setTarget(
+                    authoritativeGeneratedTestTarget(lower)
             );
 
             return;
@@ -1341,6 +1391,113 @@ public class AIOrchestratorService {
                 lower.contains("re-run");
     }
 
+    private boolean looksLikeGeneratedTestCommand(
+            String lower
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        boolean testReference =
+                lower.contains("test")
+                        ||
+                        lower.contains("scenario")
+                        ||
+                        lower.contains("@generated")
+                        ||
+                        lower.contains("cucumber");
+
+        boolean generatedContext =
+                lower.contains("generated")
+                        ||
+                        lower.contains("@")
+                        ||
+                        lower.contains("all")
+                        ||
+                        lower.contains("negative")
+                        ||
+                        lower.contains("coverage");
+
+        boolean commandVerb =
+                java.util.regex.Pattern.compile(
+                                "\\b(?:run|execute|rerun|re-run|add|append|extend|generate|create|write|cover|update)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
+
+        return testReference
+                &&
+                generatedContext
+                &&
+                commandVerb;
+    }
+
+    private boolean looksLikeGeneratedTestExtensionCommand(
+            String lower
+    ) {
+
+        if (
+                lower == null
+                        ||
+                        lower.isBlank()
+        ) {
+
+            return false;
+        }
+
+        if (
+                lower.contains("test data")
+                        ||
+                        lower.contains("runtime data")
+                        ||
+                        lower.contains("runtime variable")
+                        ||
+                        lower.contains("runtime value")
+        ) {
+
+            return false;
+        }
+
+        boolean updateVerb =
+                java.util.regex.Pattern.compile(
+                                "\\b(?:add|append|extend|generate|create|write|cover|include|enhance|improve)\\b"
+                        )
+                        .matcher(lower)
+                        .find();
+
+        boolean testArtifact =
+                lower.contains("test")
+                        ||
+                        lower.contains("scenario")
+                        ||
+                        lower.contains("coverage");
+
+        boolean generatedContext =
+                lower.contains("generated")
+                        ||
+                        lower.contains("negative")
+                        ||
+                        lower.contains("boundary")
+                        ||
+                        lower.contains("validation")
+                        ||
+                        lower.contains("edge case")
+                        ||
+                        lower.contains("more");
+
+        return updateVerb
+                &&
+                testArtifact
+                &&
+                generatedContext;
+    }
+
     private boolean isUnknownOrFlowExecution(
             String intent
     ) {
@@ -1418,6 +1575,18 @@ public class AIOrchestratorService {
             AutomationSession workspace
     ) {
 
+        String authoritativeTarget =
+                authoritativeGeneratedTestTarget(
+                        lower
+                );
+
+        if (
+                authoritativeTarget != null
+        ) {
+
+            return authoritativeTarget;
+        }
+
         if (
                 shouldRerunGeneratedTests(
                         lower,
@@ -1429,6 +1598,58 @@ public class AIOrchestratorService {
         }
 
         return "ALL";
+    }
+
+    private String authoritativeGeneratedTestTarget(
+            String lower
+    ) {
+
+        if (
+                lower == null
+        ) {
+
+            return null;
+        }
+
+        if (
+                lower.contains("@generated")
+        ) {
+
+            return "@generated";
+        }
+
+        if (
+                isAllGeneratedTestSuiteRequest(lower)
+        ) {
+
+            return "ALL";
+        }
+
+        return null;
+    }
+
+    private boolean isAllGeneratedTestSuiteRequest(
+            String lower
+    ) {
+
+        if (
+                lower == null
+        ) {
+
+            return false;
+        }
+
+        return java.util.regex.Pattern.compile(
+                        "\\b(?:all|every)\\s+(?:the\\s+)?(?:generated\\s+)?(?:cucumber\\s+)?tests?\\b"
+                )
+                .matcher(lower)
+                .find()
+                ||
+                java.util.regex.Pattern.compile(
+                                "\\b(?:all|every)\\s+(?:the\\s+)?(?:generated\\s+)?scenarios?\\b"
+                        )
+                        .matcher(lower)
+                        .find();
     }
 
     private boolean shouldRepairGeneratedTests(
@@ -1551,6 +1772,8 @@ public class AIOrchestratorService {
                         ||
                         lower.contains("feature")
                         ||
+                        authoritativeGeneratedTestTarget(lower) != null
+                        ||
                         hasExplicitGeneratedTestTarget(lower)
         ) {
 
@@ -1619,6 +1842,8 @@ public class AIOrchestratorService {
                 lower.contains("flow")
                         ||
                         lower.contains("feature")
+                        ||
+                        authoritativeGeneratedTestTarget(lower) != null
                         ||
                         hasExplicitGeneratedTestTarget(lower)
         ) {

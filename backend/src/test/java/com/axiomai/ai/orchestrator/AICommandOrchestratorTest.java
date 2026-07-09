@@ -359,6 +359,120 @@ class AICommandOrchestratorTest {
         );
     }
 
+    @Test
+    void executeGeneratedAllRequestOverridesStaleFlowTagTarget() {
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        StubGeneratedTestExecutionService generatedTestExecutionService =
+                new StubGeneratedTestExecutionService();
+
+        AICommandOrchestrator orchestrator =
+                new AICommandOrchestrator(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        generatedTestExecutionService,
+                        null,
+                        null,
+                        null,
+                        null,
+                        new ExecutionMemoryService(),
+                        workspaceService,
+                        null,
+                        null,
+                        null,
+                        new PublicBaseUrlResolver()
+                );
+
+        AIResponse response =
+                orchestrator.execute(
+                        AICommand.builder()
+                                .intent("EXECUTE_GENERATED_TESTS")
+                                .target("@form_submission")
+                                .message("Can you please run all the tests?")
+                                .variables(
+                                        Map.of(
+                                                "username",
+                                                "demo"
+                                        )
+                                )
+                                .userId("chat-one")
+                                .build()
+                );
+
+        assertTrue(
+                response.isSuccess()
+        );
+
+        assertEquals(
+                "ALL",
+                generatedTestExecutionService.lastRunTarget
+        );
+    }
+
+    @Test
+    void executeGeneratedTagRequestOverridesStaleFlowTagTarget() {
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        StubGeneratedTestExecutionService generatedTestExecutionService =
+                new StubGeneratedTestExecutionService();
+
+        AICommandOrchestrator orchestrator =
+                new AICommandOrchestrator(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        generatedTestExecutionService,
+                        null,
+                        null,
+                        null,
+                        null,
+                        new ExecutionMemoryService(),
+                        workspaceService,
+                        null,
+                        null,
+                        null,
+                        new PublicBaseUrlResolver()
+                );
+
+        AIResponse response =
+                orchestrator.execute(
+                        AICommand.builder()
+                                .intent("EXECUTE_GENERATED_TESTS")
+                                .target("@form_submission")
+                                .message("Can you please run all tests with @generated?")
+                                .variables(
+                                        Map.of(
+                                                "username",
+                                                "demo"
+                                        )
+                                )
+                                .userId("chat-one")
+                                .build()
+                );
+
+        assertTrue(
+                response.isSuccess()
+        );
+
+        assertEquals(
+                "@generated",
+                generatedTestExecutionService.lastRunTarget
+        );
+    }
+
     private static class GuardedCrawlerService
             extends WebsiteCrawlerService {
 

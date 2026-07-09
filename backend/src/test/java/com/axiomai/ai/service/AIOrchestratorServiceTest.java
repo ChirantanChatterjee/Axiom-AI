@@ -254,6 +254,151 @@ class AIOrchestratorServiceTest {
     }
 
     @Test
+    void runAllTestsDoesNotUseLastGeneratedTestTag() {
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        workspaceService.setLastGeneratedTestExecution(
+                "chat-one",
+                "@form_submission"
+        );
+
+        CapturingAICommandOrchestrator orchestrator =
+                new CapturingAICommandOrchestrator();
+
+        AIOrchestratorService service =
+                service(
+                        orchestrator,
+                        workspaceService
+                );
+
+        service.processMessage(
+                "Can you please run all the tests?",
+                "chat-one"
+        );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                orchestrator.capturedCommand.getIntent()
+        );
+
+        assertEquals(
+                "ALL",
+                orchestrator.capturedCommand.getTarget()
+        );
+    }
+
+    @Test
+    void runAllGeneratedTagDoesNotUseLastGeneratedTestTag() {
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        workspaceService.setLastGeneratedTestExecution(
+                "chat-one",
+                "@form_submission"
+        );
+
+        CapturingAICommandOrchestrator orchestrator =
+                new CapturingAICommandOrchestrator();
+
+        AIOrchestratorService service =
+                service(
+                        orchestrator,
+                        workspaceService
+                );
+
+        service.processMessage(
+                "Can you please run all tests with @generated?",
+                "chat-one"
+        );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                orchestrator.capturedCommand.getIntent()
+        );
+
+        assertEquals(
+                "@generated",
+                orchestrator.capturedCommand.getTarget()
+        );
+    }
+
+    @Test
+    void unknownGeneratedRunWithVariablesDoesNotBecomeTestDataUpdate() {
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        CapturingAICommandOrchestrator orchestrator =
+                new CapturingAICommandOrchestrator();
+
+        AIOrchestratorService service =
+                service(
+                        orchestrator,
+                        workspaceService
+                );
+
+        service.processMessage(
+                "Run all tests with @generated and username is demo",
+                "chat-one",
+                null,
+                null,
+                false,
+                "UNKNOWN",
+                Map.of(
+                        "username",
+                        "demo"
+                )
+        );
+
+        assertEquals(
+                "EXECUTE_GENERATED_TESTS",
+                orchestrator.capturedCommand.getIntent()
+        );
+
+        assertEquals(
+                "@generated",
+                orchestrator.capturedCommand.getTarget()
+        );
+    }
+
+    @Test
+    void unknownGeneratedTestExtensionWithVariablesDoesNotBecomeTestDataUpdate() {
+
+        AutomationWorkspaceService workspaceService =
+                new AutomationWorkspaceService();
+
+        CapturingAICommandOrchestrator orchestrator =
+                new CapturingAICommandOrchestrator();
+
+        AIOrchestratorService service =
+                service(
+                        orchestrator,
+                        workspaceService
+                );
+
+        service.processMessage(
+                "Please add negative tests where amount is invalid",
+                "chat-one",
+                null,
+                null,
+                false,
+                "UNKNOWN",
+                Map.of(
+                        "amount",
+                        "abc"
+                )
+        );
+
+        assertEquals(
+                "GENERATE_FEATURE",
+                orchestrator.capturedCommand.getIntent()
+        );
+    }
+
+    @Test
     void explicitFlowRerunStillUsesFlowExecution() {
 
         AutomationWorkspaceService workspaceService =

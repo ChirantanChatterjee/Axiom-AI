@@ -9,7 +9,11 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -92,7 +96,7 @@ public class GeneratedProjectWriterService {
             Files.createDirectories(hooksFolder);
             Files.createDirectories(runnerFolder);
 
-            Files.writeString(
+            writeGeneratedFeatureFile(
                     featureFolder.resolve(
                             sanitizeFeatureName(featureName)
                                     + ".feature"
@@ -181,7 +185,7 @@ public class GeneratedProjectWriterService {
                                     + ".feature"
                     );
 
-            Files.writeString(
+            writeGeneratedFeatureFile(
                     featureFile,
                     content
             );
@@ -306,6 +310,695 @@ public class GeneratedProjectWriterService {
                             + path,
                     e
             );
+        }
+    }
+
+    private void writeGeneratedFeatureFile(
+            Path featureFile,
+            String incomingContent
+    ) throws IOException {
+
+        String normalizedIncoming =
+                normalizeGeneratedFeatureContent(
+                        incomingContent
+                );
+
+        if (
+                scenarioCount(normalizedIncoming) == 0
+        ) {
+
+            throw new IllegalStateException(
+                    "Generated feature update produced no scenarios. Existing generated scenarios were preserved."
+            );
+        }
+
+        if (
+                !Files.exists(featureFile)
+        ) {
+
+            validateGeneratedScenarioTags(normalizedIncoming);
+
+            Files.writeString(
+                    featureFile,
+                    normalizedIncoming
+            );
+
+            return;
+        }
+
+        String existingContent =
+                Files.readString(featureFile);
+
+        String normalizedExisting =
+                normalizeGeneratedFeatureContent(
+                        existingContent
+                );
+
+        int existingScenarioCount =
+                scenarioCount(normalizedExisting);
+
+        int newUniqueScenarioCount =
+                uniqueIncomingScenarioCount(
+                        normalizedExisting,
+                        normalizedIncoming
+                );
+
+        String mergedContent =
+                existingScenarioCount == 0
+                        ? normalizedIncoming
+                        : mergeFeatureContent(
+                                normalizedExisting,
+                                normalizedIncoming
+                        );
+
+        mergedContent =
+                normalizeGeneratedFeatureContent(
+                        mergedContent
+                );
+
+        int finalScenarioCount =
+                scenarioCount(mergedContent);
+
+        if (
+                finalScenarioCount
+                        < existingScenarioCount
+                        + newUniqueScenarioCount
+        ) {
+
+            throw new IllegalStateException(
+                    "Generated feature merge failed scenario-count validation. Existing scenarios were preserved."
+            );
+        }
+
+        validateGeneratedScenarioTags(mergedContent);
+
+        Files.writeString(
+                backupPath(featureFile),
+                existingContent
+        );
+
+        Files.writeString(
+                featureFile,
+                mergedContent
+        );
+    }
+
+    private Path backupPath(
+            Path featureFile
+    ) {
+
+        return featureFile.resolveSibling(
+                featureFile.getFileName()
+                        + ".bak"
+        );
+    }
+
+    private String mergeFeatureContent(
+            String existingContent,
+            String incomingContent
+    ) {
+
+        List<ScenarioBlock> incomingScenarios =
+                scenarioBlocks(incomingContent);
+
+        Set<String> existingKeys =
+                scenarioKeys(existingContent);
+
+        List<String> uniqueIncomingBlocks =
+                new ArrayList<>();
+
+        for (
+                ScenarioBlock incomingScenario
+                : incomingScenarios
+        ) {
+
+            if (
+                    existingKeys.add(
+                            incomingScenario.key()
+                    )
+            ) {
+
+                uniqueIncomingBlocks.add(
+                        incomingScenario.content()
+                );
+            }
+        }
+
+        String merged =
+                trimTrailingWhitespace(existingContent);
+
+        if (
+                uniqueIncomingBlocks.isEmpty()
+        ) {
+
+            return merged
+                    + "\n";
+        }
+
+        StringBuilder builder =
+                new StringBuilder(merged);
+
+        builder.append("\n\n");
+
+        for (
+                int index = 0;
+                index < uniqueIncomingBlocks.size();
+                index++
+        ) {
+
+            if (
+                    index > 0
+            ) {
+
+                builder.append("\n");
+            }
+
+            builder.append(
+                    trimTrailingWhitespace(
+                            uniqueIncomingBlocks.get(index)
+                    )
+            );
+            builder.append("\n");
+        }
+
+        return builder.toString();
+    }
+
+    private String normalizeGeneratedFeatureContent(
+            String content
+    ) {
+
+        String normalized =
+                content == null
+                        ? ""
+                        : content.replace("\r\n", "\n")
+                                .replace('\r', '\n');
+
+        normalized =
+                ensureGeneratedScenarioTags(normalized);
+
+        return trimTrailingWhitespace(normalized)
+                + "\n";
+    }
+
+    private String ensureGeneratedScenarioTags(
+            String content
+    ) {
+
+        if (
+                content == null
+                        ||
+                        content.isBlank()
+        ) {
+
+            return "";
+        }
+
+        String[] lines =
+                content.split(
+                        "\\R",
+                        -1
+                );
+
+        List<String> output =
+                new ArrayList<>();
+
+        List<String> pendingTagLines =
+                new ArrayList<>();
+
+        for (
+                String line
+                : lines
+        ) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                pendingTagLines.add(line);
+                continue;
+            }
+
+            if (
+                    isScenarioHeader(trimmed)
+            ) {
+
+                output.add(
+                        scenarioIndent(line)
+                                + mergedGeneratedTagLine(
+                                        pendingTagLines,
+                                        line
+                                )
+                );
+                pendingTagLines.clear();
+                output.add(line);
+                continue;
+            }
+
+            if (
+                    !pendingTagLines.isEmpty()
+            ) {
+
+                output.addAll(pendingTagLines);
+                pendingTagLines.clear();
+            }
+
+            output.add(line);
+        }
+
+        if (
+                !pendingTagLines.isEmpty()
+        ) {
+
+            output.addAll(pendingTagLines);
+        }
+
+        return String.join(
+                "\n",
+                output
+        );
+    }
+
+    private String mergedGeneratedTagLine(
+            List<String> pendingTagLines,
+            String scenarioLine
+    ) {
+
+        Set<String> tags =
+                new LinkedHashSet<>();
+
+        tags.add("@generated");
+
+        for (
+                String tagLine
+                : pendingTagLines
+        ) {
+
+            for (
+                    String tag
+                    : tagLine.trim()
+                            .split("\\s+")
+            ) {
+
+                if (
+                        tag.startsWith("@")
+                ) {
+
+                    tags.add(tag);
+                }
+            }
+        }
+
+        if (
+                looksLikeNegativeScenario(
+                        pendingTagLines,
+                        scenarioLine
+                )
+        ) {
+
+            tags.add("@negative");
+        }
+
+        return String.join(
+                " ",
+                tags
+        );
+    }
+
+    private boolean looksLikeNegativeScenario(
+            List<String> pendingTagLines,
+            String scenarioLine
+    ) {
+
+        String lower =
+                (
+                        String.join(
+                                " ",
+                                pendingTagLines
+                        )
+                                + " "
+                                + scenarioLine
+                ).toLowerCase();
+
+        return lower.contains("@negative")
+                ||
+                lower.contains("negative")
+                ||
+                lower.contains("invalid")
+                ||
+                lower.contains("reject")
+                ||
+                lower.contains("required")
+                ||
+                lower.contains("validation")
+                ||
+                lower.contains("cannot ")
+                ||
+                lower.contains("can't ");
+    }
+
+    private void validateGeneratedScenarioTags(
+            String content
+    ) {
+
+        for (
+                ScenarioBlock scenario
+                : scenarioBlocks(content)
+        ) {
+
+            if (
+                    !scenario.tags()
+                            .stream()
+                            .anyMatch("@generated"::equalsIgnoreCase)
+            ) {
+
+                throw new IllegalStateException(
+                        "Generated feature validation failed because scenario `"
+                                + scenario.name()
+                                + "` is missing @generated."
+                );
+            }
+        }
+    }
+
+    private int uniqueIncomingScenarioCount(
+            String existingContent,
+            String incomingContent
+    ) {
+
+        Set<String> existingKeys =
+                scenarioKeys(existingContent);
+
+        int count =
+                0;
+
+        for (
+                ScenarioBlock incomingScenario
+                : scenarioBlocks(incomingContent)
+        ) {
+
+            if (
+                    !existingKeys.contains(
+                            incomingScenario.key()
+                    )
+            ) {
+
+                existingKeys.add(
+                        incomingScenario.key()
+                );
+
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private Set<String> scenarioKeys(
+            String content
+    ) {
+
+        Set<String> keys =
+                new LinkedHashSet<>();
+
+        for (
+                ScenarioBlock scenario
+                : scenarioBlocks(content)
+        ) {
+
+            keys.add(
+                    scenario.key()
+            );
+        }
+
+        return keys;
+    }
+
+    private List<ScenarioBlock> scenarioBlocks(
+            String content
+    ) {
+
+        List<ScenarioBlock> scenarios =
+                new ArrayList<>();
+
+        if (
+                content == null
+                        ||
+                        content.isBlank()
+        ) {
+
+            return scenarios;
+        }
+
+        String[] lines =
+                content.split(
+                        "\\R",
+                        -1
+                );
+
+        List<String> pendingTags =
+                new ArrayList<>();
+
+        List<String> currentLines =
+                new ArrayList<>();
+
+        List<String> currentTags =
+                new ArrayList<>();
+
+        String currentName =
+                null;
+
+        for (
+                String line
+                : lines
+        ) {
+
+            String trimmed =
+                    line.trim();
+
+            if (
+                    trimmed.startsWith("@")
+            ) {
+
+                if (
+                        currentName != null
+                ) {
+
+                    appendScenarioBlock(
+                            scenarios,
+                            currentName,
+                            currentTags,
+                            currentLines
+                    );
+
+                    currentName =
+                            null;
+
+                    currentTags =
+                            new ArrayList<>();
+
+                    currentLines =
+                            new ArrayList<>();
+                }
+
+                pendingTags.add(line);
+                continue;
+            }
+
+            if (
+                    isScenarioHeader(trimmed)
+            ) {
+
+                appendScenarioBlock(
+                        scenarios,
+                        currentName,
+                        currentTags,
+                        currentLines
+                );
+
+                currentName =
+                        scenarioName(trimmed);
+
+                currentTags =
+                        tagsFromLines(pendingTags);
+
+                currentLines =
+                        new ArrayList<>(pendingTags);
+
+                currentLines.add(line);
+
+                pendingTags.clear();
+                continue;
+            }
+
+            if (
+                    currentName != null
+            ) {
+
+                currentLines.add(line);
+            } else if (
+                    !pendingTags.isEmpty()
+            ) {
+
+                pendingTags.clear();
+            }
+        }
+
+        appendScenarioBlock(
+                scenarios,
+                currentName,
+                currentTags,
+                currentLines
+        );
+
+        return scenarios;
+    }
+
+    private void appendScenarioBlock(
+            List<ScenarioBlock> scenarios,
+            String scenarioName,
+            List<String> scenarioTags,
+            List<String> scenarioLines
+    ) {
+
+        if (
+                scenarioName == null
+        ) {
+
+            return;
+        }
+
+        String content =
+                trimTrailingWhitespace(
+                        String.join(
+                                "\n",
+                                scenarioLines
+                        )
+                );
+
+        scenarios.add(
+                new ScenarioBlock(
+                        scenarioName,
+                        scenarioTags,
+                        content
+                )
+        );
+    }
+
+    private List<String> tagsFromLines(
+            List<String> tagLines
+    ) {
+
+        List<String> tags =
+                new ArrayList<>();
+
+        for (
+                String tagLine
+                : tagLines
+        ) {
+
+            for (
+                    String tag
+                    : tagLine.trim()
+                            .split("\\s+")
+            ) {
+
+                if (
+                        tag.startsWith("@")
+                ) {
+
+                    tags.add(tag);
+                }
+            }
+        }
+
+        return tags;
+    }
+
+    private int scenarioCount(
+            String content
+    ) {
+
+        return scenarioBlocks(content)
+                .size();
+    }
+
+    private boolean isScenarioHeader(
+            String trimmedLine
+    ) {
+
+        return trimmedLine.startsWith("Scenario:")
+                ||
+                trimmedLine.startsWith("Scenario Outline:");
+    }
+
+    private String scenarioName(
+            String scenarioHeader
+    ) {
+
+        return scenarioHeader.substring(
+                scenarioHeader.indexOf(':') + 1
+        )
+                .trim();
+    }
+
+    private String scenarioIndent(
+            String scenarioLine
+    ) {
+
+        int index =
+                0;
+
+        while (
+                index < scenarioLine.length()
+                        &&
+                        Character.isWhitespace(
+                                scenarioLine.charAt(index)
+                        )
+        ) {
+
+            index++;
+        }
+
+        return index == 0
+                ? "  "
+                : scenarioLine.substring(
+                        0,
+                        index
+                );
+    }
+
+    private String trimTrailingWhitespace(
+            String value
+    ) {
+
+        return value == null
+                ? ""
+                : value.replaceAll(
+                        "\\s+$",
+                        ""
+                );
+    }
+
+    private record ScenarioBlock(
+            String name,
+            List<String> tags,
+            String content
+    ) {
+
+        private String key() {
+
+            return name == null
+                    ? ""
+                    : name.trim()
+                            .toLowerCase()
+                            .replaceAll(
+                                    "\\s+",
+                                    " "
+                            );
         }
     }
 

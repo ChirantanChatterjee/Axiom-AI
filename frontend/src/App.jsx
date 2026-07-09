@@ -262,6 +262,13 @@ const isHandledStructuredType = (type) =>
     ["tags","generated-tests","generated-test-execution","generated-test-execution-queued","framework","feature",
       "download","framework-upload","missing-variables","session_guard","variables"].includes(type);
 
+const messageContentClassName = (msg) => {
+  const classes = ["message-content"];
+  classes.push(isHandledStructuredType(msg?.type) || msg?.type === "error" ? "message-important" : "message-plain");
+  if (msg?.type) classes.push(`message-type-${msg.type}`);
+  return classes.join(" ");
+};
+
 const normalizeBackendUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -1567,14 +1574,14 @@ function App() {
                     <section className="messages">
                       {messages.map((msg, index) => (
                           <motion.div key={`${activeChat?.id || "chat"}-${index}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className={msg.sender === "user" ? "message user" : "message ai"}>
-                            <div className="message-content">
+                            <div className={messageContentClassName(msg)}>
                               <StructuredMessage msg={msg} onDownloadFramework={downloadFramework} onSubmitRuntimeVariables={submitRuntimeVariables} submittingRuntimeVariables={loadingChatId === activeChat?.id} />
                             </div>
                           </motion.div>
                       ))}
                       {loadingChatId === activeChatId && (
                           <div className="message ai">
-                            <div className="message-content thinking-box">
+                            <div className="message-content message-important thinking-box">
                               <div className="thinking-dot"></div>
                               AIF is reasoning...
                             </div>

@@ -228,9 +228,33 @@ public class GeneratedTestExecutionService {
         boolean featureFilesChanged =
                 normalizeFeatureFiles(frameworkRoot);
 
+        int matchingScenarioCount =
+                countMatchingScenarios(
+                        frameworkRoot,
+                        normalizedExpression
+                );
+
+        log.info(
+                "Generated test execution request resolved for session {}: requestedTagFilter={}, finalTagFilter={}, matchedScenarioCount={}",
+                sessionId,
+                tagExpression,
+                normalizedExpression == null
+                        ? "ALL"
+                        : normalizedExpression,
+                matchingScenarioCount
+        );
+
         requireMatchingScenarios(
                 frameworkRoot,
-                normalizedExpression
+                normalizedExpression,
+                matchingScenarioCount
+        );
+
+        requireSuiteScenarioCountIsExpected(
+                frameworkRoot,
+                tagExpression,
+                normalizedExpression,
+                matchingScenarioCount
         );
 
         List<String> missingVariables =
@@ -3657,6 +3681,262 @@ public class GeneratedTestExecutionService {
         throw new RuntimeException(
                 noMatchingGeneratedTestsMessage(tagExpression)
         );
+    }
+
+    private void requireMatchingScenarios(
+            Path frameworkRoot,
+            String tagExpression,
+            int matchingScenarioCount
+    ) {
+
+        if (
+                matchingScenarioCount > 0
+        ) {
+
+            return;
+        }
+
+        throw new RuntimeException(
+                noMatchingGeneratedTestsMessage(tagExpression)
+        );
+    }
+
+    private void requireSuiteScenarioCountIsExpected(
+            Path frameworkRoot,
+            String requestedTagExpression,
+            String normalizedExpression,
+            int matchingScenarioCount
+    ) {
+
+        if (
+                !isSuiteScopeExecution(
+                        requestedTagExpression,
+                        normalizedExpression
+                )
+                        ||
+                        matchingScenarioCount != 1
+        ) {
+
+            return;
+        }
+
+        int backupScenarioCount =
+                matchingScenarioCountFromBackups(
+                        frameworkRoot,
+                        normalizedExpression
+                );
+
+        if (
+                backupScenarioCount <= matchingScenarioCount
+        ) {
+
+            log.warn(
+                    "Generated suite execution for tag filter {} matched only one scenario.",
+                    normalizedExpression == null
+                            ? "ALL"
+                            : normalizedExpression
+            );
+
+            return;
+        }
+
+        throw new RuntimeException(
+                "Generated test suite validation stopped execution because only one scenario matches `"
+                        + (
+                        normalizedExpression == null
+                                ? "ALL"
+                                : normalizedExpression
+                )
+                        + "`, but a feature backup contains "
+                        + backupScenarioCount
+                        + " matching scenarios. Ask AIF to list generated tests or restore the generated feature backup before running the suite."
+        );
+    }
+
+    private boolean isSuiteScopeExecution(
+            String requestedTagExpression,
+            String normalizedExpression
+    ) {
+
+        if (
+                normalizedExpression == null
+        ) {
+
+            return true;
+        }
+
+        if (
+                "@generated".equalsIgnoreCase(
+                        normalizedExpression.trim()
+                )
+        ) {
+
+            return true;
+        }
+
+        return requestedTagExpression != null
+                &&
+                "ALL".equalsIgnoreCase(
+                        requestedTagExpression.trim()
+                );
+    }
+
+    private int matchingScenarioCountFromBackups(
+            Path frameworkRoot,
+            String tagExpression
+    ) {
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        if (
+                !Files.exists(featureRoot)
+        ) {
+
+            return 0;
+        }
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            return paths.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName()
+                            .toString()
+                            .endsWith(".feature.bak"))
+                    .mapToInt(path -> countMatchingScenariosInFile(
+                            path,
+                            tagExpression
+                    ))
+                    .sum();
+
+        } catch (IOException e) {
+
+            return 0;
+        }
+    }
+
+    private int countMatchingScenarios(
+            Path frameworkRoot,
+            String tagExpression
+    ) {
+
+        Path featureRoot =
+                frameworkRoot.resolve(
+                        "src/test/resources/features"
+                );
+
+        if (
+                !Files.exists(featureRoot)
+        ) {
+
+            return 0;
+        }
+
+        try (
+                Stream<Path> paths =
+                        Files.walk(featureRoot)
+        ) {
+
+            return paths.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName()
+                            .toString()
+                            .endsWith(".feature"))
+                    .mapToInt(path -> countMatchingScenariosInFile(
+                            path,
+                            tagExpression
+                    ))
+                    .sum();
+
+        } catch (IOException ignored) {
+
+            return 0;
+        }
+    }
+
+    private int countMatchingScenariosInFile(
+            Path featureFile,
+            String tagExpression
+    ) {
+
+        try {
+
+            List<String> lines =
+                    Files.readAllLines(featureFile);
+
+            List<String> featureTags =
+                    new ArrayList<>();
+
+            List<String> pendingTags =
+                    new ArrayList<>();
+
+            int count =
+                    0;
+
+            for (
+                    String line
+                    : lines
+            ) {
+
+                String trimmed =
+                        line.trim();
+
+                if (
+                        trimmed.startsWith("@")
+                ) {
+
+                    pendingTags.addAll(
+                            List.of(
+                                    trimmed.split("\\s+")
+                            )
+                    );
+
+                    continue;
+                }
+
+                if (
+                        trimmed.startsWith("Feature:")
+                ) {
+
+                    featureTags.addAll(pendingTags);
+                    pendingTags.clear();
+                    continue;
+                }
+
+                if (
+                        trimmed.startsWith("Scenario:")
+                                ||
+                                trimmed.startsWith("Scenario Outline:")
+                ) {
+
+                    List<String> scenarioTags =
+                            new ArrayList<>(featureTags);
+
+                    scenarioTags.addAll(pendingTags);
+
+                    if (
+                            scenarioMatchesTagExpression(
+                                    scenarioTags,
+                                    tagExpression
+                            )
+                    ) {
+
+                        count++;
+                    }
+
+                    pendingTags.clear();
+                }
+            }
+
+            return count;
+
+        } catch (IOException e) {
+
+            return 0;
+        }
     }
 
     private boolean hasMatchingScenario(
